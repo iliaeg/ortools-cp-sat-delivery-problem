@@ -1,220 +1,298 @@
+from typing import Any, Dict, List, Tuple
 from ortools.sat.python import cp_model
-from typing import Any
-import math
 
-class VRPSolverCP:
-    def __init__(self):
-        self.model = None
 
-    def solve(self, problem: dict[str, Any], time_limit_seconds: float = 10.0):
-        D = problem["D"]            # distance matrix (for probeg)
-        T = problem.get("T", D)    # travel time matrix (minutes)
-        K = problem["K"]           # number of possible trips (vehicles × trips)
-        depot = problem["depot"]
-        boxes = problem["boxes"]   # demand in boxes per node
-        creation = problem["creation"]  # creation times (minutes)
-        ready = problem["ready"]        # ready times (minutes)
-        service = problem.get("service", [0]*len(D))  # service times
-        capacity = problem.get("capacity", 24)
+class Solver:
+    """
+    Монолитный CP-SAT решатель для задачи доставки пиццы (вариант A).
 
-        n = len(D)
-        assert n == len(T) == len(boxes) == len(creation) == len(ready)
+    -----------------------
+    ОЖИДАЕМЫЙ ФОРМАТ ПРОБЛЕМЫ (problem: dict)
+    -----------------------
+    Обязательные поля:
+      - "tau": 2D список/матрица размера (N+1)x(N+1) времени пути в МИНУТАХ (int),
+               узел 0 — депо/пиццерия, узлы 1..N — заказы.
+      - "K":   int, число курьеров.
+      - "C":   List[int] длины K — вместимость (в коробках) для каждого курьера k.
+      - "box": List[int] длины N — число коробок для каждого заказа i (1..N).
+      - "c":   List[int] длины N — created_at (в минутах, целые) для заказов i (1..N).
+      - "r":   List[int] длины N — время готовности (в минутах) для заказов i (1..N),
+               например r_i = tau0 + forecast_i.
+      - "a":   List[int] длины K — время доступности курьера k (в минутах).
+      - "W_cert": int, вес штрафа за «сертификат» (>60 минут click-to-eat).
+
+    Необязательные поля:
+      - "time_limit": float (секунды) — лимит времени решателя (по умолчанию 15.0).
+      - "workers": int — число потоков (по умолчанию 8).
+      - "max_route_arcs_per_courier": None|int — можно обрезать число дуг (необязательно).
+
+    -----------------------
+    ВОЗВРАТ (dict)
+    -----------------------
+    {
+      "status": str,              # "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN"
+      "objective": int,           # значение целевой функции (в минутах, с учётом W_cert)
+      "routes": List[List[int]],  # для каждого курьера k: [0, i1, i2, ..., 0]
+      "t_dep": List[int],         # время выезда каждого курьера k (мин)
+      "T": Dict[int, int],        # время доставки заказа i (мин), i in 1..N
+      "s": Dict[int, int],        # 0/1: индикатор сертификата для i
+      "z": Dict[Tuple[int,int], int],  # назначение z[i,k] (0/1)
+    }
+
+    Примечание:
+    - Индексация заказов — 1..N. Узел 0 — депо.
+    - Время — целые минуты. 60 минут — порог сертификата.
+    """
+
+    def __init__(self) -> None:
+        self._last_cp_solver = None  # для отладки при необходимости
+
+    def solve(self, problem: Dict[str, Any]) -> Dict[str, Any]:
+        # --------
+        # Чтение входа
+        # --------
+        tau = problem["tau"]  # (N+1)x(N+1)
+        K = int(problem["K"])
+        C = list(problem["C"])
+        box = list(problem["box"])
+        c = list(problem["c"])
+        r = list(problem["r"])
+        a = list(problem["a"])
+        W_cert = int(problem["W_cert"])
+
+        assert len(C) == K, "len(C) must equal K"
+        N = len(box)
+        assert len(c) == N and len(r) == N, "c and r must have length N"
+        assert len(a) == K, "len(a) must equal K"
+        assert len(tau) == N + 1 and all(len(row) == N + 1 for row in tau), "tau must be (N+1)x(N+1)"
+
+        time_limit = float(problem.get("time_limit", 15.0))
+        workers = int(problem.get("workers", 8))
+
+        nodes = list(range(N + 1))      # 0..N
+        orders = list(range(1, N + 1))  # 1..N
+        depot = 0
+
+        # --------
+        # Оценка большого M (динамически разумная верхняя граница)
+        # --------
+        max_tau = max(tau[i][j] for i in nodes for j in nodes if i != j)
+        # Верхняя оценка времени доставки: max(a_k, max r_i) + (N+1)*max_tau
+        horizon_start = max(max(a), max(r)) if N > 0 else max(a)
+        M = horizon_start + (N + 1) * max_tau + 60  # запас к порогу сертификата
+        # Для пустых входов защитимся:
+        if N == 0:
+            M = 60 + max(horizon_start, 0)
 
         model = cp_model.CpModel()
 
-        # horizon (big M for times) — немного больше максимального разумного времени
-        max_travel = max(max(row) for row in T)
-        max_creation = max(creation)
-        horizon = int(max_creation + (n + 5) * max_travel + 240)  # запас
+        # --------
+        # ПЕРЕМЕННЫЕ
+        # --------
+        # z[i,k] ∈ {0,1} — заказ i назначен курьеру k
+        z = {(i, k): model.NewBoolVar(f"z_{i}_{k}") for i in orders for k in range(K)}
 
-        # x[k,i,j] = 1, если рейс k идет i -> j
-        x = {}
+        # y[i,j,k] ∈ {0,1} — на маршруте курьера k сразу после i идёт j
+        # i,j ∈ nodes (включая depot), i != j
+        y = {}
         for k in range(K):
-            for i in range(n):
-                for j in range(n):
+            for i in nodes:
+                for j in nodes:
                     if i != j:
-                        x[(k, i, j)] = model.NewBoolVar(f"x_k{k}_i{i}_j{j}")
+                        y[(i, j, k)] = model.NewBoolVar(f"y_{i}_{j}_k{k}")
 
-        # assign[k,i] = 1 если рейс k посещает i (входящее ребро для i на k)
-        assign = {}
+        # Время выезда t_dep[k] (целые минуты)
+        # Нижнюю границу можно положить min(a_k), но это не обязательно
+        t_dep = [model.NewIntVar(0, M, f"t_dep_{k}") for k in range(K)]
+
+        # Время доставки T[i] (целые минуты), определено для всех i, но «включается» через z/y и big-M
+        T = {i: model.NewIntVar(0, M, f"T_{i}") for i in orders}
+
+        # s[i] ∈ {0,1} — сертификат (click-to-eat > 60)
+        s = {i: model.NewBoolVar(f"s_{i}") for i in orders}
+
+        # Бинар «использован ли курьер k» (имеет хотя бы один заказ)
+        used = [model.NewBoolVar(f"used_{k}") for k in range(K)]
+
+        # --------
+        # ОГРАНИЧЕНИЯ
+        # --------
+
+        # (1) Каждый заказ назначен ровно одному курьеру
+        for i in orders:
+            model.Add(sum(z[(i, k)] for k in range(K)) == 1)
+
+        # (2) Вместимость по коробкам у каждого курьера
         for k in range(K):
-            for i in range(n):
-                if i == depot: continue
-                assign[(k, i)] = model.NewBoolVar(f"assign_k{k}_i{i}")
+            model.Add(sum(box[i - 1] * z[(i, k)] for i in orders) <= C[k])
 
-        # arrival time arr[k,i] (minutes) — только для i != depot
-        arr = {}
+        # Связь used_k с z: used_k == 1, если есть хотя бы один назначенный заказ
         for k in range(K):
-            for i in range(n):
-                if i == depot: continue
-                arr[(k, i)] = model.NewIntVar(0, horizon, f"arr_k{k}_i{i}")
+            model.Add(sum(z[(i, k)] for i in orders) >= 1).OnlyEnforceIf(used[k])
+            model.Add(sum(z[(i, k)] for i in orders) == 0).OnlyEnforceIf(used[k].Not())
 
-        # Flow constraints: каждый клиент i != depot посещается ровно 1 раз (всех рейсах)
-        for i in range(n):
-            if i == depot: continue
-            model.Add(sum(x[(k, j, i)] for k in range(K) for j in range(n) if j != i) == 1)
-            model.Add(sum(x[(k, i, j)] for k in range(K) for j in range(n) if j != i) == 1)
-
-        # link assign with incoming edge on same vehicle: assign[k,i] == sum_j x[k,j,i]
+        # (3) Доступность и готовность: t_dep_k >= a_k, и t_dep_k >= r_i если i назначен курьеру k
         for k in range(K):
-            for i in range(n):
-                if i == depot: continue
-                model.Add(assign[(k, i)] == sum(x[(k, j, i)] for j in range(n) if j != i))
+            model.Add(t_dep[k] >= a[k])
+            for i in orders:
+                # t_dep_k ≥ r_i - M*(1 - z[i,k])
+                model.Add(t_dep[k] >= r[i - 1] - M * (1 - z[(i, k)]))
 
-        # Depot depart/return: each trip k may either be unused or be a closed tour:
-        # allow <=1 departure and <=1 return (so trip either unused or one tour)
+        # (4) Последовательности/степени для каждого курьера на y:
         for k in range(K):
-            model.Add(sum(x[(k, depot, j)] for j in range(n) if j != depot) <= 1)
-            model.Add(sum(x[(k, i, depot)] for i in range(n) if i != depot) <= 1)
-            # also: for used trip, number of departures == number of returns (0 or 1)
-            model.Add(sum(x[(k, depot, j)] for j in range(n) if j != depot)
-                      == sum(x[(k, i, depot)] for i in range(n) if i != depot))
+            # Если заказ i назначен курьеру k, то у i ровно один «исход» и ровно один «вход» на маршруте k
+            for i in orders:
+                model.Add(sum(y[(i, j, k)] for j in nodes if j != i) == z[(i, k)])
+                model.Add(sum(y[(j, i, k)] for j in nodes if j != i) == z[(i, k)])
 
-        # capacity per trip k: sum boxes of nodes assigned to k <= capacity
+            # Для депо: если курьер используется, ровно один выход из депо и ровно один вход в депо.
+            model.Add(sum(y[(depot, j, k)] for j in orders) == used[k])
+            model.Add(sum(y[(i, depot, k)] for i in orders) == used[k])
+
+            # Исключаем «депо→депо» и «самопетли» на всякий случай (и так запрещено i!=j)
+            # (ничего не делаем — переменная не создана для i==j)
+
+        # (4.1) Временные зависимости по дугам:
         for k in range(K):
-            model.Add(sum(boxes[i] * assign[(k, i)] for i in range(n) if i != depot) <= capacity)
+            # depot -> i
+            for i in orders:
+                model.Add(
+                    T[i] >= t_dep[k] + tau[depot][i] - M * (1 - y[(depot, i, k)])
+                )
+            # i -> j (оба — заказы)
+            for i in orders:
+                for j in orders:
+                    if i != j:
+                        model.Add(
+                            T[j] >= T[i] + tau[i][j] - M * (1 - y[(i, j, k)])
+                        )
+            # Времени для j=depot не задаём — T[depot] не определено/не требуется.
 
-        # MTZ-style positions per trip to eliminate subtours: u[k,i] in [0..n-1], u depot = 0
-        u = {}
-        for k in range(K):
-            for i in range(n):
-                if i == depot:
-                    u[(k, i)] = model.NewIntVar(0, 0, f"u_k{k}_i{ i }_depot")
-                else:
-                    u[(k, i)] = model.NewIntVar(1, n-1, f"u_k{k}_i{i}")
+        # (5) Сертификаты: T_i - c_i <= 60 + M*s_i
+        for i in orders:
+            model.Add(T[i] - c[i - 1] <= 60 + M * s[i])
+            # T[i] не может быть раньше created_at (опционально; можно убрать, если не нужно)
+            model.Add(T[i] >= c[i - 1])
 
-        bigM_pos = n
-        for k in range(K):
-            for i in range(n):
-                for j in range(n):
-                    if i != j and i != depot and j != depot:
-                        model.Add(u[(k, i)] + 1 <= u[(k, j)] + bigM_pos * (1 - x[(k, i, j)]))
+        # Дополнительно: чтобы T[i] было «включено» только при назначении,
+        # можно связать с z суммами входящих дуг (эквивалентно уже сделанным степеням).
+        # Гарантия уже есть через y и big-M, поэтому лишние лайны не нужны.
 
-        # Time propagation: if k goes i->j, arr_j >= arr_i + travel + service_i
-        bigM_time = horizon + 1000
-        for k in range(K):
-            # when edge from depot -> j used, arrival at j >= travel(depot,j) (depot time = 0)
-            for j in range(n):
-                if j == depot: continue
-                model.Add(arr[(k, j)] >= sum(T[depot][j] * x[(k, depot, j)] for _ in [0]) - bigM_time * (1 - sum(x[(k, depot, j)] for _ in [0])))
-                # Note: above line is a no-op with sum on RHS; to be explicit we will link via edges below.
+        # --------
+        # ЦЕЛЕВАЯ ФУНКЦИЯ
+        # --------
+        # minimize W_cert * sum s_i + sum (T_i - c_i)
+        model.Minimize(
+            W_cert * sum(s[i] for i in orders) + sum(T[i] - c[i - 1] for i in orders)
+        )
 
-            # general edges
-            for i in range(n):
-                for j in range(n):
-                    if i != j and j != depot and i != depot:
-                        model.Add(arr[(k, j)] >= arr[(k, i)] + int(T[i][j]) + int(service[i]) - bigM_time * (1 - x[(k, i, j)]))
-
-            # edges from depot to j
-            for j in range(n):
-                if j == depot: continue
-                # if x[k, depot, j] == 1 then arr[k, j] >= ready_time of depot (0) + travel time
-                model.Add(arr[(k, j)] >= int(T[depot][j]) - bigM_time * (1 - x[(k, depot, j)]))
-
-            # edges to depot — if i->depot used, we could set arrival at depot if needed (not necessary)
-
-            # ensure arrival respects ready times: if assigned then arr >= ready
-            for i in range(n):
-                if i == depot: continue
-                model.Add(arr[(k, i)] >= int(ready[i]) - bigM_time * (1 - assign[(k, i)]))
-
-        # lateness and shelf indicators:
-        late_ik = {}
-        shelf_ik = {}
-        for k in range(K):
-            for i in range(n):
-                if i == depot: continue
-                late_ik[(k, i)] = model.NewBoolVar(f"late_k{k}_i{i}")
-                shelf_ik[(k, i)] = model.NewBoolVar(f"shelf_k{k}_i{i}")
-
-                # link to assign: cannot be late or shelf if not assigned
-                model.Add(late_ik[(k, i)] <= assign[(k, i)])
-                model.Add(shelf_ik[(k, i)] <= assign[(k, i)])
-
-                # delta_late = arr - (creation + 60)
-                delta_late = model.NewIntVar(-bigM_time, bigM_time, f"delta_late_k{k}_i{i}")
-                model.Add(delta_late == arr[(k, i)] - int(creation[i] + 60))
-                # late_ik == 1 => delta_late >= 1
-                model.Add(delta_late >= 1).OnlyEnforceIf(late_ik[(k, i)])
-                # not late => delta_late <= 0
-                model.Add(delta_late <= 0).OnlyEnforceIf(late_ik[(k, i)].Not())
-
-                # delta_shelf = arr - ready - 15
-                delta_shelf = model.NewIntVar(-bigM_time, bigM_time, f"delta_shelf_k{k}_i{i}")
-                model.Add(delta_shelf == arr[(k, i)] - int(ready[i] + 15))
-                model.Add(delta_shelf >= 1).OnlyEnforceIf(shelf_ik[(k, i)])
-                model.Add(delta_shelf <= 0).OnlyEnforceIf(shelf_ik[(k, i)].Not())
-
-        # aggregate per-order late and shelf (order visited by exactly one k)
-        late_i = {}
-        shelf_i = {}
-        for i in range(n):
-            if i == depot: continue
-            late_i[i] = model.NewBoolVar(f"late_i{i}")
-            shelf_i[i] = model.NewBoolVar(f"shelf_i{i}")
-            model.Add(late_i[i] == sum(late_ik[(k, i)] for k in range(K)))
-            model.Add(shelf_i[i] == sum(shelf_ik[(k, i)] for k in range(K)))
-
-        # objective components
-        num_late = sum(late_i[i] for i in range(n) if i != depot)
-        total_delivery_time = sum((arr[(k, i)] - int(creation[i])) * assign[(k, i)]
-                                  for k in range(K) for i in range(n) if i != depot)
-        num_shelf = sum(shelf_i[i] for i in range(n) if i != depot)
-        total_dist = sum(int(D[i][j]) * x[(k, i, j)] for k in range(K) for i in range(n) for j in range(n) if i != j)
-
-        # Weighted lexicographic approximation: choose large weights
-        W1 = 10**9   # primary: number of late deliveries
-        W2 = 10**5   # secondary: total delivery time (minutes)
-        W3 = 10**3   # tertiary: number of shelf > 15
-        W4 = 1       # last: distance/probeg
-
-        objective = W1 * num_late + W2 * total_delivery_time + W3 * num_shelf + W4 * total_dist
-        model.Minimize(objective)
-
-        # solver parameters
+        # --------
+        # ПАРАМЕТРЫ РЕШАТЕЛЯ
+        # --------
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = time_limit_seconds
-        solver.parameters.num_search_workers = 8
+        solver.parameters.max_time_in_seconds = time_limit
+        solver.parameters.num_search_workers = workers
+        # Полезно для крупных инстансов:
+        solver.parameters.linearization_level = 1
+        solver.parameters.cp_model_presolve = True
+        solver.parameters.use_lns = True
+        solver.parameters.max_num_branches = 0  # по умолчанию без жёсткого лимита ветвлений
 
+        self._last_cp_solver = solver
         status = solver.Solve(model)
 
-        routes = []
-        if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-            # extract routes per k
-            for k in range(K):
-                # find start: depot -> j
-                start = None
-                for j in range(n):
-                    if j == depot: continue
-                    v = x[(k, depot, j)]
-                    if solver.Value(v) == 1:
-                        start = j
-                        break
-                if start is None:
-                    routes.append([depot, depot])
-                    continue
+        # --------
+        # Извлечение решения
+        # --------
+        status_map = {
+            cp_model.OPTIMAL: "OPTIMAL",
+            cp_model.FEASIBLE: "FEASIBLE",
+            cp_model.INFEASIBLE: "INFEASIBLE",
+            cp_model.MODEL_INVALID: "MODEL_INVALID",
+            cp_model.UNKNOWN: "UNKNOWN",
+        }
+        status_str = status_map.get(status, "UNKNOWN")
 
-                route = [depot, start]
-                current = start
-                visited = set([start])
-                while True:
-                    found = False
-                    for j in range(n):
-                        if j == current: continue
-                        if solver.Value(x[(k, current, j)]) == 1:
-                            route.append(j)
-                            if j != depot:
-                                visited.add(j)
-                            current = j
-                            found = True
+        # Если нет решения — вернём пустые маршруты и минимум метаданных
+        if status not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+            return {
+                "status": status_str,
+                "objective": None,
+                "routes": [[0, 0] for _ in range(K)],
+                "t_dep": [None for _ in range(K)],
+                "T": {},
+                "s": {},
+                "z": {},
+            }
+
+        # Время выезда
+        t_dep_val = [int(solver.Value(t_dep[k])) for k in range(K)]
+
+        # T и s по заказам
+        T_val = {i: int(solver.Value(T[i])) for i in orders}
+        s_val = {i: int(solver.Value(s[i])) for i in orders}
+
+        # z по назначениям
+        z_val = {(i, k): int(solver.Value(z[(i, k)])) for i in orders for k in range(K)}
+
+        # Восстановление маршрутов из y:
+        routes: List[List[int]] = []
+        for k in range(K):
+            if int(solver.Value(used[k])) == 0:
+                routes.append([0, 0])
+                continue
+
+            # ищем первый узел после депо
+            next_from_depot = None
+            for j in orders:
+                if int(solver.Value(y[(depot, j, k)])) == 1:
+                    next_from_depot = j
+                    break
+
+            if next_from_depot is None:
+                # На случай редких расхождений — пустой
+                routes.append([0, 0])
+                continue
+
+            # Проходим по дугам, пока не вернёмся в депо
+            route = [0, next_from_depot]
+            current = next_from_depot
+            visited = set([next_from_depot])
+
+            while True:
+                # если следующая дуга ведёт в депо — завершили
+                if int(solver.Value(y[(current, depot, k)])) == 1:
+                    route.append(0)
+                    break
+
+                found_next = False
+                for j in orders:
+                    if j != current and int(solver.Value(y[(current, j, k)])) == 1:
+                        route.append(j)
+                        if j in visited:
+                            # защита от петли (не должна происходить при корректной модели)
+                            route.append(0)
+                            found_next = True
                             break
-                    if not found or current == depot:
+                        visited.add(j)
+                        current = j
+                        found_next = True
                         break
+                if not found_next:
+                    # Если по какой-то причине не нашли продолжения — замкнёмся в депо
+                    route.append(0)
+                    break
 
-                routes.append(route)
-        else:
-            # fallback: empty trips
-            routes = [[depot, depot] for _ in range(K)]
+            routes.append(route)
 
-        # trim to only used routes if desired:
-        return routes
+        objective_val = int(solver.ObjectiveValue())
+
+        return {
+            "status": status_str,
+            "objective": objective_val,
+            "routes": routes,
+            "t_dep": t_dep_val,
+            "T": T_val,
+            "s": s_val,
+            "z": z_val,
+        }
