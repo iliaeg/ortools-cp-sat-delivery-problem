@@ -6,6 +6,8 @@ class Solver:
     """
     Монолитный CP-SAT решатель для задачи доставки пиццы (вариант A).
 
+    Текущее время принимается за 0 (точку отсчёта), created_at от него отсчитывается в прошлое, все остальные времена в будущее.
+
     -----------------------
     ОЖИДАЕМЫЙ ФОРМАТ ПРОБЛЕМЫ (problem: dict)
     -----------------------
@@ -63,7 +65,7 @@ class Solver:
         a = list(problem["a"])
         W_cert = int(problem["W_cert"])
         W_c2e = int(problem["W_c2e"])
-        W_skip = int(problem["W_skip"])
+        W_skip = int(problem.get("W_skip", W_cert))
 
         assert len(C) == K, "len(C) must equal K"
         N = len(box)
