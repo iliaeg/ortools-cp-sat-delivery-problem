@@ -14,7 +14,7 @@ class SolveResponse(BaseModel):
     result: CPResult
 
 
-@app.post("/solve", response_model=SolveResponse)
+@app.post("/solve/v2", response_model=SolveResponse)
 def solve(data: CPData) -> SolveResponse:
     """Invoke the CP-SAT solver wrapper."""
     result = solve_cp_sat(data)
