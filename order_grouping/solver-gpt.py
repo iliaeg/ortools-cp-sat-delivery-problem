@@ -196,7 +196,7 @@ class Solver:
         solver.parameters.linearization_level = 1
         solver.parameters.cp_model_presolve = True
         solver.parameters.use_lns = True
-        solver.parameters.max_num_branches = 0  # по умолчанию без жёсткого лимита ветвлений
+        # solver.parameters.max_num_branches = 0  # по умолчанию без жёсткого лимита ветвлений
 
         self._last_cp_solver = solver
         status = solver.Solve(model)
