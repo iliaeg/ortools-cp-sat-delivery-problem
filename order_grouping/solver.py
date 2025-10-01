@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from ortools.sat.python import cp_model
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -103,21 +103,24 @@ class CPResult(BaseModel):
     variables: dict[str, int]
 
 
-def solve_cp_sat(data: CPData) -> CPResult:
+def solve_cp_sat(data: CPData) -> dict[str, Any]: #CPResult:
     """Solve the sample CP-SAT optimization problem from Google OR-Tools docs."""
     _ = data  # placeholder to keep signature compatible for future parameters
 
-    artifacts = build_cp_sat_model(data)
+    # Пока заглушили метод, чтобы не тратить время на обработку выходного значения
+    return build_cp_sat_model(data)
 
-    solver = cp_model.CpSolver()
-    status_code = solver.Solve(artifacts.model)
+    # artifacts = build_cp_sat_model(data)
 
-    return CPResult(
-        status=solver.StatusName(status_code),
-        objective_value=int(solver.ObjectiveValue()),
-        variables={
-            # "x": solver.Value(artifacts.x),
-            # "y": solver.Value(artifacts.y),
-            # "z": solver.Value(artifacts.z),
-        },
-    )
+    # solver = cp_model.CpSolver()
+    # status_code = solver.Solve(artifacts.model)
+
+    # return CPResult(
+    #     status=solver.StatusName(status_code),
+    #     objective_value=int(solver.ObjectiveValue()),
+    #     variables={
+    #         # "x": solver.Value(artifacts.x),
+    #         # "y": solver.Value(artifacts.y),
+    #         # "z": solver.Value(artifacts.z),
+    #     },
+    # )

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Tuple, TYPE_CHECKING
 
 from ortools.sat.python import cp_model
+from google.protobuf.json_format import MessageToDict
 
 if TYPE_CHECKING:  # pragma: no cover - import for typing only
     from .solver import CPData
@@ -15,7 +16,7 @@ class ModelArtifacts:
     # y: cp_model.IntVar
     # z: cp_model.IntVar
 
-def build_cp_sat_model(data: "CPData") -> ModelArtifacts:
+def build_cp_sat_model(data: "CPData") -> str: #ModelArtifacts:
     """Solve the sample CP-SAT optimization problem from Google OR-Tools docs."""
     _ = data  # placeholder to keep signature compatible for future parameters
 
@@ -78,16 +79,22 @@ def build_cp_sat_model(data: "CPData") -> ModelArtifacts:
 
     print(f"status_label: {status_label}")
     print(f"objective: {solver.ObjectiveValue()}")
-    for courier in couriers:
-        for i in nodes:
-            for j in nodes:
-                if i == j:
-                    continue
-                print(f"arc_c{courier}_{i}_{j}: {solver.Value(arcs[(courier, i, j)])}")
+    # for courier in couriers:
+    #     for i in nodes:
+    #         for j in nodes:
+    #             if i == j:
+    #                 continue
+    #             print(f"arc_c{courier}_{i}_{j}: {solver.Value(arcs[(courier, i, j)])}")
+
+    solver_dict = MessageToDict(solver.ResponseProto())
+
+    print(solver_dict)
     
     # model.Maximize(x + 2 * y + 3 * z)
 
 ###
 
-    return ModelArtifacts(
-        model=model)
+    return solver_dict
+
+    # return ModelArtifacts(
+    #     model=model)
