@@ -59,7 +59,14 @@ def build_cp_sat_model(data: "CPData") -> ModelArtifacts:
                 arc_var = arcs[(courier, i, j)]
                 objective_terms.append(cost * arc_var)
 
-    # model.Add()
+    for order_node in order_nodes:
+        incoming = []
+        for courier in couriers:
+            for i in nodes:
+                if i == order_node:
+                    continue
+                incoming.append(arcs[(courier, i, order_node)])
+        model.Add(sum(incoming) == 1)
 
     model.Minimize(sum(objective_terms))
 
