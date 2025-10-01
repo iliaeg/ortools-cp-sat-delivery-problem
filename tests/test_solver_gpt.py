@@ -108,7 +108,7 @@ class TestSolverGPT:
     def test_tc_004_capacity_forces_single_assignment(self) -> None:
         """TC-004 Ёмкость 1: должен остаться ровно один назначенный заказ.
 
-        Expected: один заказ назначен, второй skip; маршрут [0,i,0]; objective≈6.
+        Expected: один заказ назначен, второй skip; маршрут [0,i,0]; objective≈15.
         Notes: Ёмкости курьера хватает только на один заказ, пропуск обязателен.
         """
         result = self._solve(
@@ -122,7 +122,7 @@ class TestSolverGPT:
                 "a": [0],
                 "W_cert": 100,
                 "W_c2e": 1,
-                "W_skip": 1,
+                "W_skip": 10,
             }
         )
 
@@ -131,7 +131,7 @@ class TestSolverGPT:
         assert assigned == [result["routes"][0][1]]
         assert result["routes"][0] in ([0, 1, 0], [0, 2, 0])
         assert all(result["s"][i] == 0 for i in (1, 2))
-        assert result["objective"] == 6
+        assert result["objective"] == 15
 
     def test_tc_005_skip_cheaper_than_certificate(self) -> None:
         """TC-005 Пропуск выигрывает у сертификата при умеренном штрафе.
@@ -249,7 +249,9 @@ class TestSolverGPT:
         """TC-009 При W_cert=0 опт. порядок минимизирует Σ(T−c).
 
         Expected: маршрут [0,3,2,1,0], T3=10, T2=15, T1=20, s=0, skip=0.
-        Notes: Нулевой вес сертификата оставляет только travel-компонент.
+        Notes: Очень низкий вес сертификата оставляет только travel-компонент
+        (ставить вес сертификата в 0 нельзя, поскольку иначе решателю будет безразлично есть сертификат или нет
+        и значения сертификата по заказам будут всегда разные).
         """
         result = self._solve(
             {
@@ -265,9 +267,9 @@ class TestSolverGPT:
                 "c": [0, 0, 0],
                 "r": [0, 0, 0],
                 "a": [0],
-                "W_cert": 0,
-                "W_c2e": 1,
-                "W_skip": 1000,
+                "W_cert": 1,
+                "W_c2e": 10,
+                "W_skip": 10000,
             }
         )
 
@@ -277,7 +279,7 @@ class TestSolverGPT:
         assert result["T"][3] == 10
         assert result["T"][2] == 15
         assert result["T"][1] == 20
-        assert result["objective"] == 45
+        assert result["objective"] == 450
 
     def test_tc_010_zero_capacity_skips_everything(self) -> None:
         """TC-010 Нулевая ёмкость ⇒ все заказы в skip.
