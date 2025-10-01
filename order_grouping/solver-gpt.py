@@ -20,6 +20,8 @@ class Solver:
                например r_i = tau0 + forecast_i.
       - "a":   List[int] длины K — время доступности курьера k (в минутах).
       - "W_cert": int, вес штрафа за «сертификат» (>60 минут click-to-eat).
+      - "W_c2e": int, вес компоненты click-to-eat в целевой функции.
+      - "W_skip": int — штраф за временный пропуск заказа.
 
     Необязательные поля:
       - "time_limit": float (секунды) — лимит времени решателя (по умолчанию 15.0).
@@ -36,6 +38,7 @@ class Solver:
       "t_dep": List[int],         # время выезда каждого курьера k (мин)
       "T": Dict[int, int],        # время доставки заказа i (мин), i in 1..N
       "s": Dict[int, int],        # 0/1: индикатор сертификата для i
+      "skip": Dict[int, int],     # 0/1: заказ отложен (1) или обслужен (0)
       "z": Dict[Tuple[int,int], int],  # назначение z[i,k] (0/1)
     }
 
@@ -60,6 +63,7 @@ class Solver:
         a = list(problem["a"])
         W_cert = int(problem["W_cert"])
         W_c2e = int(problem["W_c2e"])
+        W_skip = int(problem["W_skip"])
 
         assert len(C) == K, "len(C) must equal K"
         N = len(box)
@@ -112,6 +116,9 @@ class Solver:
         # s[i] ∈ {0,1} — сертификат (click-to-eat > 60)
         s = {i: model.NewBoolVar(f"s_{i}") for i in orders}
 
+        # skip[i] ∈ {0,1} — заказ i отложен на последующее планирование
+        skip = {i: model.NewBoolVar(f"skip_{i}") for i in orders}
+
         # Бинар «использован ли курьер k» (имеет хотя бы один заказ)
         used = [model.NewBoolVar(f"used_{k}") for k in range(K)]
 
@@ -119,9 +126,9 @@ class Solver:
         # ОГРАНИЧЕНИЯ
         # --------
 
-        # (1) Каждый заказ назначен ровно одному курьеру
+        # (1) Каждый заказ либо назначен курьеру, либо помечен на пропуск
         for i in orders:
-            model.Add(sum(z[(i, k)] for k in range(K)) == 1)
+            model.Add(sum(z[(i, k)] for k in range(K)) + skip[i] == 1)
 
         # (2) Вместимость по коробкам у каждого курьера
         for k in range(K):
@@ -182,9 +189,11 @@ class Solver:
         # --------
         # ЦЕЛЕВАЯ ФУНКЦИЯ
         # --------
-        # minimize W_cert * sum s_i + sum (T_i - c_i)
+        # minimize штрафы за сертификаты, click-to-eat и отложенные заказы
         model.Minimize(
-            W_cert * sum(s[i] for i in orders) + W_c2e * sum(T[i] - c[i - 1] for i in orders)
+            W_cert * sum(s[i] for i in orders)
+            + W_c2e * sum(T[i] - c[i - 1] for i in orders)
+            + W_skip * sum(skip[i] for i in orders)
         )
 
         # --------
@@ -232,6 +241,7 @@ class Solver:
         # T и s по заказам
         T_val = {i: int(solver.Value(T[i])) for i in orders}
         s_val = {i: int(solver.Value(s[i])) for i in orders}
+        skip_val = {i: int(solver.Value(skip[i])) for i in orders}
 
         # z по назначениям
         z_val = {(i, k): int(solver.Value(z[(i, k)])) for i in orders for k in range(K)}
@@ -295,5 +305,6 @@ class Solver:
             "t_dep": t_dep_val,
             "T": T_val,
             "s": s_val,
+            "skip": skip_val,
             "z": z_val,
         }
