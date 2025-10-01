@@ -59,6 +59,7 @@ class Solver:
         r = list(problem["r"])
         a = list(problem["a"])
         W_cert = int(problem["W_cert"])
+        W_c2e = int(problem["W_c2e"])
 
         assert len(C) == K, "len(C) must equal K"
         N = len(box)
@@ -183,7 +184,7 @@ class Solver:
         # --------
         # minimize W_cert * sum s_i + sum (T_i - c_i)
         model.Minimize(
-            W_cert * sum(s[i] for i in orders) + sum(T[i] - c[i - 1] for i in orders)
+            W_cert * sum(s[i] for i in orders) + W_c2e * sum(T[i] - c[i - 1] for i in orders)
         )
 
         # --------
