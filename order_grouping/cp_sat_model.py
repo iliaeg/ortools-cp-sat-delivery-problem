@@ -29,7 +29,7 @@ def build_cp_sat_model(data: "CPData") -> str: #ModelArtifacts:
     # model.Add(x + 2 * y + 3 * z <= 4)
     # model.Maximize(x + 2 * y + 3 * z)
 
-###
+### подготовка данных
 
     orders = data.orders
     order_count = len(orders)
@@ -41,6 +41,8 @@ def build_cp_sat_model(data: "CPData") -> str: #ModelArtifacts:
     order_nodes = nodes[1:]
     couriers = list(range(len(data.couriers)))
     travel_times = data.travel_time.matrix
+
+### минимизация длины маршрута
 
     arcs: Dict[Tuple[int, int, int], cp_model.IntVar] = {}
     for courier in couriers:
@@ -60,6 +62,10 @@ def build_cp_sat_model(data: "CPData") -> str: #ModelArtifacts:
                 arc_var = arcs[(courier, i, j)]
                 objective_terms.append(cost * arc_var)
 
+    model.Minimize(sum(objective_terms))
+
+### Ограничение, что каждый заказ должен быть посещён ровно 1 раз
+
     for order_node in order_nodes:
         incoming = []
         for courier in couriers:
@@ -69,7 +75,8 @@ def build_cp_sat_model(data: "CPData") -> str: #ModelArtifacts:
                 incoming.append(arcs[(courier, i, order_node)])
         model.Add(sum(incoming) == 1)
 
-    model.Minimize(sum(objective_terms))
+### ограничение, что заказ нельзя везти до времени
+
 
 ### solve
 
@@ -88,7 +95,7 @@ def build_cp_sat_model(data: "CPData") -> str: #ModelArtifacts:
 
     solver_dict = MessageToDict(solver.ResponseProto())
 
-    print(solver_dict)
+    # print(solver_dict)
     
     # model.Maximize(x + 2 * y + 3 * z)
 
