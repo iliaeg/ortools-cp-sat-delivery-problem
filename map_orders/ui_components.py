@@ -96,13 +96,7 @@ def render_main_view(app_state: AppState) -> None:
             edit_options={"remove": True},
         ).add_to(folium_map)
 
-        returned_objects = [
-            "last_clicked",
-            "last_active_drawing",
-            "all_drawings",
-            "bounds",
-            "zoom",
-        ]
+        returned_objects = ["all_drawings"]
 
         map_state = st_folium(
             folium_map,
@@ -115,12 +109,9 @@ def render_main_view(app_state: AppState) -> None:
             feature_group_to_add=feature_group,
         )
 
-        _update_map_position(app_state, map_state)
-        st.session_state["map_orders_last_map_state"] = map_state
-
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
-            if st.button("Импортировать из карты", use_container_width=True):
+            if st.button("Импортировать из карты", width="stretch"):
                 imported = _apply_import_from_map(app_state, map_state)
                 st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
                 if imported:
@@ -128,7 +119,7 @@ def render_main_view(app_state: AppState) -> None:
                 else:
                     st.info("На карте нет точек для импорта")
         with col_btn2:
-            if st.button("Очистить", type="secondary", use_container_width=True):
+            if st.button("Очистить", type="secondary", width="stretch"):
                 app_state.points = []
                 st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
                 st.experimental_rerun()
@@ -142,7 +133,7 @@ def render_main_view(app_state: AppState) -> None:
                 data=json.dumps(geojson_payload, ensure_ascii=False, indent=2).encode("utf-8"),
                 file_name="orders.geojson",
                 mime="application/geo+json",
-                use_container_width=True,
+                width="stretch",
             )
         with col_export_case:
             case_payload = export_case_bundle(app_state)
@@ -151,7 +142,7 @@ def render_main_view(app_state: AppState) -> None:
                 data=json.dumps(case_payload, ensure_ascii=False, indent=2).encode("utf-8"),
                 file_name="case_bundle.json",
                 mime="application/json",
-                use_container_width=True,
+                width="stretch",
             )
         with col_import_case:
             uploaded_bundle = st.file_uploader(
@@ -186,7 +177,7 @@ def render_main_view(app_state: AppState) -> None:
             editor_source,
             num_rows="dynamic",
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             key="points_editor_widget",
             column_config=_build_column_config(),
         )
@@ -206,7 +197,7 @@ def render_main_view(app_state: AppState) -> None:
         build_clicked = st.button(
             "Собрать вход CP-SAT",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=edited_df.empty,
         )
 
@@ -236,29 +227,10 @@ def render_main_view(app_state: AppState) -> None:
                 data=payload_json.encode("utf-8"),
                 file_name="solver_input.json",
                 mime="application/json",
-                use_container_width=True,
+                width="stretch",
             )
             with st.expander("Посмотреть solver_input.json"):
                 st.code(payload_json, language="json")
-
-
-def _update_map_position(app_state: AppState, map_state: Dict[str, Any] | None) -> None:
-    """Обновляет центр и масштаб карты в AppState."""
-
-    if not map_state:
-        return
-    zoom = map_state.get("zoom")
-    if isinstance(zoom, int):
-        app_state.map_zoom = zoom
-    bounds = map_state.get("bounds") or {}
-    sw = bounds.get("_southWest") or {}
-    ne = bounds.get("_northEast") or {}
-    lat_values = [sw.get("lat"), ne.get("lat")]
-    lon_values = [sw.get("lng"), ne.get("lng")]
-    if all(_is_number(value) for value in lat_values + lon_values):
-        lat = sum(lat_values) / 2
-        lon = sum(lon_values) / 2
-        app_state.map_center = (lat, lon)
 
 
 def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None) -> int:
