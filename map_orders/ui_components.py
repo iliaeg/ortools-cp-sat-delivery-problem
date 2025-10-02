@@ -13,7 +13,12 @@ import streamlit as st
 from streamlit_folium import st_folium
 import requests
 
-from map_orders.io_handlers import export_case_bundle, export_geojson, import_case_bundle
+from map_orders.io_handlers import (
+    export_case_bundle,
+    export_geojson,
+    import_case_bundle,
+    import_solver_input,
+)
 from map_orders.osrm_client import OsrmError, fetch_duration_matrix
 from map_orders.transform import (
     ValidationError,
@@ -33,6 +38,7 @@ _POINTS_EDITOR_KEY = "map_orders_points_editor"
 _SOLVER_PAYLOAD_KEY = "map_orders_solver_payload"
 _SOLVER_WARNINGS_KEY = "map_orders_solver_warnings"
 _MAP_LAYOUT_STYLE_KEY = "map_orders_map_layout_style"
+_SHOW_NUMBERS_KEY = "map_orders_show_numbers"
 
 def render_sidebar(app_state: AppState) -> None:
     """Отрисовывает боковую панель с основными параметрами."""
@@ -119,11 +125,21 @@ def render_main_view(app_state: AppState) -> None:
     _inject_map_layout_styles()
     map_col, table_col = st.columns([2, 3], vertical_alignment="top")
 
+    if _SHOW_NUMBERS_KEY not in st.session_state:
+        st.session_state[_SHOW_NUMBERS_KEY] = False
+
     with map_col:
         st.markdown("#### Карта (Орёл, OSM)")
+        current_state = st.session_state[_SHOW_NUMBERS_KEY]
+        toggle_label = "Скрыть номера точек" if current_state else "Отобразить номера точек"
+        if st.button(toggle_label, key="map_orders_toggle_numbers"):
+            st.session_state[_SHOW_NUMBERS_KEY] = not current_state
+            current_state = st.session_state[_SHOW_NUMBERS_KEY]
+        show_numbers = current_state
+
         st.markdown('<div class="map-orders-panel">', unsafe_allow_html=True)
         st.markdown('<div class="map-orders-map">', unsafe_allow_html=True)
-        feature_group = _make_feature_group(app_state.points)
+        feature_group = _make_feature_group(app_state.points, show_numbers)
         folium_map = folium.Map(
             location=list(app_state.map_center),
             zoom_start=app_state.map_zoom,
@@ -145,6 +161,8 @@ def render_main_view(app_state: AppState) -> None:
         ).add_to(folium_map)
 
         returned_objects = ["all_drawings"]
+
+        feature_group.add_to(folium_map)
 
         with st.spinner("Загружаем карту..."):
             map_state = st_folium(
@@ -169,11 +187,13 @@ def render_main_view(app_state: AppState) -> None:
                     st.success(f"Импортировано точек: {imported}")
                 else:
                     st.info("На карте нет точек для импорта")
+                persist_state(app_state)
         with col_btn2:
             if st.button("Очистить", type="secondary", width="stretch"):
                 app_state.points = []
                 st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
-                st.experimental_rerun()
+                persist_state(app_state)
+                st.rerun()
 
         st.divider()
         col_export_geojson, col_export_case, col_import_case = st.columns(3)
@@ -205,10 +225,16 @@ def render_main_view(app_state: AppState) -> None:
             if uploaded_bundle is not None:
                 try:
                     payload = json.load(uploaded_bundle)
-                    import_case_bundle(app_state, payload)
+                    if isinstance(payload, dict) and "geojson" in payload:
+                        import_case_bundle(app_state, payload)
+                        success_message = "Кейс успешно импортирован"
+                    else:
+                        import_solver_input(app_state, payload)
+                        success_message = "solver_input.json успешно импортирован"
                     st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
-                    st.success("Кейс успешно импортирован")
-                    st.experimental_rerun()
+                    st.success(success_message)
+                    persist_state(app_state)
+                    st.rerun()
                 except Exception as exc:
                     st.error(f"Не удалось импортировать кейс: {exc}")
         st.markdown("</div>", unsafe_allow_html=True)
@@ -238,6 +264,7 @@ def render_main_view(app_state: AppState) -> None:
         st.session_state[_POINTS_EDITOR_KEY] = edited_df
         records = edited_df.replace({pd.NA: None}).to_dict(orient="records")
         app_state.update_points_from_records(records)
+        persist_state(app_state)
 
         if edited_df.empty:
             st.info(
@@ -449,6 +476,8 @@ def _prepare_solver_payload(
                 "boxes": point.boxes,
                 "created_at": point.created_at,
                 "ready_at": point.ready_at,
+                "extra_json": point.extra_json,
+                "meta": point.meta,
             }
         )
 
@@ -493,31 +522,63 @@ def _prepare_solver_payload(
     return errors, warnings, payload
 
 
-def _make_feature_group(points: List[MapPoint]) -> folium.FeatureGroup:
+def _make_feature_group(points: List[MapPoint], show_numbers: bool) -> folium.FeatureGroup:
     """Создаёт слой для отображения точек на карте."""
 
     feature_group = folium.FeatureGroup(name="points", show=True)
-    for idx, point in enumerate(points):
-        color = "#d63d3d" if idx == 0 else "#1f6ed4"
-        text_color = "#ffffff"
-        icon_html = (
-            "<div style='display:flex;align-items:center;justify-content:center;"
-            "font-weight:700;font-size:12px;width:28px;height:28px;"
-            "border-radius:50%;border:2px solid #ffffff;"
-            "background-color:{bg};color:{fg};'>{idx}</div>"
-        ).format(bg=color, fg=text_color, idx=idx)
+    if not points:
+        return feature_group
 
-        tooltip_html = (
-            f"№{idx} — {point.type}<br>"
-            f"ID: {point.id or '—'}<br>"
-            f"Boxes: {point.boxes}"
+    if show_numbers:
+        for idx, point in enumerate(points):
+            color = "#d63d3d" if idx == 0 else "#1f6ed4"
+            text_color = "#ffffff"
+            icon_html = (
+                "<div style='display:flex;align-items:center;justify-content:center;"
+                "font-weight:700;font-size:12px;width:28px;height:28px;"
+                "border-radius:50%;border:2px solid #ffffff;"
+                "background-color:{bg};color:{fg};'>{idx}</div>"
+            ).format(bg=color, fg=text_color, idx=idx)
+
+            tooltip_html = (
+                f"№{idx} — {point.type}<br>"
+                f"ID: {point.id or '—'}<br>"
+                f"Boxes: {point.boxes}"
+            )
+
+            folium.Marker(
+                [point.lat, point.lon],
+                icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14)),
+                tooltip=folium.Tooltip(tooltip_html, sticky=True),
+            ).add_to(feature_group)
+        return feature_group
+
+    features = []
+    for idx, point in enumerate(points):
+        extra_value = _safe_json(point.extra_json)
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [point.lon, point.lat]},
+                "properties": {
+                    "seq": idx,
+                    "id": point.id,
+                    "type": point.type,
+                    "boxes": point.boxes,
+                    "created_at": point.created_at,
+                    "ready_at": point.ready_at,
+                    "extra_json": extra_value,
+                },
+            }
         )
 
-        folium.Marker(
-            [point.lat, point.lon],
-            icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14)),
-            tooltip=folium.Tooltip(tooltip_html, sticky=True),
-        ).add_to(feature_group)
+    geojson = {"type": "FeatureCollection", "features": features}
+    tooltip = folium.GeoJsonTooltip(
+        fields=["seq", "id", "type", "boxes"],
+        aliases=["№", "ID", "Тип", "Коробки"],
+        labels=True,
+    )
+    folium.GeoJson(geojson, name="points_layer", tooltip=tooltip).add_to(feature_group)
 
     return feature_group
 
@@ -702,11 +763,21 @@ def _attach_sequence_metadata(payload: Dict[str, Any], sequence_info: List[Dict[
         orders = combined.get("orders")
         if isinstance(orders, list):
             for order in orders:
-                order["seq"] = _find_sequence_for_candidate(order, sequence_info)
+                entry = _match_sequence_entry(order, sequence_info)
+                if entry is not None:
+                    order["seq"] = entry.get("seq")
+                    order.setdefault("extra_json", entry.get("extra_json"))
+                    if entry.get("meta"):
+                        order.setdefault("meta", entry.get("meta"))
 
         depot = combined.get("depot")
         if isinstance(depot, dict):
-            depot["seq"] = _find_sequence_for_candidate(depot, sequence_info)
+            entry = _match_sequence_entry(depot, sequence_info)
+            if entry is not None:
+                depot["seq"] = entry.get("seq")
+                depot.setdefault("extra_json", entry.get("extra_json"))
+                if entry.get("meta"):
+                    depot.setdefault("meta", entry.get("meta"))
 
 
 def _find_sequence_for_candidate(
@@ -714,11 +785,20 @@ def _find_sequence_for_candidate(
 ) -> Optional[int]:
     """Находит номер точки по ID или координатам."""
 
+    entry = _match_sequence_entry(candidate, sequence_info)
+    return entry.get("seq") if entry is not None else None
+
+
+def _match_sequence_entry(
+    candidate: Dict[str, Any], sequence_info: List[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """Возвращает запись последовательности для заданного кандидата."""
+
     candidate_id = candidate.get("id")
     if candidate_id:
         for entry in sequence_info:
             if entry.get("id") and entry["id"] == candidate_id:
-                return entry["seq"]
+                return entry
 
     try:
         lat = float(candidate.get("lat"))
@@ -730,6 +810,6 @@ def _find_sequence_for_candidate(
         if math.isclose(entry["lat"], lat, abs_tol=1e-6) and math.isclose(
             entry["lon"], lon, abs_tol=1e-6
         ):
-            return entry["seq"]
+            return entry
 
     return None

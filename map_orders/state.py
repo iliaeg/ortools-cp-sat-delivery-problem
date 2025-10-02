@@ -268,7 +268,14 @@ def persist_state(app_state: AppState) -> None:
         data = {
             "points": [
                 {
-                    **point.to_row(),
+                    "id": point.id,
+                    "type": point.type,
+                    "lat": point.lat,
+                    "lon": point.lon,
+                    "boxes": point.boxes,
+                    "created_at": point.created_at,
+                    "ready_at": point.ready_at,
+                    "extra_json": point.extra_json,
                     "meta": point.meta,
                 }
                 for point in app_state.points
@@ -329,7 +336,7 @@ def load_persisted_state() -> AppState | None:
         meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
         payload["meta"] = meta
         try:
-            point = MapPoint.from_row(payload)
+            point = MapPoint.from_row(payload, default_base_iso=state.t0_iso)
             point.meta = meta
             restored_points.append(point)
         except ValueError:

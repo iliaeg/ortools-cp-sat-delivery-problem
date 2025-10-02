@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any, Dict, Iterable, List, Tuple
 
-from .state import AppState, MapPoint
+from .state import AppState, MapPoint, persist_state
 
 
 def export_geojson(app_state: AppState) -> Dict[str, Any]:
@@ -141,6 +141,133 @@ def import_case_bundle(app_state: AppState, payload: Dict[str, Any]) -> None:
     t0_iso = payload.get("t0_iso")
     if isinstance(t0_iso, str) and t0_iso.strip():
         app_state.t0_iso = t0_iso.strip()
+
+    persist_state(app_state)
+
+
+def import_solver_input(app_state: AppState, payload: Dict[str, Any]) -> None:
+    """Импортирует состояние из solver_input.json."""
+
+    if not isinstance(payload, dict):
+        raise ValueError("Ожидался JSON-объект solver_input")
+
+    meta = payload.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+
+    combined_params = meta.get("combined_params")
+    if not isinstance(combined_params, dict):
+        combined_params = {}
+
+    sequence_info = meta.get("points_sequence")
+    if not isinstance(sequence_info, list):
+        sequence_info = combined_params.get("points_sequence")
+        if not isinstance(sequence_info, list):
+            sequence_info = _build_sequence_from_combined(combined_params)
+
+    if not sequence_info:
+        raise ValueError("Не удалось восстановить точки из solver_input.json")
+
+    extra_lookup: Dict[int, Dict[str, Any]] = {}
+    depot_entry = combined_params.get("depot")
+    if isinstance(depot_entry, dict):
+        seq = depot_entry.get("seq", 0)
+        extra_lookup[int(seq)] = depot_entry
+    orders_entries = combined_params.get("orders")
+    if isinstance(orders_entries, list):
+        for idx, order in enumerate(orders_entries, start=1):
+            if isinstance(order, dict):
+                seq = order.get("seq", idx)
+                extra_lookup[int(seq)] = order
+
+    restored_points: List[MapPoint] = []
+    base_iso = meta.get("T0_iso") or app_state.t0_iso
+
+    for entry in sorted(sequence_info, key=lambda item: item.get("seq", 0)):
+        if not isinstance(entry, dict):
+            continue
+        seq = entry.get("seq")
+        supplemental = extra_lookup.get(int(seq)) if isinstance(seq, (int, float)) else None
+        extra_json = entry.get("extra_json") or (supplemental or {}).get("extra_json") or "{}"
+        if isinstance(extra_json, (dict, list)):
+            extra_json = json.dumps(extra_json, ensure_ascii=False)
+        meta_value = entry.get("meta") or (supplemental or {}).get("meta") or {}
+
+        row = {
+            "id": entry.get("id") or (supplemental or {}).get("id"),
+            "type": entry.get("type") or (supplemental or {}).get("type") or (
+                "depot" if entry.get("seq", 0) == 0 else "order"
+            ),
+            "lat": entry.get("lat") or (supplemental or {}).get("lat"),
+            "lon": entry.get("lon") or (supplemental or {}).get("lon"),
+            "boxes": entry.get("boxes") or (supplemental or {}).get("boxes") or 1,
+            "created_at": entry.get("created_at") or (supplemental or {}).get("created_at"),
+            "ready_at": entry.get("ready_at") or (supplemental or {}).get("ready_at"),
+            "extra_json": extra_json,
+            "meta": meta_value,
+        }
+
+        try:
+            point = MapPoint.from_row(row, default_base_iso=base_iso)
+            point.meta = meta_value if isinstance(meta_value, dict) else {}
+            restored_points.append(point)
+        except ValueError:
+            continue
+
+    if not restored_points:
+        raise ValueError("В solver_input.json не найдено валидных точек")
+
+    restored_points[0].type = "depot"
+    app_state.points = restored_points
+
+    weights = combined_params.get("weights")
+    if weights is not None:
+        app_state.weights_json = _dump_pretty_json(weights)
+
+    couriers = combined_params.get("couriers")
+    if couriers is not None:
+        app_state.couriers_json = _dump_pretty_json(couriers)
+
+    additional_params = {
+        key: value
+        for key, value in combined_params.items()
+        if key
+        not in {"weights", "couriers", "orders", "depot", "points_sequence"}
+    }
+    if additional_params:
+        app_state.additional_params_json = _dump_pretty_json(additional_params)
+
+    t0_iso = meta.get("T0_iso")
+    if isinstance(t0_iso, str) and t0_iso.strip():
+        app_state.t0_iso = t0_iso.strip()
+
+    osrm_base = meta.get("osrm_base_url")
+    if isinstance(osrm_base, str) and osrm_base.strip():
+        app_state.osrm_base_url = osrm_base.strip()
+
+    persist_state(app_state)
+
+
+def _build_sequence_from_combined(combined: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Формирует список точек из combined_params, если нет явной последовательности."""
+
+    result: List[Dict[str, Any]] = []
+
+    depot = combined.get("depot")
+    if isinstance(depot, dict):
+        entry = depot.copy()
+        entry.setdefault("seq", entry.get("seq", 0))
+        result.append(entry)
+
+    orders = combined.get("orders")
+    if isinstance(orders, list):
+        for idx, order in enumerate(orders, start=1):
+            if isinstance(order, dict):
+                entry = order.copy()
+                entry.setdefault("seq", entry.get("seq", idx))
+                result.append(entry)
+
+    return sorted(result, key=lambda item: item.get("seq", 0))
 
 
 def _load_extra_json(value: str) -> Tuple[Dict[str, Any], bool]:
