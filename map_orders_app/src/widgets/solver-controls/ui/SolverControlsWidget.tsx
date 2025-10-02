@@ -121,6 +121,11 @@ const SolverControlsWidget = () => {
     [solverInput],
   );
 
+  const solverResultPreview = useMemo(
+    () => (solverResult ? stringifyWithInlineArrays(solverResult) : ""),
+    [solverResult],
+  );
+
   return (
     <Paper elevation={3} sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography variant="h6" fontWeight={700}>
@@ -182,6 +187,30 @@ const SolverControlsWidget = () => {
               }}
             >
               {solverInputPreview}
+            </pre>
+          </AccordionDetails>
+        </Accordion>
+      ) : null}
+      {solverResult ? (
+        <Accordion disableGutters sx={{ bgcolor: "background.paper" }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Ответ solver&apos;а
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <pre
+              style={{
+                margin: 0,
+                padding: "16px",
+                backgroundColor: "#0f0f0f",
+                color: "#e0e0e0",
+                borderRadius: 8,
+                overflowX: "auto",
+                fontSize: "0.85rem",
+              }}
+            >
+              {solverResultPreview}
             </pre>
           </AccordionDetails>
         </Accordion>
