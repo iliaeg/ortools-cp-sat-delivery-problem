@@ -36,15 +36,12 @@
   ```
 
 ## map_orders — Streamlit интерфейс подготовки входа
-1. Загрузите данные OSM и запустите локальный OSRM (пример для региона Россия):
-   ```bash
-   docker run -t -i -p 5000:5000 osrm/osrm-backend bash -lc "\
-     wget -O /data/russia-latest.osm.pbf https://download.geofabrik.de/russia-latest.osm.pbf && \
-     osrm-extract -p /opt/car.lua /data/russia-latest.osm.pbf && \
-     osrm-partition /data/russia-latest.osrm && \
-     osrm-customize /data/russia-latest.osrm && \
-     osrm-routed --algorithm mld /data/russia-latest.osrm"
-   ```
+1. Запустите локальный OSRM:
+   - Запуск с docker compose (репозиторий уже содержит `docker/osrm/docker-compose.yml`):
+     ```bash
+     docker compose -f docker/osrm/docker-compose.yml up
+    ```
+   > Примечания: используем фиксированный образ `osrm/osrm-backend:v5.25.0` (актуальный на 2025-10-02); Сервис слушает `http://localhost:5563` — при выборе другого порта не забудьте указать его в интерфейсе `map_orders`.
 2. Запустите интерфейс:
    ```bash
    poetry run streamlit run map_orders.py
