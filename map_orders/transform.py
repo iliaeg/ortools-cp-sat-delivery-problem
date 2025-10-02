@@ -11,7 +11,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from dateutil import parser
 
 
-DEFAULT_WEIGHTS = {"W_cert": 1000, "W_c2e": 1, "W_skip": 200}
+DEFAULT_WEIGHTS = {"W_cert": 1000, "W_c2e": 1, "W_skip": 10000}
 
 
 class ValidationError(ValueError):
