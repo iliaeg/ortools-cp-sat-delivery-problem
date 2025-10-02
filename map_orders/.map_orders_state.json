@@ -5,76 +5,221 @@
       "type": "depot",
       "lat": 52.967562,
       "lon": 36.06215,
-      "boxes": 1,
-      "created_at": "2025-10-02T17:15:24+03:00",
-      "ready_at": "2025-10-02T17:15:24+03:00",
+      "boxes": 8,
+      "created_at": "2025-10-02T17:05:24+03:00",
+      "ready_at": "2025-10-02T17:15:00+03:00",
       "extra_json": "{}",
-      "meta": {}
+      "meta": {},
+      "group_id": null,
+      "route_pos": null,
+      "eta_rel_min": null,
+      "planned_c2e_min": null,
+      "skip": null,
+      "cert": null
     },
     {
       "id": "dcfb669a",
       "type": "order",
       "lat": 52.985366,
       "lon": 36.068459,
-      "boxes": 1,
-      "created_at": "2025-10-02T17:15:24+03:00",
-      "ready_at": "2025-10-02T17:15:24+03:00",
+      "boxes": 4,
+      "created_at": "2025-10-02T16:55:24+03:00",
+      "ready_at": "2025-10-02T17:25:00+03:00",
       "extra_json": "{}",
-      "meta": {}
+      "meta": {},
+      "group_id": 1,
+      "route_pos": 1,
+      "eta_rel_min": 29,
+      "planned_c2e_min": 44,
+      "skip": false,
+      "cert": false
     },
     {
       "id": "0eb4871e",
       "type": "order",
       "lat": 52.98627,
       "lon": 36.063867,
-      "boxes": 1,
-      "created_at": "2025-10-02T17:15:24+03:00",
-      "ready_at": "2025-10-02T17:15:24+03:00",
+      "boxes": 10,
+      "created_at": "2025-10-02T17:02:00+03:00",
+      "ready_at": "2025-10-02T17:35:00+03:00",
       "extra_json": "{}",
-      "meta": {}
+      "meta": {},
+      "group_id": 1,
+      "route_pos": 2,
+      "eta_rel_min": 30,
+      "planned_c2e_min": 38,
+      "skip": false,
+      "cert": false
     },
     {
       "id": "a91d633a",
       "type": "order",
       "lat": 53.012827,
       "lon": 36.141254,
-      "boxes": 1,
-      "created_at": "2025-10-02T17:15:24+03:00",
-      "ready_at": "2025-10-02T17:15:24+03:00",
+      "boxes": 5,
+      "created_at": "2025-10-02T16:51:00+03:00",
+      "ready_at": "2025-10-02T17:15:00+03:00",
       "extra_json": "{}",
-      "meta": {}
+      "meta": {},
+      "group_id": 0,
+      "route_pos": 2,
+      "eta_rel_min": 19,
+      "planned_c2e_min": 38,
+      "skip": false,
+      "cert": false
     },
     {
       "id": "3d9e2265",
       "type": "order",
       "lat": 53.011943,
       "lon": 36.141061,
-      "boxes": 1,
-      "created_at": "2025-10-02T17:15:24+03:00",
-      "ready_at": "2025-10-02T17:15:24+03:00",
+      "boxes": 8,
+      "created_at": "2025-10-02T17:00:00+03:00",
+      "ready_at": "2025-10-02T17:15:00+03:00",
       "extra_json": "{}",
-      "meta": {}
+      "meta": {},
+      "group_id": 0,
+      "route_pos": 1,
+      "eta_rel_min": 18,
+      "planned_c2e_min": 28,
+      "skip": false,
+      "cert": false
     },
     {
       "id": "bc912202",
       "type": "order",
       "lat": 53.000529,
       "lon": 36.136222,
-      "boxes": 1,
-      "created_at": "2025-10-02T17:15:24+03:00",
-      "ready_at": "2025-10-02T17:15:24+03:00",
+      "boxes": 3,
+      "created_at": "2025-10-02T17:08:00+03:00",
+      "ready_at": "2025-10-02T17:23:00+03:00",
       "extra_json": "{}",
-      "meta": {}
+      "meta": {},
+      "group_id": 1,
+      "route_pos": 3,
+      "eta_rel_min": 40,
+      "planned_c2e_min": 42,
+      "skip": false,
+      "cert": false
     }
   ],
-  "couriers_json": "{\n  \"a\": [0, 40],\n  \"C\": [25, 25]\n}",
+  "couriers_json": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",
   "weights_json": "{\n  \"W_cert\": 1000,\n  \"W_c2e\": 1,\n  \"W_skip\": 200\n}",
   "additional_params_json": "{\n  \"time_limit\": 3\n}",
   "osrm_base_url": "http://localhost:5563",
-  "t0_iso": "2025-10-02T17:15:24+03:00",
+  "t0_iso": "2025-10-02T17:10:00+03:00",
   "map_center": [
     52.9676,
     36.0693
   ],
-  "map_zoom": 13
+  "map_zoom": 13,
+  "solver_result": {
+    "result": {
+      "status": "OPTIMAL",
+      "objective": 190,
+      "routes": [
+        [
+          0,
+          4,
+          3,
+          0
+        ],
+        [
+          0,
+          1,
+          2,
+          5,
+          0
+        ]
+      ],
+      "t_dep": [
+        5,
+        25
+      ],
+      "T": {
+        "1": 29,
+        "2": 30,
+        "3": 19,
+        "4": 18,
+        "5": 40
+      },
+      "s": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      },
+      "skip": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0
+      },
+      "z": {
+        "1,0": 0,
+        "1,1": 1,
+        "2,0": 0,
+        "2,1": 1,
+        "3,0": 1,
+        "3,1": 0,
+        "4,0": 1,
+        "4,1": 0,
+        "5,0": 0,
+        "5,1": 1
+      }
+    }
+  },
+  "show_solver_routes": true,
+  "last_tau": [
+    [
+      0,
+      4,
+      4,
+      13,
+      13,
+      10
+    ],
+    [
+      4,
+      0,
+      1,
+      11,
+      12,
+      9
+    ],
+    [
+      5,
+      2,
+      0,
+      12,
+      13,
+      10
+    ],
+    [
+      12,
+      11,
+      12,
+      0,
+      1,
+      4
+    ],
+    [
+      12,
+      12,
+      12,
+      1,
+      0,
+      4
+    ],
+    [
+      9,
+      9,
+      10,
+      4,
+      5,
+      0
+    ]
+  ]
 }

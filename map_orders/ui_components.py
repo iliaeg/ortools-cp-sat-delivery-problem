@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import colorsys
 import json
 import math
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -24,6 +25,7 @@ from map_orders.transform import (
     make_solver_payload,
     parse_and_validate_points,
 )
+from map_orders.solver_result import apply_solver_result, reset_solver_result
 
 from .state import (
     AppState,
@@ -38,6 +40,7 @@ _SOLVER_PAYLOAD_KEY = "map_orders_solver_payload"
 _SOLVER_WARNINGS_KEY = "map_orders_solver_warnings"
 _MAP_LAYOUT_STYLE_KEY = "map_orders_map_layout_style"
 _SHOW_NUMBERS_KEY = "map_orders_show_numbers"
+_SOLVER_FEEDBACK_KEY = "map_orders_solver_feedback"
 
 def render_sidebar(app_state: AppState) -> None:
     """Отрисовывает боковую панель с основными параметрами."""
@@ -162,6 +165,8 @@ def render_main_view(app_state: AppState) -> None:
         returned_objects = ["all_drawings"]
 
         feature_group.add_to(folium_map)
+        _add_solver_routes_layer(folium_map, app_state)
+        folium.LayerControl().add_to(folium_map)
 
         with st.spinner("Загружаем карту..."):
             map_state = st_folium(
@@ -193,6 +198,17 @@ def render_main_view(app_state: AppState) -> None:
                 st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
                 persist_state(app_state)
                 st.rerun()
+
+        solver_routes_enabled = st.checkbox(
+            "Показать маршруты решателя",
+            value=app_state.show_solver_routes,
+            disabled=app_state.solver_result is None,
+            key="map_orders_toggle_solver_routes",
+        )
+        if app_state.solver_result is not None and solver_routes_enabled != app_state.show_solver_routes:
+            app_state.show_solver_routes = solver_routes_enabled
+            persist_state(app_state)
+            st.rerun()
 
         st.divider()
         col_export_geojson, col_import_case = st.columns(2)
@@ -264,6 +280,16 @@ def render_main_view(app_state: AppState) -> None:
         st.divider()
 
         status_placeholder = st.container()
+        pending_feedback = st.session_state.pop(_SOLVER_FEEDBACK_KEY, None)
+        if isinstance(pending_feedback, dict):
+            status = pending_feedback.get("status")
+            warnings_list = pending_feedback.get("warnings") or []
+            if status == "applied":
+                status_placeholder.success("Ответ солвера применён")
+            elif status == "reset":
+                status_placeholder.info("Результат солвера сброшен")
+            if warnings_list:
+                status_placeholder.warning(_format_messages(warnings_list))
         build_clicked = st.button(
             "Собрать вход CP-SAT",
             type="primary",
@@ -314,8 +340,11 @@ def render_main_view(app_state: AppState) -> None:
                     try:
                         response = _post_solver_request(payload_json)
                         solver_response_placeholder.code(response, language="json")
+                        _handle_solver_response(app_state, response, status_placeholder)
                     except Exception as exc:
                         solver_response_placeholder.error(f"Ошибка отправки: {exc}")
+
+    _render_solver_result_panel(app_state)
 
     persist_state(app_state)
 
@@ -483,6 +512,7 @@ def _prepare_solver_payload(
     try:
         coordinates = points_result.coordinates_for_osrm()
         tau = fetch_duration_matrix(app_state.osrm_base_url, coordinates)
+        app_state.last_tau = tau
     except (ValueError, OsrmError) as exc:
         errors.append(str(exc))
         return errors, warnings, None
@@ -512,6 +542,171 @@ def _prepare_solver_payload(
     warnings = _deduplicate(warnings)
 
     return errors, warnings, payload
+
+
+def _handle_solver_response(
+    app_state: AppState,
+    response_text: str,
+    status_placeholder: "st.delta_generator.DeltaGenerator",
+) -> None:
+    """Обрабатывает ответ солвера, если он является JSON."""
+
+    try:
+        parsed = json.loads(response_text)
+    except json.JSONDecodeError as exc:
+        status_placeholder.error(f"Ответ солвера не является корректным JSON: {exc}")
+        return
+
+    errors, warnings = apply_solver_result(app_state, parsed)
+    if errors:
+        status_placeholder.error(_format_messages(errors))
+        return
+
+    app_state.show_solver_routes = True
+    st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
+    st.session_state[_SOLVER_FEEDBACK_KEY] = {"status": "applied", "warnings": warnings}
+    persist_state(app_state)
+    st.rerun()
+
+
+def _render_solver_result_panel(app_state: AppState) -> None:
+    """Рисует панель с управлением результатом солвера."""
+
+    st.divider()
+    st.markdown("#### Ответ солвера")
+
+    col_upload, col_reset = st.columns([3, 1])
+    with col_upload:
+        uploaded = st.file_uploader(
+            "Импорт solver_result.json",
+            type=["json"],
+            accept_multiple_files=False,
+            key="map_orders_solver_result_loader",
+        )
+    with col_reset:
+        reset_clicked = st.button(
+            "Сбросить результат",
+            type="secondary",
+            disabled=app_state.solver_result is None,
+            key="map_orders_reset_solver_result",
+        )
+
+    if uploaded is not None:
+        try:
+            payload = json.load(uploaded)
+        except Exception as exc:  # pragma: no cover - обработка ошибок ввода
+            st.error(f"Не удалось прочитать solver_result: {exc}")
+        else:
+            errors, warnings = apply_solver_result(app_state, payload)
+            if errors:
+                st.error(_format_messages(errors))
+            else:
+                app_state.show_solver_routes = True
+                st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
+                st.session_state[_SOLVER_FEEDBACK_KEY] = {
+                    "status": "applied",
+                    "warnings": warnings,
+                }
+                persist_state(app_state)
+                st.rerun()
+
+    if reset_clicked:
+        reset_solver_result(app_state)
+        app_state.show_solver_routes = True
+        st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
+        st.session_state[_SOLVER_FEEDBACK_KEY] = {"status": "reset"}
+        persist_state(app_state)
+        st.rerun()
+
+    if app_state.solver_result:
+        result = app_state.solver_result.get("result") if isinstance(app_state.solver_result, dict) else {}
+        status = result.get("status", "—") if isinstance(result, dict) else "—"
+        objective = result.get("objective") if isinstance(result, dict) else None
+        objective_text = objective if objective is not None else "—"
+        st.caption(f"Статус: {status} · Целевая функция: {objective_text}")
+        with st.expander("Посмотреть полный ответ", expanded=False):
+            st.code(
+                json.dumps(app_state.solver_result, ensure_ascii=False, indent=2),
+                language="json",
+            )
+
+
+def _add_solver_routes_layer(folium_map: folium.Map, app_state: AppState) -> None:
+    """Добавляет на карту слой с маршрутами солвера."""
+
+    if not app_state.solver_result or not app_state.show_solver_routes:
+        return
+
+    groups: Dict[int, List[MapPoint]] = {}
+    for point in app_state.points:
+        if point.type != "order":
+            continue
+        if point.solver_skip:
+            continue
+        if point.solver_group_id is None or point.solver_route_pos is None:
+            continue
+        groups.setdefault(point.solver_group_id, []).append(point)
+
+    layer = folium.FeatureGroup(name="Маршруты решателя", show=True)
+    segments_drawn = 0
+    for group_id, items in groups.items():
+        ordered = sorted(items, key=lambda p: p.solver_route_pos or 0)
+        if len(ordered) < 2:
+            continue
+        color = _color_for_group(group_id)
+        for prev_point, next_point in zip(ordered, ordered[1:]):
+            tooltip = _build_segment_tooltip(group_id, prev_point, next_point)
+            folium.PolyLine(
+                locations=[[prev_point.lat, prev_point.lon], [next_point.lat, next_point.lon]],
+                color=color,
+                weight=4,
+                opacity=0.85,
+                tooltip=folium.Tooltip(tooltip, sticky=True),
+            ).add_to(layer)
+            segments_drawn += 1
+
+    if segments_drawn:
+        layer.add_to(folium_map)
+
+
+def _color_for_group(group_id: int) -> str:
+    """Возвращает стабильный цвет для идентификатора группы."""
+
+    hue = (group_id * 0.6180339887498949) % 1.0
+    r, g, b = colorsys.hsv_to_rgb(hue, 0.6, 0.9)
+    return f"#{int(r * 255):02x}{int(g * 255):02x}{int(b * 255):02x}"
+
+
+def _build_segment_tooltip(group_id: int, from_point: MapPoint, to_point: MapPoint) -> str:
+    """Формирует подсказку для сегмента маршрута."""
+
+    from_label = _solver_point_label(from_point)
+    to_label = _solver_point_label(to_point)
+    eta_text = _format_minutes_value(to_point.solver_eta_rel_min)
+    c2e_text = _format_minutes_value(to_point.solver_planned_c2e_min)
+    return (
+        f"group {group_id}: {from_label} → {to_label}<br>"
+        f"ETA({to_label}) = {eta_text}<br>"
+        f"planned_c2e({to_label}) = {c2e_text}"
+    )
+
+
+def _solver_point_label(point: MapPoint) -> str:
+    """Возвращает идентификатор точки для отображения на карте."""
+
+    if point.id:
+        return str(point.id)
+    if isinstance(point.meta, dict) and "seq" in point.meta:
+        return f"#{point.meta['seq']}"
+    return "order"
+
+
+def _format_minutes_value(value: Optional[int]) -> str:
+    """Преобразует минутное значение в строку."""
+
+    if value is None:
+        return "—"
+    return f"{int(value)} мин"
 
 
 def _make_feature_group(points: List[MapPoint], show_numbers: bool) -> folium.FeatureGroup:
@@ -612,6 +807,38 @@ def _build_column_config() -> Dict[str, Any]:
             help="Формат HH:MM:SS",
         ),
         "extra_json": st.column_config.TextColumn("extra_json"),
+        "group_id": st.column_config.NumberColumn(
+            "group_id",
+            help="Индекс группы в решении",
+            disabled=True,
+            width="small",
+        ),
+        "route_pos": st.column_config.NumberColumn(
+            "route_pos",
+            help="Позиция в маршруте",
+            disabled=True,
+            width="small",
+        ),
+        "eta_rel_min": st.column_config.NumberColumn(
+            "eta_rel_min",
+            help="ETA в минутах от T0",
+            disabled=True,
+        ),
+        "planned_c2e_min": st.column_config.NumberColumn(
+            "planned_c2e_min",
+            help="Click-to-eat относительно created_at",
+            disabled=True,
+        ),
+        "skip": st.column_config.CheckboxColumn(
+            "skip",
+            help="True, если заказ пропущен",
+            disabled=True,
+        ),
+        "cert": st.column_config.CheckboxColumn(
+            "cert",
+            help="True, если требуется сертификат",
+            disabled=True,
+        ),
     }
 
 

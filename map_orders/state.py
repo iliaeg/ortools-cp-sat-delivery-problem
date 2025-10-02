@@ -17,6 +17,16 @@ import pandas as pd
 TIME_PATTERN = re.compile(r"^(\d{2}):(\d{2}):(\d{2})$")
 
 
+SOLVER_COLUMNS = [
+    "group_id",
+    "route_pos",
+    "eta_rel_min",
+    "planned_c2e_min",
+    "skip",
+    "cert",
+]
+
+
 POINT_COLUMNS = [
     "seq",
     "id",
@@ -27,6 +37,7 @@ POINT_COLUMNS = [
     "created_at",
     "ready_at",
     "extra_json",
+    *SOLVER_COLUMNS,
 ]
 
 
@@ -120,6 +131,12 @@ class MapPoint:
     ready_at: str
     extra_json: str
     meta: Dict[str, Any] = field(default_factory=dict)
+    solver_group_id: int | None = None
+    solver_route_pos: int | None = None
+    solver_eta_rel_min: int | None = None
+    solver_planned_c2e_min: int | None = None
+    solver_skip: bool | None = None
+    solver_cert: bool | None = None
 
     def to_row(self) -> Dict[str, Any]:
         """Возвращает словарь для отображения и редактирования в таблице."""
@@ -133,6 +150,12 @@ class MapPoint:
             "created_at": iso_to_hms(self.created_at),
             "ready_at": iso_to_hms(self.ready_at),
             "extra_json": self.extra_json,
+            "group_id": self.solver_group_id,
+            "route_pos": self.solver_route_pos,
+            "eta_rel_min": self.solver_eta_rel_min,
+            "planned_c2e_min": self.solver_planned_c2e_min,
+            "skip": self.solver_skip,
+            "cert": self.solver_cert,
         }
 
     @classmethod
@@ -194,7 +217,44 @@ class MapPoint:
             ready_at=ready_at,
             extra_json=extra_json,
             meta=meta,
+            solver_group_id=_coerce_optional_int(row.get("group_id"), base_point, "solver_group_id"),
+            solver_route_pos=_coerce_optional_int(row.get("route_pos"), base_point, "solver_route_pos"),
+            solver_eta_rel_min=_coerce_optional_int(row.get("eta_rel_min"), base_point, "solver_eta_rel_min"),
+            solver_planned_c2e_min=_coerce_optional_int(
+                row.get("planned_c2e_min"), base_point, "solver_planned_c2e_min"
+            ),
+            solver_skip=_coerce_optional_bool(row.get("skip"), base_point, "solver_skip"),
+            solver_cert=_coerce_optional_bool(row.get("cert"), base_point, "solver_cert"),
         )
+
+
+def _coerce_optional_int(value: Any, base_point: MapPoint | None, attr: str) -> int | None:
+    """Возвращает целое число или None, используя значение base_point при необходимости."""
+
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return getattr(base_point, attr) if base_point else None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return getattr(base_point, attr) if base_point else None
+
+
+def _coerce_optional_bool(value: Any, base_point: MapPoint | None, attr: str) -> bool | None:
+    """Возвращает булево значение или None, используя значение base_point при необходимости."""
+
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return getattr(base_point, attr) if base_point else None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(int(value))
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes"}:
+            return True
+        if lowered in {"false", "0", "no"}:
+            return False
+    return getattr(base_point, attr) if base_point else None
 
 
 @dataclass
@@ -209,6 +269,9 @@ class AppState:
     t0_iso: str | None = None
     map_center: tuple[float, float] = (52.9676, 36.0693)
     map_zoom: int = 13
+    solver_result: Dict[str, Any] | None = None
+    show_solver_routes: bool = True
+    last_tau: List[List[int]] | None = None
 
     def points_dataframe(self) -> pd.DataFrame:
         """Возвращает pandas.DataFrame для отображения точек в UI."""
@@ -219,6 +282,8 @@ class AppState:
         for idx, point in enumerate(self.points):
             row = point.to_row()
             row["seq"] = idx
+            for column in SOLVER_COLUMNS:
+                row.setdefault(column, None)
             data.append(row)
         return pd.DataFrame(data, columns=POINT_COLUMNS)
 
@@ -277,6 +342,12 @@ def persist_state(app_state: AppState) -> None:
                     "ready_at": point.ready_at,
                     "extra_json": point.extra_json,
                     "meta": point.meta,
+                    "group_id": point.solver_group_id,
+                    "route_pos": point.solver_route_pos,
+                    "eta_rel_min": point.solver_eta_rel_min,
+                    "planned_c2e_min": point.solver_planned_c2e_min,
+                    "skip": point.solver_skip,
+                    "cert": point.solver_cert,
                 }
                 for point in app_state.points
             ],
@@ -287,6 +358,9 @@ def persist_state(app_state: AppState) -> None:
             "t0_iso": app_state.t0_iso,
             "map_center": list(app_state.map_center),
             "map_zoom": app_state.map_zoom,
+            "solver_result": app_state.solver_result,
+            "show_solver_routes": app_state.show_solver_routes,
+            "last_tau": app_state.last_tau,
         }
         _STATE_STORAGE_PATH.write_text(
             json.dumps(data, ensure_ascii=False, indent=2),
@@ -315,6 +389,7 @@ def load_persisted_state() -> AppState | None:
     )
     state.osrm_base_url = raw_data.get("osrm_base_url", state.osrm_base_url)
     state.t0_iso = raw_data.get("t0_iso") or state.t0_iso
+    state.solver_result = raw_data.get("solver_result")
 
     map_center = raw_data.get("map_center")
     if isinstance(map_center, (list, tuple)) and len(map_center) >= 2:
@@ -326,6 +401,14 @@ def load_persisted_state() -> AppState | None:
     map_zoom = raw_data.get("map_zoom")
     if isinstance(map_zoom, int) and 1 <= map_zoom <= 20:
         state.map_zoom = map_zoom
+
+    show_routes_raw = raw_data.get("show_solver_routes")
+    if isinstance(show_routes_raw, bool):
+        state.show_solver_routes = show_routes_raw
+
+    last_tau = raw_data.get("last_tau")
+    if isinstance(last_tau, list):
+        state.last_tau = [list(row) for row in last_tau if isinstance(row, list)] or None
 
     points_payload = raw_data.get("points", [])
     restored_points: List[MapPoint] = []
