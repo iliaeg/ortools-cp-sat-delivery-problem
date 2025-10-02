@@ -1,0 +1,229 @@
+"use client";
+
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup } from "react-leaflet";
+import { EditControl } from "react-leaflet-draw";
+import L, { LeafletEvent } from "leaflet";
+import { v4 as uuidv4 } from "uuid";
+import { Box, Checkbox, FormControlLabel, Stack, Typography } from "@mui/material";
+import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
+import { useAppSelector } from "@/shared/hooks/useAppSelector";
+import {
+  addPoint,
+  removePoint,
+  setMapView,
+  setShowSolverRoutes,
+  updatePoint,
+} from "@/features/map-orders/model/mapOrdersSlice";
+import {
+  selectMapView,
+  selectPoints,
+  selectRouteSegments,
+  selectShowSolverRoutes,
+} from "@/features/map-orders/model/selectors";
+import { ensureDefaultMarkerIcons, createPointIcon } from "@/shared/lib/leaflet";
+import type { DeliveryPoint } from "@/shared/types/points";
+import { getRouteColor } from "@/shared/constants/routes";
+
+const TILE_LAYER = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+const labelForPoint = (point: DeliveryPoint) =>
+  `${point.seq}. ${point.kind === "depot" ? "депо" : "заказ"} ${
+    point.id || point.internalId.slice(0, 6)
+  }`;
+
+type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
+
+const MapOrdersMapClient = () => {
+  const dispatch = useAppDispatch();
+  const points = useAppSelector(selectPoints);
+  const { center, zoom } = useAppSelector(selectMapView);
+  const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
+  const routeSegments = useAppSelector(selectRouteSegments);
+
+  useEffect(() => {
+    ensureDefaultMarkerIcons();
+  }, []);
+
+  const handleMapMove = useCallback(
+    (event: LeafletEvent) => {
+      const target = event.target as L.Map;
+      const mapCenter = target.getCenter();
+      dispatch(
+        setMapView({
+          center: [mapCenter.lat, mapCenter.lng],
+          zoom: target.getZoom(),
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  const handleMarkerDragEnd = useCallback(
+    (internalId: string) => (event: LeafletEvent) => {
+      const target = event.target as MarkerWithInternalId;
+      const { lat, lng } = target.getLatLng();
+      dispatch(
+        updatePoint({
+          internalId,
+          patch: {
+            lat,
+            lon: lng,
+          },
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  const handleCreated = useCallback(
+    (event: { layer: MarkerWithInternalId }) => {
+      const layer = event.layer;
+      const { lat, lng } = layer.getLatLng();
+      const internalId = uuidv4();
+      layer.options.internalId = internalId;
+      dispatch(
+        addPoint({
+          internalId,
+          lat,
+          lon: lng,
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  const handleEdited = useCallback(
+    (event: { layers: L.LayerGroup<any> }) => {
+      event.layers.eachLayer((layer: L.Layer) => {
+        const marker = layer as MarkerWithInternalId;
+        const internalId = marker.options.internalId;
+        if (!internalId) {
+          return;
+        }
+        const { lat, lng } = marker.getLatLng();
+        dispatch(
+          updatePoint({
+            internalId,
+            patch: { lat, lon: lng },
+          }),
+        );
+      });
+    },
+    [dispatch],
+  );
+
+  const handleDeleted = useCallback(
+    (event: { layers: L.LayerGroup<any> }) => {
+      event.layers.eachLayer((layer: L.Layer) => {
+        const marker = layer as MarkerWithInternalId;
+        if (marker.options.internalId) {
+          dispatch(removePoint(marker.options.internalId));
+        }
+      });
+    },
+    [dispatch],
+  );
+
+  const markers = useMemo(
+    () =>
+      points.map((point) => {
+        const label = labelForPoint(point);
+        const color = point.kind === "depot" ? "#d32f2f" : "#1976d2";
+        const icon = createPointIcon(label, color);
+        return (
+          <Marker
+            key={point.internalId}
+            position={[point.lat, point.lon]}
+            draggable
+            eventHandlers={{
+              dragend: handleMarkerDragEnd(point.internalId),
+            }}
+            icon={icon}
+            ref={(instance) => {
+              if (instance) {
+                (instance as MarkerWithInternalId).options.internalId = point.internalId;
+              }
+            }}
+          />
+        );
+      }),
+    [points, handleMarkerDragEnd],
+  );
+
+  const polylines = useMemo(
+    () =>
+      showSolverRoutes
+        ? routeSegments.map((segment) => (
+            <Polyline
+              key={`${segment.groupId}`}
+              pathOptions={{ color: segment.color ?? getRouteColor(segment.groupId), weight: 4 }}
+              positions={segment.polyline.map(([lat, lon]) => [lat, lon])}
+              ref={(instance) => {
+                if (instance) {
+                  instance.bindTooltip(segment.tooltip, { sticky: true });
+                }
+              }}
+            />
+          ))
+        : null,
+    [routeSegments, showSolverRoutes],
+  );
+
+  const toggleRoutes = useCallback(
+    (_event: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+      dispatch(setShowSolverRoutes(checked));
+    },
+    [dispatch],
+  );
+
+  return (
+    <Stack spacing={1.5} sx={{ height: "100%" }}>
+      <Box sx={{ height: 480, width: "100%", borderRadius: 2, overflow: "hidden", boxShadow: 2 }}>
+        <MapContainer
+          center={center}
+          zoom={zoom}
+          style={{ height: "100%", width: "100%" }}
+          whenCreated={(map) => {
+            map.on("moveend", handleMapMove);
+            map.on("zoomend", handleMapMove);
+          }}
+        >
+          <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" />
+          <FeatureGroup>
+            <EditControl
+              position="topright"
+              onCreated={handleCreated}
+              onEdited={handleEdited}
+              onDeleted={handleDeleted}
+              draw={{
+                rectangle: false,
+                polygon: false,
+                circle: false,
+                polyline: false,
+                circlemarker: false,
+              }}
+              edit={{
+                edit: true,
+                remove: true,
+              }}
+            />
+            {markers}
+            {polylines}
+          </FeatureGroup>
+        </MapContainer>
+      </Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="subtitle1" fontWeight={600}>
+          Слой «Маршруты решателя»
+        </Typography>
+        <FormControlLabel
+          control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
+          label="Показать"
+        />
+      </Stack>
+    </Stack>
+  );
+};
+
+export default memo(MapOrdersMapClient);
