@@ -53,7 +53,13 @@ def render_sidebar(app_state: AppState) -> None:
             )
         st.caption("Времена конвертируются в минуты относительно T0")
 
-        st.subheader("Курьеры (couriers.json)")
+        col_couriers_label, col_couriers_btn = st.columns([3, 1])
+        with col_couriers_label:
+            st.subheader("Курьеры (couriers.json)")
+        with col_couriers_btn:
+            if st.button("Format", key="btn_beautify_couriers"):
+                app_state.couriers_json = _beautify_json_text(app_state.couriers_json)
+        app_state.couriers_json = _beautify_json_text(app_state.couriers_json)
         app_state.couriers_json = st.text_area(
             "couriers.json",
             value=app_state.couriers_json,
@@ -61,7 +67,13 @@ def render_sidebar(app_state: AppState) -> None:
             help="Словарь с полями a (минуты готовности) и C (вместимости) или массив объектов",
         )
 
-        st.subheader("Весовые коэффициенты")
+        col_weights_label, col_weights_btn = st.columns([3, 1])
+        with col_weights_label:
+            st.subheader("Весовые коэффициенты")
+        with col_weights_btn:
+            if st.button("Format", key="btn_beautify_weights"):
+                app_state.weights_json = _beautify_json_text(app_state.weights_json)
+        app_state.weights_json = _beautify_json_text(app_state.weights_json)
         app_state.weights_json = st.text_area(
             "weights.json",
             value=app_state.weights_json,
@@ -69,7 +81,15 @@ def render_sidebar(app_state: AppState) -> None:
             help="W_cert — штраф за сертификат, W_c2e — click-to-eat, W_skip — пропуск",
         )
 
-        st.subheader("Дополнительные параметры")
+        col_extra_label, col_extra_btn = st.columns([3, 1])
+        with col_extra_label:
+            st.subheader("Дополнительные параметры")
+        with col_extra_btn:
+            if st.button("Format", key="btn_beautify_additional"):
+                app_state.additional_params_json = _beautify_json_text(
+                    app_state.additional_params_json
+                )
+        app_state.additional_params_json = _beautify_json_text(app_state.additional_params_json)
         app_state.additional_params_json = st.text_area(
             "additional_params.json",
             value=app_state.additional_params_json,
@@ -547,3 +567,59 @@ def _deduplicate(messages: Iterable[str]) -> List[str]:
             seen.add(msg)
             result.append(msg)
     return result
+
+
+_JSON_INDENT = 2
+
+
+def _beautify_json_text(source: str) -> str:
+    """Возвращает красиво форматированный JSON или исходный текст."""
+
+    if not source or not source.strip():
+        return ""
+    try:
+        parsed = json.loads(source)
+    except (TypeError, ValueError):
+        return source
+    return _format_json_value(parsed)
+
+
+def _format_json_value(value: Any, indent: int = 0) -> str:
+    """Форматирует значение JSON с учётом плоских массивов."""
+
+    space = " " * indent
+    if isinstance(value, dict):
+        if not value:
+            return "{}"
+        inner_lines = []
+        for key, val in value.items():
+            formatted = _format_json_value(val, indent + _JSON_INDENT)
+            inner_lines.append(
+                f"{' ' * (indent + _JSON_INDENT)}{json.dumps(key, ensure_ascii=False)}: {formatted}"
+            )
+        inner = "\n".join(inner_lines)
+        return "{\n" + inner + "\n" + space + "}"
+
+    if isinstance(value, list):
+        if not value:
+            return "[]"
+        if all(_is_json_scalar(item) for item in value):
+            items = ", ".join(json.dumps(item, ensure_ascii=False) for item in value)
+            return "[" + items + "]"
+        inner_lines = [
+            f"{' ' * (indent + _JSON_INDENT)}{_format_json_value(item, indent + _JSON_INDENT)}"
+            for item in value
+        ]
+        inner = "\n".join(inner_lines)
+        return "[\n" + inner + "\n" + space + "]"
+
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _is_json_scalar(value: Any) -> bool:
+    """Возвращает True для скалярных значений JSON."""
+
+    return isinstance(value, (str, int, float, bool)) or value is None
