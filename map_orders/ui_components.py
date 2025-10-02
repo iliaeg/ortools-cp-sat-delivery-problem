@@ -774,7 +774,7 @@ def _build_column_config() -> Dict[str, Any]:
     """Возвращает конфигурацию колонок для st.data_editor."""
 
     return {
-        "seq": st.column_config.TextColumn("№", disabled=True, width="small"),
+        "seq": st.column_config.TextColumn("№", disabled=True, width="small", pinned=True),
         "id": st.column_config.TextColumn("ID", disabled=True, width="small"),
         "type": st.column_config.SelectboxColumn(
             "Тип",
