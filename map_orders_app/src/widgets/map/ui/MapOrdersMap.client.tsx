@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup, Tooltip } from "react-leaflet";
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
@@ -21,7 +21,7 @@ import {
   selectRouteSegments,
   selectShowSolverRoutes,
 } from "@/features/map-orders/model/selectors";
-import { ensureDefaultMarkerIcons, createPointIcon } from "@/shared/lib/leaflet";
+import { ensureDefaultMarkerIcons, createNumberedPinIcon } from "@/shared/lib/leaflet";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
 
@@ -42,9 +42,7 @@ const EDIT_OPTIONS = {
 } as unknown as EditControlProps["edit"];
 
 const labelForPoint = (point: DeliveryPoint) =>
-  `${point.seq}. ${point.kind === "depot" ? "депо" : "заказ"} ${
-    point.id || point.internalId.slice(0, 6)
-  }`;
+  `${point.kind === "depot" ? "Депо" : "Заказ"} ${point.id || point.internalId.slice(0, 6)}`;
 
 type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
 
@@ -156,27 +154,38 @@ const MapOrdersMapClient = () => {
 
   const markers = useMemo(
     () =>
-      points.map((point) => {
-        const label = labelForPoint(point);
-        const color = point.kind === "depot" ? "#d32f2f" : "#1976d2";
-        const icon = createPointIcon(label, color);
-        return (
-          <Marker
-            key={point.internalId}
-            position={[point.lat, point.lon]}
-            draggable
-            eventHandlers={{
-              dragend: handleMarkerDragEnd(point.internalId),
-            }}
-            icon={icon}
-            ref={(instance) => {
-              if (instance) {
-                (instance as MarkerWithInternalId).options.internalId = point.internalId;
-              }
-            }}
-          />
-        );
-      }),
+      points.map((point) => (
+        <Marker
+          key={point.internalId}
+          position={[point.lat, point.lon]}
+          draggable
+          eventHandlers={{
+            dragend: handleMarkerDragEnd(point.internalId),
+          }}
+          icon={createNumberedPinIcon(point.seq, point.kind)}
+          ref={(instance) => {
+            if (instance) {
+              (instance as MarkerWithInternalId).options.internalId = point.internalId;
+            }
+          }}
+        >
+          <Tooltip direction="top" offset={[0, -32]}>
+            <div style={{ minWidth: 160 }}>
+              <strong>
+                {labelForPoint(point)}
+              </strong>
+              <br />
+              {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
+              <br />
+              Коробки: {point.boxes}
+              <br />
+              Создан: {point.createdAt}
+              <br />
+              Готов: {point.readyAt}
+            </div>
+          </Tooltip>
+        </Marker>
+      )),
     [points, handleMarkerDragEnd],
   );
 
