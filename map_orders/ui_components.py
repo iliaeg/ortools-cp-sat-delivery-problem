@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import folium
 from folium.plugins import Draw
@@ -11,9 +11,18 @@ import pandas as pd
 import streamlit as st
 from streamlit_folium import st_folium
 
+from map_orders.osrm_client import OsrmError, fetch_duration_matrix
+from map_orders.transform import (
+    ValidationError,
+    make_solver_payload,
+    parse_and_validate_points,
+)
+
 from .state import AppState, MapPoint
 
 _POINTS_EDITOR_KEY = "map_orders_points_editor"
+_SOLVER_PAYLOAD_KEY = "map_orders_solver_payload"
+_SOLVER_WARNINGS_KEY = "map_orders_solver_warnings"
 
 def render_sidebar(app_state: AppState) -> None:
     """Отрисовывает боковую панель с основными параметрами."""
@@ -149,7 +158,50 @@ def render_main_view(app_state: AppState) -> None:
         app_state.update_points_from_records(records)
 
         if edited_df.empty:
-            st.info("Таблица пуста. Добавьте точки на карте и нажмите «Импортировать из карты»." )
+            st.info(
+                "Таблица пуста. Добавьте точки на карте и нажмите «Импортировать из карты»."
+            )
+
+        st.divider()
+
+        status_placeholder = st.container()
+        build_clicked = st.button(
+            "Собрать вход CP-SAT",
+            type="primary",
+            use_container_width=True,
+            disabled=edited_df.empty,
+        )
+
+        if build_clicked:
+            errors, warnings, payload = _prepare_solver_payload(app_state)
+            if errors:
+                status_placeholder.error(_format_messages(errors))
+                st.session_state.pop(_SOLVER_PAYLOAD_KEY, None)
+                st.session_state.pop(_SOLVER_WARNINGS_KEY, None)
+            else:
+                st.session_state[_SOLVER_PAYLOAD_KEY] = payload
+                st.session_state[_SOLVER_WARNINGS_KEY] = warnings
+                status_placeholder.success(
+                    "Входные данные подготовлены — скачайте solver_input.json ниже"
+                )
+
+        solver_payload = st.session_state.get(_SOLVER_PAYLOAD_KEY)
+        solver_warnings = st.session_state.get(_SOLVER_WARNINGS_KEY, [])
+
+        if solver_payload:
+            if solver_warnings:
+                st.warning(_format_messages(solver_warnings))
+
+            payload_json = json.dumps(solver_payload, ensure_ascii=False, indent=2)
+            st.download_button(
+                "Скачать solver_input.json",
+                data=payload_json.encode("utf-8"),
+                file_name="solver_input.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+            with st.expander("Посмотреть solver_input.json"):
+                st.code(payload_json, language="json")
 
 
 def _update_map_position(app_state: AppState, map_state: Dict[str, Any] | None) -> None:
@@ -228,6 +280,56 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
 
     app_state.points = imported_points
     return len(imported_points)
+
+
+def _prepare_solver_payload(
+    app_state: AppState,
+) -> Tuple[List[str], List[str], Optional[Dict[str, Any]]]:
+    """Формирует данные для solver_input.json и возвращает (errors, warnings, payload)."""
+
+    raw_points: List[Dict[str, Any]] = []
+    for point in app_state.points:
+        row = point.to_row()
+        row["meta"] = point.meta
+        raw_points.append(row)
+
+    points_result = parse_and_validate_points(raw_points)
+    errors = list(points_result.errors)
+    warnings = list(points_result.warnings)
+
+    if errors:
+        return errors, warnings, None
+
+    try:
+        coordinates = points_result.coordinates_for_osrm()
+        tau = fetch_duration_matrix(app_state.osrm_base_url, coordinates)
+    except (ValueError, OsrmError) as exc:
+        errors.append(str(exc))
+        return errors, warnings, None
+    except Exception as exc:  # pragma: no cover - на случай непредвиденных ошибок
+        errors.append(f"Не удалось получить матрицу τ: {exc}")
+        return errors, warnings, None
+
+    try:
+        payload, payload_warnings = make_solver_payload(
+            points_result,
+            app_state.couriers_json,
+            app_state.weights_json,
+            app_state.t0_iso or "",
+            app_state.osrm_base_url,
+            tau,
+        )
+    except ValidationError as exc:
+        errors.extend(exc.errors)
+        return errors, warnings, None
+    except Exception as exc:  # pragma: no cover - защитная ветка
+        errors.append(f"Не удалось собрать вход солвера: {exc}")
+        return errors, warnings, None
+
+    warnings.extend(payload_warnings)
+    warnings = _deduplicate(warnings)
+
+    return errors, warnings, payload
 
 
 def _make_feature_group(points: List[MapPoint]) -> folium.FeatureGroup:
@@ -312,3 +414,21 @@ def _is_number(value: Any) -> bool:
     """Проверяет, что значение является числом."""
 
     return isinstance(value, (int, float)) and not pd.isna(value)
+
+
+def _format_messages(messages: Iterable[str]) -> str:
+    """Форматирует список сообщений в bullet-представление."""
+
+    return "\n".join(f"• {msg}" for msg in messages)
+
+
+def _deduplicate(messages: Iterable[str]) -> List[str]:
+    """Удаляет дубликаты, сохраняя порядок."""
+
+    seen: set[str] = set()
+    result: List[str] = []
+    for msg in messages:
+        if msg not in seen:
+            seen.add(msg)
+            result.append(msg)
+    return result
