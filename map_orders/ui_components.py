@@ -14,7 +14,6 @@ from streamlit_folium import st_folium
 import requests
 
 from map_orders.io_handlers import (
-    export_case_bundle,
     export_geojson,
     import_case_bundle,
     import_solver_input,
@@ -196,7 +195,7 @@ def render_main_view(app_state: AppState) -> None:
                 st.rerun()
 
         st.divider()
-        col_export_geojson, col_export_case, col_import_case = st.columns(3)
+        col_export_geojson, col_import_case = st.columns(2)
         with col_export_geojson:
             geojson_payload = export_geojson(app_state)
             st.download_button(
@@ -204,15 +203,6 @@ def render_main_view(app_state: AppState) -> None:
                 data=json.dumps(geojson_payload, ensure_ascii=False, indent=2).encode("utf-8"),
                 file_name="orders.geojson",
                 mime="application/geo+json",
-                width="stretch",
-            )
-        with col_export_case:
-            case_payload = export_case_bundle(app_state)
-            st.download_button(
-                "Экспорт кейса",
-                data=json.dumps(case_payload, ensure_ascii=False, indent=2).encode("utf-8"),
-                file_name="case_bundle.json",
-                mime="application/json",
                 width="stretch",
             )
         with col_import_case:
