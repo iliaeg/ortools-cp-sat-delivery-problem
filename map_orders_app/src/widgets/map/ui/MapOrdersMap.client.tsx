@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
@@ -89,6 +89,7 @@ const MapOrdersMapClient = () => {
           lon: lng,
         }),
       );
+      layer.remove();
     },
     [dispatch],
   );
@@ -171,7 +172,7 @@ const MapOrdersMapClient = () => {
   );
 
   const toggleRoutes = useCallback(
-    (_event: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       dispatch(setShowSolverRoutes(checked));
     },
     [dispatch],

@@ -19,6 +19,7 @@ import {
   replacePoints,
   clearPoints,
   setUiState,
+  setPersistedState,
 } from "@/features/map-orders/model/mapOrdersSlice";
 import { selectPoints, selectWarnings } from "@/features/map-orders/model/selectors";
 import {
@@ -107,7 +108,7 @@ const MapOrdersWidget = () => {
         kind === "case"
           ? await importCaseMutation(payload).unwrap()
           : await importSolverInputMutation(payload).unwrap();
-      dispatch(replacePoints(preparePointsFromImport(nextState.points)));
+      dispatch(setPersistedState(nextState));
       dispatch(setUiState({ warnings: [] }));
     },
     [dispatch, importCaseMutation, importSolverInputMutation],

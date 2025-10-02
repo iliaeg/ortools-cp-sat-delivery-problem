@@ -108,6 +108,7 @@ const SolverControlsWidget = () => {
 
   const handleResetResult = useCallback(() => {
     dispatch(resetSolverResult());
+    dispatch(setUiState({ warnings: [] }));
   }, [dispatch]);
 
   return (

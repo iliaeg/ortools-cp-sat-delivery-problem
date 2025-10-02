@@ -4,6 +4,8 @@ export interface SolverInputMeta {
   mode: string;
   osrmBaseUrl: string;
   T0_iso: string;
+  pointInternalIds: string[];
+  orderInternalIds: string[];
   abstime: {
     orders: string[];
     couriers: string[];

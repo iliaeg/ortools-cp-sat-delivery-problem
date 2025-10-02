@@ -13,11 +13,13 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import { format } from "date-fns";
+import CircularProgress from "@mui/material/CircularProgress";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
   selectControlTexts,
   selectLastSavedAt,
+  selectUiFlags,
 } from "@/features/map-orders/model/selectors";
 import {
   setAdditionalParamsText,
@@ -41,6 +43,7 @@ const ParametersPanelWidget = () => {
   const { couriersText, weightsText, additionalParamsText, t0Time, osrmBaseUrl } =
     useAppSelector(selectControlTexts);
   const lastSavedAt = useAppSelector(selectLastSavedAt);
+  const { isSaving } = useAppSelector(selectUiFlags);
   const [error, setError] = useState<string | null>(null);
 
   const todayIso = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
@@ -78,12 +81,12 @@ const ParametersPanelWidget = () => {
         <Typography variant="h6" fontWeight={700}>
           Параметры решателя
         </Typography>
-        {lastSavedAt ? (
-          <Stack direction="row" gap={1} alignItems="center" color="text.secondary">
-            <ContentCopyIcon fontSize="small" />
-            <Typography variant="body2">Сохранено {lastSavedAt}</Typography>
-          </Stack>
-        ) : null}
+        <Stack direction="row" gap={1} alignItems="center" color="text.secondary">
+          {isSaving ? <CircularProgress size={16} /> : <ContentCopyIcon fontSize="small" />}
+          <Typography variant="body2">
+            {isSaving ? "Сохраняем изменения" : lastSavedAt ? `Сохранено ${lastSavedAt}` : "Ещё не сохранялось"}
+          </Typography>
+        </Stack>
       </Stack>
       <TextField
         label="Курьеры"
@@ -94,7 +97,7 @@ const ParametersPanelWidget = () => {
       />
       <Stack direction="row" spacing={1}>
         <Button onClick={handleBeautifyCouriers} startIcon={<CleaningServicesIcon />}>
-          Beautify
+          Форматировать
         </Button>
         <Button onClick={() => dispatch(setCouriersText(""))} startIcon={<DeleteSweepIcon />}>
           Очистить
@@ -108,7 +111,7 @@ const ParametersPanelWidget = () => {
         minRows={4}
       />
       <Button onClick={handleBeautifyWeights} startIcon={<CleaningServicesIcon />}>
-        Beautify
+        Форматировать
       </Button>
       <TextField
         label="Дополнительные параметры"
@@ -118,7 +121,7 @@ const ParametersPanelWidget = () => {
         minRows={4}
       />
       <Button onClick={handleBeautifyAdditional} startIcon={<CleaningServicesIcon />}>
-        Beautify
+        Форматировать
       </Button>
       <TextField
         label="T0 (HH:MM:SS)"
