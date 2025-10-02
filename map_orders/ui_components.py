@@ -58,7 +58,7 @@ def render_sidebar(app_state: AppState) -> None:
             "couriers.json",
             value=app_state.couriers_json,
             height=140,
-            help="Массив с полями capacity и available_at",
+            help="Словарь с полями a (минуты готовности) и C (вместимости) или массив объектов",
         )
 
         st.subheader("Весовые коэффициенты")

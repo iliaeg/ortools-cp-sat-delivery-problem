@@ -200,7 +200,7 @@ class AppState:
     """Контейнер основных данных приложения."""
 
     points: List[MapPoint] = field(default_factory=list)
-    couriers_json: str = "{\"a\": [0, 40]}"
+    couriers_json: str = "{\"a\": [0, 40], \"C\": [25, 25]}"
     weights_json: str = "{\"W_cert\": 1000, \"W_c2e\": 1, \"W_skip\": 200}"
     additional_params_json: str = "{\"time_limit\": 3.0}"
     osrm_base_url: str = "http://localhost:5563"

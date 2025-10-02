@@ -337,7 +337,7 @@ def _parse_couriers(couriers_json: str, t0_dt: datetime) -> CourierParseResult:
     meta_abstime: List[Dict[str, str]] = []
     raw_payload: Any = []
 
-    text = couriers_json.strip() if couriers_json else "[]"
+    text = couriers_json.strip() if couriers_json else ""
     try:
         payload = json.loads(text or "[]")
         raw_payload = payload
@@ -351,8 +351,60 @@ def _parse_couriers(couriers_json: str, t0_dt: datetime) -> CourierParseResult:
             errors=errors,
         )
 
+    if isinstance(payload, dict):
+        capacities_raw = payload.get("C") or payload.get("c")
+        available_raw = payload.get("a")
+
+        if not isinstance(capacities_raw, list) or not isinstance(available_raw, list):
+            errors.append("couriers.json: ожидаются списки C и a")
+            return CourierParseResult(
+                capacities,
+                available_rel,
+                meta_abstime,
+                raw_payload=payload,
+                errors=errors,
+            )
+
+        if len(capacities_raw) != len(available_raw):
+            errors.append("couriers.json: длины списков C и a должны совпадать")
+            return CourierParseResult(
+                capacities,
+                available_rel,
+                meta_abstime,
+                raw_payload=payload,
+                errors=errors,
+            )
+
+        for idx, (capacity_raw, available_raw_minutes) in enumerate(
+            zip(capacities_raw, available_raw),
+            start=1,
+        ):
+            try:
+                capacity = int(capacity_raw)
+            except (TypeError, ValueError):
+                errors.append(f"Курьер #{idx}: capacity должен быть целым ≥ 0")
+                continue
+            if capacity < 0:
+                errors.append(f"Курьер #{idx}: capacity должен быть целым ≥ 0")
+                continue
+
+            try:
+                available_minutes = int(available_raw_minutes)
+            except (TypeError, ValueError):
+                errors.append(f"Курьер #{idx}: a должен быть целым числом минут")
+                continue
+            if available_minutes < 0:
+                errors.append(f"Курьер #{idx}: a должен быть ≥ 0")
+                continue
+
+            capacities.append(capacity)
+            available_rel.append(available_minutes)
+            meta_abstime.append({"available_rel_minutes": str(available_minutes)})
+
+        return CourierParseResult(capacities, available_rel, meta_abstime, raw_payload, errors=errors)
+
     if not isinstance(payload, list):
-        errors.append("couriers.json должен быть массивом объектов")
+        errors.append("couriers.json должен быть массивом объектов или словарём с ключами a и C")
         return CourierParseResult(
             capacities,
             available_rel,
