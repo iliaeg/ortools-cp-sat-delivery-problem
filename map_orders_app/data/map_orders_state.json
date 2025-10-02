@@ -5,8 +5,8 @@
       "id": "",
       "kind": "depot",
       "seq": 1,
-      "lat": 52.96725150376326,
-      "lon": 36.06159210205079,
+      "lat": 52.96738073699242,
+      "lon": 36.06210708618165,
       "boxes": 0,
       "createdAt": "10:00:00",
       "readyAt": "11:00:00",
@@ -42,10 +42,10 @@
     }
   ],
   "mapCenter": [
-    52.98782056880754,
-    36.06605529785157
+    52.97043052904765,
+    36.06210708618165
   ],
-  "mapZoom": 13,
+  "mapZoom": 15,
   "couriersText": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",
   "weightsText": "{\n  \"W_cert\": 1000,\n  \"W_c2e\": 1,\n  \"W_skip\": 10000\n}",
   "additionalParamsText": "{\n  \"time_limit\": 3\n}",
@@ -251,5 +251,5 @@
     ],
     "routesSegments": []
   },
-  "lastSavedAtIso": "2025-10-02T22:49:23.741Z"
+  "lastSavedAtIso": "2025-10-02T22:51:32.820Z"
 }

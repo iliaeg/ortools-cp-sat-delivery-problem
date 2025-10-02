@@ -1,11 +1,11 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup, Tooltip } from "react-leaflet";
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
-import { Box, Checkbox, FormControlLabel, Stack, Typography } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, Stack, Switch } from "@mui/material";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
@@ -52,6 +52,7 @@ const MapOrdersMapClient = () => {
   const { center, zoom } = useAppSelector(selectMapView);
   const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
   const routeSegments = useAppSelector(selectRouteSegments);
+  const [isEditingEnabled, setEditingEnabled] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
@@ -158,7 +159,7 @@ const MapOrdersMapClient = () => {
         <Marker
           key={point.internalId}
           position={[point.lat, point.lon]}
-          draggable
+            draggable={isEditingEnabled}
           eventHandlers={{
             dragend: handleMarkerDragEnd(point.internalId),
           }}
@@ -169,7 +170,7 @@ const MapOrdersMapClient = () => {
             }
           }}
         >
-          <Tooltip direction="top" offset={[0, -32]}>
+            <Tooltip direction="top" offset={[0, -32]}>
             <div style={{ minWidth: 160 }}>
               <strong>
                 {labelForPoint(point)}
@@ -186,7 +187,7 @@ const MapOrdersMapClient = () => {
           </Tooltip>
         </Marker>
       )),
-    [points, handleMarkerDragEnd],
+    [points, handleMarkerDragEnd, isEditingEnabled],
   );
 
   const polylines = useMemo(
@@ -226,26 +227,35 @@ const MapOrdersMapClient = () => {
         >
           <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" />
           <FeatureGroup>
-            <EditControl
-              position="topright"
-              onCreated={handleCreated}
-              onEdited={handleEdited}
-              onDeleted={handleDeleted}
-              draw={DRAW_OPTIONS}
-              edit={EDIT_OPTIONS}
-            />
+            {isEditingEnabled ? (
+              <EditControl
+                position="topright"
+                onCreated={handleCreated}
+                onEdited={handleEdited}
+                onDeleted={handleDeleted}
+                draw={DRAW_OPTIONS}
+                edit={EDIT_OPTIONS}
+              />
+            ) : null}
             {markers}
             {polylines}
           </FeatureGroup>
         </MapContainer>
       </Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Typography variant="subtitle1" fontWeight={600}>
-          Слой «Маршруты решателя»
-        </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap">
         <FormControlLabel
           control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
-          label="Показать"
+          label="Показать маршруты решателя"
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={isEditingEnabled}
+              onChange={(_event, checked) => setEditingEnabled(checked)}
+              color="primary"
+            />
+          }
+          label="Режим редактирования точек"
         />
       </Stack>
     </Stack>
