@@ -41,6 +41,7 @@ _SOLVER_WARNINGS_KEY = "map_orders_solver_warnings"
 _MAP_LAYOUT_STYLE_KEY = "map_orders_map_layout_style"
 _SHOW_NUMBERS_KEY = "map_orders_show_numbers"
 _SOLVER_FEEDBACK_KEY = "map_orders_solver_feedback"
+_MAP_STATE_KEY = "map_orders_map_state"
 
 def render_sidebar(app_state: AppState) -> None:
     """Отрисовывает боковую панель с основными параметрами."""
@@ -132,54 +133,9 @@ def render_main_view(app_state: AppState) -> None:
 
     with map_col:
         st.markdown("#### Карта (Орёл, OSM)")
-        current_state = st.session_state[_SHOW_NUMBERS_KEY]
-        toggle_label = "Скрыть номера точек" if current_state else "Отобразить номера точек"
-        if st.button(toggle_label, key="map_orders_toggle_numbers"):
-            st.session_state[_SHOW_NUMBERS_KEY] = not current_state
-            current_state = st.session_state[_SHOW_NUMBERS_KEY]
-        show_numbers = current_state
-
         st.markdown('<div class="map-orders-panel">', unsafe_allow_html=True)
-        st.markdown('<div class="map-orders-map">', unsafe_allow_html=True)
-        feature_group = _make_feature_group(app_state.points, show_numbers)
-        folium_map = folium.Map(
-            location=list(app_state.map_center),
-            zoom_start=app_state.map_zoom,
-            tiles="OpenStreetMap",
-            control_scale=True,
-        )
-        Draw(
-            export=False,
-            show_geometry_on_click=False,
-            draw_options={
-                "polyline": False,
-                "polygon": False,
-                "circle": False,
-                "rectangle": False,
-                "circlemarker": False,
-                "marker": True,
-            },
-            edit_options={"remove": True},
-        ).add_to(folium_map)
-
-        returned_objects = ["all_drawings"]
-
-        feature_group.add_to(folium_map)
-        _add_solver_routes_layer(folium_map, app_state)
-        folium.LayerControl().add_to(folium_map)
-
-        with st.spinner("Загружаем карту..."):
-            map_state = st_folium(
-                folium_map,
-                key="map_orders_map",
-                height=520,
-                width=None,
-                center=app_state.map_center,
-                zoom=app_state.map_zoom,
-                returned_objects=returned_objects,
-                feature_group_to_add=feature_group,
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
+        _render_map_fragment(app_state)
+        map_state = st.session_state.get(_MAP_STATE_KEY)
 
         st.markdown('<div class="map-orders-actions">', unsafe_allow_html=True)
         col_btn1, col_btn2 = st.columns(2)
@@ -344,6 +300,67 @@ def render_main_view(app_state: AppState) -> None:
             _render_solver_result_panel(app_state)
 
     persist_state(app_state)
+
+
+@st.fragment
+def _render_map_fragment(app_state: AppState) -> None:
+    """Отрисовывает карту и сохраняет её состояние в сессии."""
+
+    if _SHOW_NUMBERS_KEY not in st.session_state:
+        st.session_state[_SHOW_NUMBERS_KEY] = False
+
+    current_state = st.session_state[_SHOW_NUMBERS_KEY]
+    toggle_label = "Скрыть номера точек" if current_state else "Отобразить номера точек"
+    if st.button(toggle_label, key="map_orders_toggle_numbers"):
+        st.session_state[_SHOW_NUMBERS_KEY] = not current_state
+        current_state = st.session_state[_SHOW_NUMBERS_KEY]
+
+    show_numbers = current_state
+
+    st.markdown('<div class="map-orders-map">', unsafe_allow_html=True)
+
+    feature_group = _make_feature_group(app_state.points, show_numbers)
+    folium_map = folium.Map(
+        location=list(app_state.map_center),
+        zoom_start=app_state.map_zoom,
+        tiles="OpenStreetMap",
+        control_scale=True,
+    )
+    Draw(
+        export=False,
+        show_geometry_on_click=False,
+        draw_options={
+            "polyline": False,
+            "polygon": False,
+            "circle": False,
+            "rectangle": False,
+            "circlemarker": False,
+            "marker": True,
+        },
+        edit_options={"remove": True},
+    ).add_to(folium_map)
+
+    returned_objects = ["all_drawings"]
+
+    feature_group.add_to(folium_map)
+    _add_solver_routes_layer(folium_map, app_state)
+    folium.LayerControl().add_to(folium_map)
+
+    with st.spinner("Загружаем карту..."):
+        map_state = st_folium(
+            folium_map,
+            key="map_orders_map",
+            height=520,
+            width=None,
+            center=app_state.map_center,
+            zoom=app_state.map_zoom,
+            returned_objects=returned_objects,
+            feature_group_to_add=feature_group,
+        )
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.session_state[_MAP_STATE_KEY] = map_state
 
 
 def _inject_map_layout_styles() -> None:
