@@ -12,7 +12,6 @@ import {
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
-import { format } from "date-fns";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
@@ -47,7 +46,7 @@ const ParametersPanelWidget = () => {
   const { isSaving } = useAppSelector(selectUiFlags);
   const [error, setError] = useState<string | null>(null);
 
-  const todayIso = useMemo(() => format(new Date(), "yyyy-MM-dd"), []);
+  const todayIsoUtc = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const handleBeautifyCouriers = useCallback(() => {
     try {
@@ -98,7 +97,7 @@ const ParametersPanelWidget = () => {
         label="Текущее время"
         value={t0Time}
         onChange={(event) => dispatch(setT0Time(event.target.value))}
-        helperText={`Формат HH:MM:SS · Текущая дата: ${todayIso}`}
+        helperText={`Формат HH:MM:SS · Текущая дата (UTC): ${todayIsoUtc}`}
       />
       <TextField
         label="Курьеры"

@@ -1,6 +1,5 @@
 import { createSelector } from "@reduxjs/toolkit";
 import { RootState } from "@/shared/store";
-import { DeliveryPoint } from "@/shared/types/points";
 
 export const selectMapOrdersState = (state: RootState) => state.mapOrders;
 
@@ -60,17 +59,8 @@ export const selectSolverSignatures = createSelector(selectMapOrdersState, (stat
 }));
 
 export const selectSolverComputedColumnsVisible = createSelector(
-  selectPoints,
-  (points: DeliveryPoint[]) =>
-    points.some(
-      (point) =>
-        point.groupId !== undefined ||
-        point.routePos !== undefined ||
-        point.etaRelMin !== undefined ||
-        point.plannedC2eMin !== undefined ||
-        point.skip !== undefined ||
-        point.cert !== undefined,
-    ),
+  selectMapOrdersState,
+  (state) => Boolean(state.data.solverColumnsVisible),
 );
 
 export const selectControlTexts = createSelector(selectMapOrdersState, (state) => ({

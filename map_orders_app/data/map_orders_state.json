@@ -1,67 +1,94 @@
 {
   "points": [
     {
-      "internalId": "80daca98-a6b5-435f-85b5-fcad2bcd84aa",
+      "internalId": "23cb655f-a833-4ccb-9a35-0533647259db",
       "id": "",
       "kind": "depot",
       "seq": 0,
-      "lat": 52.967569437005686,
-      "lon": 36.06204271316529,
+      "lat": 52.986322148551594,
+      "lon": 36.06571197509766,
       "boxes": 0,
-      "createdAt": "10:00:00",
-      "readyAt": "11:00:00",
+      "createdAt": "00:00:00",
+      "readyAt": "00:00:00",
       "extraJson": "{}"
     },
     {
-      "internalId": "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+      "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557",
       "id": "",
       "kind": "order",
       "seq": 1,
-      "lat": 52.9896212685631,
-      "lon": 36.06285810470582,
-      "boxes": 0,
-      "createdAt": "10:30:00",
-      "readyAt": "11:00:00",
-      "extraJson": "{}"
+      "lat": 52.97784734548465,
+      "lon": 36.06751441955567,
+      "boxes": 2,
+      "createdAt": "10:45:00",
+      "readyAt": "11:05:00",
+      "extraJson": "{}",
+      "skip": false,
+      "cert": false
     },
     {
-      "internalId": "92785c18-cdcb-4fa9-82c9-9b8301af0cce",
+      "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
       "id": "",
       "kind": "order",
       "seq": 2,
-      "lat": 52.98862667479592,
-      "lon": 36.06657028198243,
+      "lat": 52.98900893411981,
+      "lon": 36.07172012329102,
+      "boxes": 5,
+      "createdAt": "10:45:00",
+      "readyAt": "11:05:00",
+      "extraJson": "{}",
+      "skip": false,
+      "cert": false
+    },
+    {
+      "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
+      "id": "",
+      "kind": "order",
+      "seq": 3,
+      "lat": 52.98523705315929,
+      "lon": 36.07455253601075,
       "boxes": 0,
-      "createdAt": "10:00:00",
-      "readyAt": "11:06:00",
-      "extraJson": "{}"
+      "createdAt": "10:45:00",
+      "readyAt": "11:05:00",
+      "extraJson": "{}",
+      "skip": false,
+      "cert": false
     }
   ],
   "mapCenter": [
-    52.97043052904765,
-    36.06210708618165
+    52.9795527748251,
+    36.0637378692627
   ],
-  "mapZoom": 15,
-  "couriersText": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",
+  "mapZoom": 14,
+  "couriersText": "{\n  \"a\": [0, 55],\n  \"C\": [25, 25]\n}",
   "weightsText": "{\n  \"W_cert\": 1000,\n  \"W_c2e\": 1,\n  \"W_skip\": 10000\n}",
   "additionalParamsText": "{\n  \"time_limit\": 3\n}",
-  "t0Time": "07:45:00",
+  "t0Time": "10:45:00",
   "osrmBaseUrl": "http://localhost:5563",
   "showSolverRoutes": true,
   "solverInput": {
     "tau": [
       [
         0,
-        4,
-        5
+        3,
+        3,
+        3
       ],
       [
-        5,
+        2,
         0,
+        3,
         2
       ],
       [
-        6,
+        3,
+        4,
+        0,
+        3
+      ],
+      [
+        2,
+        2,
         2,
         0
       ]
@@ -72,20 +99,23 @@
       25
     ],
     "box": [
-      0,
+      2,
+      5,
       0
     ],
     "c": [
-      -15,
-      -645
+      0,
+      0,
+      0
     ],
     "r": [
-      15,
-      21
+      20,
+      20,
+      20
     ],
     "a": [
       0,
-      15
+      55
     ],
     "W_cert": 1000,
     "W_c2e": 1,
@@ -93,81 +123,101 @@
     "meta": {
       "ordersExtra": [
         {},
+        {},
         {}
       ],
       "pointsLatLon": [
         [
-          52.967569437005686,
-          36.06204271316529
+          52.986322148551594,
+          36.06571197509766
         ],
         [
-          52.9896212685631,
-          36.06285810470582
+          52.97784734548465,
+          36.06751441955567
         ],
         [
-          52.98862667479592,
-          36.06657028198243
+          52.98900893411981,
+          36.07172012329102
+        ],
+        [
+          52.98523705315929,
+          36.07455253601075
         ]
       ],
       "mode": "OSRM",
       "osrmBaseUrl": "http://localhost:5563",
-      "T0_iso": "2025-10-03T07:45:00.000Z",
+      "T0_iso": "2025-10-02T10:45:00.000Z",
       "pointInternalIds": [
-        "80daca98-a6b5-435f-85b5-fcad2bcd84aa",
-        "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
-        "92785c18-cdcb-4fa9-82c9-9b8301af0cce"
+        "23cb655f-a833-4ccb-9a35-0533647259db",
+        "73dc7014-ac08-4910-bb86-2fa77fc58557",
+        "6fd37e0b-6909-43ff-ad2d-d0627a526175",
+        "c1559d03-b4ba-4ad0-9302-91eddd3c07c6"
       ],
       "orderInternalIds": [
-        "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
-        "92785c18-cdcb-4fa9-82c9-9b8301af0cce"
+        "73dc7014-ac08-4910-bb86-2fa77fc58557",
+        "6fd37e0b-6909-43ff-ad2d-d0627a526175",
+        "c1559d03-b4ba-4ad0-9302-91eddd3c07c6"
       ],
       "abstime": {
         "orders": [
-          "2025-10-03T11:00:00+03:00",
-          "2025-10-03T11:06:00+03:00"
+          "2025-10-02T14:05:00+03:00",
+          "2025-10-02T14:05:00+03:00",
+          "2025-10-02T14:05:00+03:00"
         ],
         "couriers": [
-          "2025-10-03T10:45:00+03:00",
-          "2025-10-03T11:00:00+03:00"
+          "2025-10-02T13:45:00+03:00",
+          "2025-10-02T14:40:00+03:00"
         ]
       },
       "combinedParams": {
         "orders": [
           {
-            "internalId": "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+            "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557",
             "id": "",
             "kind": "order",
-            "seq": 2,
-            "lat": 52.9896212685631,
-            "lon": 36.06285810470582,
-            "boxes": 0,
-            "createdAt": "10:30:00",
-            "readyAt": "11:00:00",
+            "seq": 1,
+            "lat": 52.97784734548465,
+            "lon": 36.06751441955567,
+            "boxes": 2,
+            "createdAt": "10:45:00",
+            "readyAt": "11:05:00",
             "extraJson": "{}"
           },
           {
-            "internalId": "92785c18-cdcb-4fa9-82c9-9b8301af0cce",
+            "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
+            "id": "",
+            "kind": "order",
+            "seq": 2,
+            "lat": 52.98900893411981,
+            "lon": 36.07172012329102,
+            "boxes": 5,
+            "createdAt": "10:45:00",
+            "readyAt": "11:05:00",
+            "extraJson": "{}"
+          },
+          {
+            "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
             "id": "",
             "kind": "order",
             "seq": 3,
-            "lat": 52.98862667479592,
-            "lon": 36.06657028198243,
+            "lat": 52.98523705315929,
+            "lon": 36.07455253601075,
             "boxes": 0,
-            "createdAt": "00:00:00",
-            "readyAt": "11:06:00",
+            "createdAt": "10:45:00",
+            "readyAt": "11:05:00",
             "extraJson": "{}"
           }
         ],
         "depot": {
-          "internalId": "80daca98-a6b5-435f-85b5-fcad2bcd84aa",
+          "internalId": "23cb655f-a833-4ccb-9a35-0533647259db",
           "id": "",
           "kind": "depot",
-          "seq": 1,
-          "lat": 52.967569437005686,
-          "lon": 36.06204271316529,
+          "seq": 0,
+          "lat": 52.986322148551594,
+          "lon": 36.06571197509766,
           "boxes": 0,
-          "createdAt": "10:00:00",
-          "readyAt": "11:00:00",
+          "createdAt": "00:00:00",
+          "readyAt": "00:00:00",
           "extraJson": "{}"
         },
         "weights": {
@@ -178,7 +228,7 @@
         "couriers": {
           "a": [
             0,
-            15
+            55
           ],
           "C": [
             25,
@@ -192,6 +242,72 @@
     },
     "time_limit": 3
   },
-  "solverResult": null,
-  "lastSavedAtIso": "2025-10-02T23:16:15.601Z"
+  "solverResult": {
+    "result": {
+      "result": {
+        "status": "OPTIMAL",
+        "objective": 75,
+        "routes": [
+          [
+            0,
+            1,
+            3,
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "t_dep": [
+          20,
+          55
+        ],
+        "T": {
+          "1": 23,
+          "2": 27,
+          "3": 25
+        },
+        "s": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "skip": {
+          "1": 0,
+          "2": 0,
+          "3": 0
+        },
+        "z": {
+          "1,0": 1,
+          "1,1": 0,
+          "2,0": 1,
+          "2,1": 0,
+          "3,0": 1,
+          "3,1": 0
+        }
+      }
+    },
+    "ordersComputed": [
+      {
+        "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557",
+        "skip": false,
+        "cert": false
+      },
+      {
+        "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
+        "skip": false,
+        "cert": false
+      },
+      {
+        "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
+        "skip": false,
+        "cert": false
+      }
+    ],
+    "routesSegments": []
+  },
+  "lastSavedAtIso": "2025-10-02T23:36:17.364Z",
+  "solverColumnsVisible": true
 }

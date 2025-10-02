@@ -70,6 +70,10 @@ export interface RoutesSegmentDto {
   color: string;
   polyline: [number, number][];
   tooltip: string;
+  segments: Array<{
+    from: [number, number];
+    to: [number, number];
+  }>;
 }
 
 export interface SolverSolveResponse {

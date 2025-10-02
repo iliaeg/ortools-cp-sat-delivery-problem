@@ -36,6 +36,7 @@ const initialPersistedState: MapOrdersPersistedState = {
   solverInput: null,
   solverResult: null,
   lastSavedAtIso: undefined,
+  solverColumnsVisible: false,
 };
 
 const initialUiState: MapOrdersUiState = {
@@ -163,6 +164,8 @@ const mapOrdersSlice = createSlice({
           action.payload.additionalParamsText ?? state.data.additionalParamsText,
           DEFAULT_ADDITIONAL_PARAMS_TEXT,
         ),
+        solverColumnsVisible:
+          action.payload.solverColumnsVisible ?? state.data.solverColumnsVisible ?? false,
       };
     },
     setUiState: (state, action: PayloadAction<Partial<MapOrdersUiState>>) => {
@@ -200,6 +203,7 @@ const mapOrdersSlice = createSlice({
       state.data.points = [];
       state.data.solverResult = null;
       state.data.solverInput = null;
+      state.data.solverColumnsVisible = false;
     },
     setMapView: (
       state,
@@ -231,6 +235,9 @@ const mapOrdersSlice = createSlice({
       action: PayloadAction<SolverInputPayload | null>,
     ) => {
       state.data.solverInput = action.payload;
+      if (action.payload === null) {
+        state.data.solverColumnsVisible = false;
+      }
     },
     setSolverResult: (
       state,
@@ -257,6 +264,7 @@ const mapOrdersSlice = createSlice({
           ...patch,
         };
       });
+      state.data.solverColumnsVisible = true;
     },
     setLastSavedAt: (state, action: PayloadAction<string | undefined>) => {
       state.data.lastSavedAtIso = action.payload;
@@ -272,6 +280,7 @@ const mapOrdersSlice = createSlice({
         skip: undefined,
         cert: undefined,
       }));
+      state.data.solverColumnsVisible = false;
     },
   },
 });

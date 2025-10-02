@@ -1,7 +1,16 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup, Tooltip } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polyline,
+  FeatureGroup,
+  Tooltip,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
@@ -21,7 +30,8 @@ import {
   selectRouteSegments,
   selectShowSolverRoutes,
 } from "@/features/map-orders/model/selectors";
-import { ensureDefaultMarkerIcons, createNumberedPinIcon } from "@/shared/lib/leaflet";
+import { ensureDefaultMarkerIcons, createNumberedPinIcon, createRouteArrowIcon } from "@/shared/lib/leaflet";
+import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
 
@@ -194,15 +204,9 @@ const MapOrdersMapClient = () => {
     () =>
       showSolverRoutes
         ? routeSegments.map((segment) => (
-            <Polyline
+            <RouteSegment
               key={`${segment.groupId}`}
-              pathOptions={{ color: segment.color ?? getRouteColor(segment.groupId), weight: 4 }}
-              positions={segment.polyline.map(([lat, lon]) => [lat, lon])}
-              ref={(instance) => {
-                if (instance) {
-                  instance.bindTooltip(segment.tooltip, { sticky: true });
-                }
-              }}
+              segment={segment}
             />
           ))
         : null,
@@ -263,3 +267,56 @@ const MapOrdersMapClient = () => {
 };
 
 export default memo(MapOrdersMapClient);
+
+interface RouteSegmentProps {
+  segment: RoutesSegmentDto;
+}
+
+const RouteSegmentComponent = ({ segment }: RouteSegmentProps) => {
+  const map = useMap();
+  const [, forceUpdate] = useState(0);
+
+  useMapEvents({
+    zoom: () => forceUpdate((value) => value + 1),
+    move: () => forceUpdate((value) => value + 1),
+  });
+
+  const color = segment.color ?? getRouteColor(segment.groupId);
+
+  const arrowMarkers = segment.segments.map((item, index) => {
+    const fromLatLng = L.latLng(item.from[0], item.from[1]);
+    const toLatLng = L.latLng(item.to[0], item.to[1]);
+
+    const fromPoint = map.latLngToLayerPoint(fromLatLng);
+    const toPoint = map.latLngToLayerPoint(toLatLng);
+    const angle = Math.atan2(toPoint.y - fromPoint.y, toPoint.x - fromPoint.x) * (180 / Math.PI);
+    const midLat = (item.from[0] + item.to[0]) / 2;
+    const midLon = (item.from[1] + item.to[1]) / 2;
+
+    return (
+      <Marker
+        key={`${segment.groupId}-arrow-${index}`}
+        position={[midLat, midLon]}
+        icon={createRouteArrowIcon(angle, color)}
+        interactive={false}
+      />
+    );
+  });
+
+  return (
+    <>
+      <Polyline
+        pathOptions={{ color, weight: 4 }}
+        positions={segment.polyline.map(([lat, lon]) => [lat, lon])}
+        ref={(instance) => {
+          if (instance) {
+            instance.bindTooltip(segment.tooltip, { sticky: true });
+          }
+        }}
+      />
+      {arrowMarkers}
+    </>
+  );
+};
+
+const RouteSegment = memo(RouteSegmentComponent);
