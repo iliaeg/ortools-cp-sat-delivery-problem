@@ -284,36 +284,38 @@ def render_main_view(app_state: AppState) -> None:
                     "Входные данные подготовлены — скачайте solver_input.json ниже"
                 )
 
+        solver_controls_container = st.container()
         solver_payload = st.session_state.get(_SOLVER_PAYLOAD_KEY)
         solver_warnings = st.session_state.get(_SOLVER_WARNINGS_KEY, [])
 
-    if solver_payload:
-        if solver_warnings:
-            st.warning(_format_messages(solver_warnings))
+        if solver_payload:
+            with solver_controls_container:
+                if solver_warnings:
+                    st.warning(_format_messages(solver_warnings))
 
-        payload_json = json.dumps(solver_payload, ensure_ascii=False, indent=2)
-        st.download_button(
-            "Скачать solver_input.json",
-            data=payload_json.encode("utf-8"),
-            file_name="solver_input.json",
-            mime="application/json",
-            width="stretch",
-        )
-        with st.expander("Посмотреть solver_input.json"):
-            st.code(payload_json, language="json")
+                payload_json = json.dumps(solver_payload, ensure_ascii=False, indent=2)
+                st.download_button(
+                    "Скачать solver_input.json",
+                    data=payload_json.encode("utf-8"),
+                    file_name="solver_input.json",
+                    mime="application/json",
+                    width="stretch",
+                )
+                with st.expander("Посмотреть solver_input.json"):
+                    st.code(payload_json, language="json")
 
-        col_solver_btn, col_solver_status = st.columns([1, 3])
-        with col_solver_btn:
-            send_to_solver = st.button("Отправить в Solver", type="primary")
-        with col_solver_status:
-            solver_response_placeholder = st.empty()
+                col_solver_btn, col_solver_status = st.columns([1, 3])
+                with col_solver_btn:
+                    send_to_solver = st.button("Отправить в Solver", type="primary")
+                with col_solver_status:
+                    solver_response_placeholder = st.empty()
 
-        if send_to_solver:
-            try:
-                response = _post_solver_request(payload_json)
-                solver_response_placeholder.code(response, language="json")
-            except Exception as exc:
-                solver_response_placeholder.error(f"Ошибка отправки: {exc}")
+                if send_to_solver:
+                    try:
+                        response = _post_solver_request(payload_json)
+                        solver_response_placeholder.code(response, language="json")
+                    except Exception as exc:
+                        solver_response_placeholder.error(f"Ошибка отправки: {exc}")
 
     persist_state(app_state)
 
