@@ -66,7 +66,7 @@ const ensureDepotConstraints = (points: DeliveryPoint[]): DeliveryPoint[] => {
   }
 
   if (depots.length > 1) {
-    const [primaryDepot, ...others] = depots;
+    const [, ...others] = depots;
     const corrected = points.map((point) => {
       if (others.some((other) => other.internalId === point.internalId)) {
         return { ...point, kind: "order" as PointKind };

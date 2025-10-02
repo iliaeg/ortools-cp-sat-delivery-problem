@@ -13,8 +13,20 @@ export async function POST(request: Request) {
   }
   try {
     const payload = JSON.parse(rawPayload);
-    const features = payload?.geojson?.features ?? [];
-    const points: DeliveryPoint[] = features.map((feature: any, index: number) => ({
+    type CaseFeature = {
+      geometry?: { coordinates?: [number, number] };
+      properties?: {
+        id?: string;
+        kind?: string;
+        boxes?: number;
+        created_at?: string;
+        ready_at?: string;
+        extra_json?: string;
+      };
+    };
+
+    const features: CaseFeature[] = payload?.geojson?.features ?? [];
+    const points: DeliveryPoint[] = features.map((feature, index) => ({
       internalId: uuidv4(),
       id: feature.properties?.id ?? `point_${index + 1}`,
       kind: feature.properties?.kind === "depot" ? "depot" : "order",

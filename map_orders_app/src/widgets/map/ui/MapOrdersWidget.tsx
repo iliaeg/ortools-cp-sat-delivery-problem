@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   Alert,
   Box,
@@ -31,13 +31,13 @@ import {
 import { saveBlobToFile, readFileAsText } from "@/shared/files/utils";
 import type { DeliveryPoint } from "@/shared/types/points";
 
-interface ImportDetectionResult {
-  kind: "case" | "solver_input";
-  content: unknown;
-}
-
-const detectImportKind = (content: any): ImportDetectionResult["kind"] => {
-  if (content?.tau && Array.isArray(content.tau) && content?.meta) {
+const detectImportKind = (content: unknown): "case" | "solver_input" => {
+  if (
+    typeof content === "object" &&
+    content !== null &&
+    "tau" in content &&
+    "meta" in content
+  ) {
     return "solver_input";
   }
   return "case";
@@ -98,7 +98,7 @@ const MapOrdersWidget = () => {
   }, [exportCase]);
 
   const runImport = useCallback(
-    async (content: any) => {
+    async (content: unknown) => {
       setImportError(null);
       const kind = detectImportKind(content);
       const payload = new FormData();
@@ -115,7 +115,7 @@ const MapOrdersWidget = () => {
   );
 
   const handleFileSelect = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
+    async (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) {
         return;
@@ -134,7 +134,7 @@ const MapOrdersWidget = () => {
   );
 
   const handleDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
+    async (event: DragEvent<HTMLDivElement>) => {
       event.preventDefault();
       const file = event.dataTransfer.files?.[0];
       if (!file) {
@@ -151,7 +151,7 @@ const MapOrdersWidget = () => {
     [runImport],
   );
 
-  const preventDefaults = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+  const preventDefaults = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
   }, []);

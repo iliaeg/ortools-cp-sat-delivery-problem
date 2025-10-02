@@ -2,9 +2,8 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup } from "react-leaflet";
-import { EditControl } from "react-leaflet-draw";
+import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
-import type { DrawEvents } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
 import { Box, Checkbox, FormControlLabel, Stack, Typography } from "@mui/material";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
@@ -27,6 +26,20 @@ import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
 
 const TILE_LAYER = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+const DRAW_OPTIONS = {
+  rectangle: false,
+  polygon: false,
+  circle: false,
+  polyline: false,
+  circlemarker: false,
+  marker: true,
+} as unknown as EditControlProps["draw"];
+
+const EDIT_OPTIONS = {
+  edit: true,
+  remove: true,
+} as unknown as EditControlProps["edit"];
 
 const labelForPoint = (point: DeliveryPoint) =>
   `${point.seq}. ${point.kind === "depot" ? "депо" : "заказ"} ${
@@ -209,17 +222,8 @@ const MapOrdersMapClient = () => {
               onCreated={handleCreated}
               onEdited={handleEdited}
               onDeleted={handleDeleted}
-              draw={{
-                rectangle: false,
-                polygon: false,
-                circle: false,
-                polyline: false,
-                circlemarker: false,
-              }}
-              edit={{
-                edit: true,
-                remove: true,
-              } as any}
+              draw={DRAW_OPTIONS}
+              edit={EDIT_OPTIONS}
             />
             {markers}
             {polylines}
