@@ -17,6 +17,7 @@ TIME_PATTERN = re.compile(r"^(\d{2}):(\d{2}):(\d{2})$")
 
 
 POINT_COLUMNS = [
+    "seq",
     "id",
     "type",
     "lat",
@@ -213,7 +214,11 @@ class AppState:
 
         if not self.points:
             return pd.DataFrame(columns=POINT_COLUMNS)
-        data = [point.to_row() for point in self.points]
+        data = []
+        for idx, point in enumerate(self.points):
+            row = point.to_row()
+            row["seq"] = idx
+            data.append(row)
         return pd.DataFrame(data, columns=POINT_COLUMNS)
 
     def update_points_from_records(self, records: Iterable[Dict[str, Any]]) -> None:
@@ -235,6 +240,8 @@ class AppState:
                 # Игнорируем некорректные строки, пользователь увидит ошибки валидации позже
                 continue
         self.points = updated
+        if self.points:
+            self.points[0].type = "depot"
 
 
 def ensure_session_state(st_session_state: Any) -> AppState:

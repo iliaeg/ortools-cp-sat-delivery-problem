@@ -12,8 +12,9 @@ def export_geojson(app_state: AppState) -> Dict[str, Any]:
     """Возвращает актуальный GeoJSON FeatureCollection."""
 
     features: List[Dict[str, Any]] = []
-    for point in app_state.points:
+    for idx, point in enumerate(app_state.points):
         properties: Dict[str, Any] = {
+            "seq": idx,
             "id": point.id,
             "type": point.type,
             "boxes": point.boxes,

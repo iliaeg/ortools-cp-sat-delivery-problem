@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import folium
@@ -402,6 +403,8 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
         imported_points.append(point)
 
     app_state.points = imported_points
+    if app_state.points:
+        app_state.points[0].type = "depot"
     return len(imported_points)
 
 
@@ -411,7 +414,8 @@ def _prepare_solver_payload(
     """Формирует данные для solver_input.json и возвращает (errors, warnings, payload)."""
 
     raw_points: List[Dict[str, Any]] = []
-    for point in app_state.points:
+    sequence_info: List[Dict[str, Any]] = []
+    for idx, point in enumerate(app_state.points):
         raw_points.append(
             {
                 "id": point.id,
@@ -422,7 +426,19 @@ def _prepare_solver_payload(
                 "created_at": point.created_at,
                 "ready_at": point.ready_at,
                 "extra_json": point.extra_json,
-                "meta": point.meta,
+                "meta": {**(point.meta or {}), "seq": idx},
+            }
+        )
+        sequence_info.append(
+            {
+                "seq": idx,
+                "id": point.id,
+                "type": point.type,
+                "lat": point.lat,
+                "lon": point.lon,
+                "boxes": point.boxes,
+                "created_at": point.created_at,
+                "ready_at": point.ready_at,
             }
         )
 
@@ -453,6 +469,7 @@ def _prepare_solver_payload(
             app_state.osrm_base_url,
             tau,
         )
+        _attach_sequence_metadata(payload, sequence_info)
     except ValidationError as exc:
         errors.extend(exc.errors)
         return errors, warnings, None
@@ -470,32 +487,27 @@ def _make_feature_group(points: List[MapPoint]) -> folium.FeatureGroup:
     """Создаёт слой для отображения точек на карте."""
 
     feature_group = folium.FeatureGroup(name="points", show=True)
-    features = []
-    for point in points:
-        extra_value = _safe_json(point.extra_json)
-        features.append(
-            {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [point.lon, point.lat]},
-                "properties": {
-                    "id": point.id,
-                    "type": point.type,
-                    "boxes": point.boxes,
-                    "created_at": point.created_at,
-                    "ready_at": point.ready_at,
-                    "extra_json": extra_value,
-                },
-            }
+    for idx, point in enumerate(points):
+        color = "#d63d3d" if idx == 0 else "#1f6ed4"
+        text_color = "#ffffff"
+        icon_html = (
+            "<div style='display:flex;align-items:center;justify-content:center;"
+            "font-weight:700;font-size:12px;width:28px;height:28px;"
+            "border-radius:50%;border:2px solid #ffffff;"
+            "background-color:{bg};color:{fg};'>{idx}</div>"
+        ).format(bg=color, fg=text_color, idx=idx)
+
+        tooltip_html = (
+            f"№{idx} — {point.type}<br>"
+            f"ID: {point.id or '—'}<br>"
+            f"Boxes: {point.boxes}"
         )
 
-    if features:
-        geojson = {"type": "FeatureCollection", "features": features}
-        tooltip = folium.GeoJsonTooltip(
-            fields=["id", "type", "boxes"],
-            aliases=["ID", "Тип", "Коробки"],
-            labels=True,
-        )
-        folium.GeoJson(geojson, name="points_layer", tooltip=tooltip).add_to(feature_group)
+        folium.Marker(
+            [point.lat, point.lon],
+            icon=folium.DivIcon(html=icon_html, icon_size=(28, 28), icon_anchor=(14, 14)),
+            tooltip=folium.Tooltip(tooltip_html, sticky=True),
+        ).add_to(feature_group)
 
     return feature_group
 
@@ -504,6 +516,7 @@ def _build_column_config() -> Dict[str, Any]:
     """Возвращает конфигурацию колонок для st.data_editor."""
 
     return {
+        "seq": st.column_config.TextColumn("№", disabled=True, width="small"),
         "id": st.column_config.TextColumn("ID", disabled=True, width="small"),
         "type": st.column_config.SelectboxColumn(
             "Тип",
@@ -664,3 +677,49 @@ def _post_solver_request(payload_json: str) -> str:
         return response.text
 
     return json.dumps(parsed, ensure_ascii=False, indent=2)
+
+
+def _attach_sequence_metadata(payload: Dict[str, Any], sequence_info: List[Dict[str, Any]]) -> None:
+    """Добавляет сведения о номерах точек в payload."""
+
+    meta = payload.setdefault("meta", {})
+    meta["points_sequence"] = sequence_info
+
+    combined = meta.get("combined_params")
+    if isinstance(combined, dict):
+        combined["points_sequence"] = sequence_info
+
+        orders = combined.get("orders")
+        if isinstance(orders, list):
+            for order in orders:
+                order["seq"] = _find_sequence_for_candidate(order, sequence_info)
+
+        depot = combined.get("depot")
+        if isinstance(depot, dict):
+            depot["seq"] = _find_sequence_for_candidate(depot, sequence_info)
+
+
+def _find_sequence_for_candidate(
+    candidate: Dict[str, Any], sequence_info: List[Dict[str, Any]]
+) -> Optional[int]:
+    """Находит номер точки по ID или координатам."""
+
+    candidate_id = candidate.get("id")
+    if candidate_id:
+        for entry in sequence_info:
+            if entry.get("id") and entry["id"] == candidate_id:
+                return entry["seq"]
+
+    try:
+        lat = float(candidate.get("lat"))
+        lon = float(candidate.get("lon"))
+    except (TypeError, ValueError):
+        return None
+
+    for entry in sequence_info:
+        if math.isclose(entry["lat"], lat, abs_tol=1e-6) and math.isclose(
+            entry["lon"], lon, abs_tol=1e-6
+        ):
+            return entry["seq"]
+
+    return None
