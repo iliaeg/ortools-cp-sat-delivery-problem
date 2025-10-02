@@ -1,17 +1,238 @@
 {
-  "points": [],
+  "points": [
+    {
+      "internalId": "80daca98-a6b5-435f-85b5-fcad2bcd84aa",
+      "id": "",
+      "kind": "depot",
+      "seq": 1,
+      "lat": 52.967569437005686,
+      "lon": 36.06204271316529,
+      "boxes": 0,
+      "createdAt": "10:00:00",
+      "readyAt": "11:00:00",
+      "extraJson": "{}"
+    },
+    {
+      "internalId": "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+      "id": "",
+      "kind": "order",
+      "seq": 2,
+      "lat": 52.9896212685631,
+      "lon": 36.06285810470582,
+      "boxes": 0,
+      "createdAt": "10:30:00",
+      "readyAt": "11:00:00",
+      "extraJson": "{}",
+      "skip": false,
+      "cert": false
+    },
+    {
+      "internalId": "92785c18-cdcb-4fa9-82c9-9b8301af0cce",
+      "id": "",
+      "kind": "order",
+      "seq": 3,
+      "lat": 52.98862667479592,
+      "lon": 36.06657028198243,
+      "boxes": 0,
+      "createdAt": "00:00:00",
+      "readyAt": "11:06:00",
+      "extraJson": "{}",
+      "skip": false,
+      "cert": false
+    }
+  ],
   "mapCenter": [
     52.9676,
     36.0693
   ],
   "mapZoom": 13,
-  "couriersText": "{\n  \"a\": [\n    0,\n    15\n  ],\n  \"C\": [\n    25,\n    25\n  ]\n}",
+  "couriersText": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",
   "weightsText": "{\n  \"W_cert\": 1000,\n  \"W_c2e\": 1,\n  \"W_skip\": 10000\n}",
   "additionalParamsText": "{\n  \"time_limit\": 3\n}",
-  "t0Time": "09:00:00",
+  "t0Time": "07:45:00",
   "osrmBaseUrl": "http://localhost:5563",
   "showSolverRoutes": true,
-  "solverInput": null,
-  "solverResult": null,
-  "lastSavedAtIso": "2025-10-02T22:17:15.054Z"
+  "solverInput": {
+    "tau": [
+      [
+        0,
+        4,
+        5
+      ],
+      [
+        5,
+        0,
+        2
+      ],
+      [
+        6,
+        2,
+        0
+      ]
+    ],
+    "K": 2,
+    "C": [
+      25,
+      25
+    ],
+    "box": [
+      0,
+      0
+    ],
+    "c": [
+      -15,
+      -645
+    ],
+    "r": [
+      15,
+      21
+    ],
+    "a": [
+      0,
+      15
+    ],
+    "W_cert": 1000,
+    "W_c2e": 1,
+    "W_skip": 10000,
+    "meta": {
+      "ordersExtra": [
+        {},
+        {}
+      ],
+      "pointsLatLon": [
+        [
+          52.967569437005686,
+          36.06204271316529
+        ],
+        [
+          52.9896212685631,
+          36.06285810470582
+        ],
+        [
+          52.98862667479592,
+          36.06657028198243
+        ]
+      ],
+      "mode": "OSRM",
+      "osrmBaseUrl": "http://localhost:5563",
+      "T0_iso": "2025-10-03T07:45:00.000Z",
+      "pointInternalIds": [
+        "80daca98-a6b5-435f-85b5-fcad2bcd84aa",
+        "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+        "92785c18-cdcb-4fa9-82c9-9b8301af0cce"
+      ],
+      "orderInternalIds": [
+        "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+        "92785c18-cdcb-4fa9-82c9-9b8301af0cce"
+      ],
+      "abstime": {
+        "orders": [
+          "2025-10-03T11:00:00+03:00",
+          "2025-10-03T11:06:00+03:00"
+        ],
+        "couriers": [
+          "2025-10-03T10:45:00+03:00",
+          "2025-10-03T11:00:00+03:00"
+        ]
+      },
+      "combinedParams": {
+        "orders": [
+          {
+            "internalId": "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+            "id": "",
+            "kind": "order",
+            "seq": 2,
+            "lat": 52.9896212685631,
+            "lon": 36.06285810470582,
+            "boxes": 0,
+            "createdAt": "10:30:00",
+            "readyAt": "11:00:00",
+            "extraJson": "{}"
+          },
+          {
+            "internalId": "92785c18-cdcb-4fa9-82c9-9b8301af0cce",
+            "id": "",
+            "kind": "order",
+            "seq": 3,
+            "lat": 52.98862667479592,
+            "lon": 36.06657028198243,
+            "boxes": 0,
+            "createdAt": "00:00:00",
+            "readyAt": "11:06:00",
+            "extraJson": "{}"
+          }
+        ],
+        "depot": {
+          "internalId": "80daca98-a6b5-435f-85b5-fcad2bcd84aa",
+          "id": "",
+          "kind": "depot",
+          "seq": 1,
+          "lat": 52.967569437005686,
+          "lon": 36.06204271316529,
+          "boxes": 0,
+          "createdAt": "10:00:00",
+          "readyAt": "11:00:00",
+          "extraJson": "{}"
+        },
+        "weights": {
+          "W_cert": 1000,
+          "W_c2e": 1,
+          "W_skip": 10000
+        },
+        "couriers": {
+          "a": [
+            0,
+            15
+          ],
+          "C": [
+            25,
+            25
+          ]
+        },
+        "additional": {
+          "time_limit": 3
+        }
+      }
+    },
+    "time_limit": 3
+  },
+  "solverResult": {
+    "result": {
+      "result": {
+        "status": "INFEASIBLE",
+        "objective": null,
+        "routes": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "t_dep": [
+          null,
+          null
+        ],
+        "T": {},
+        "s": {},
+        "z": {}
+      }
+    },
+    "ordersComputed": [
+      {
+        "internalId": "5cdadec2-d0d3-484f-b6a7-322f29c609c7",
+        "skip": false,
+        "cert": false
+      },
+      {
+        "internalId": "92785c18-cdcb-4fa9-82c9-9b8301af0cce",
+        "skip": false,
+        "cert": false
+      }
+    ],
+    "routesSegments": []
+  },
+  "lastSavedAtIso": "2025-10-02T22:24:55.413Z"
 }
