@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Button,
   CircularProgress,
   Paper,
@@ -13,6 +16,7 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SettingsInputComponentIcon from "@mui/icons-material/SettingsInputComponent";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import DownloadIcon from "@mui/icons-material/Download";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
@@ -34,6 +38,7 @@ import {
 } from "@/shared/api/mapOrdersApi";
 import { saveBlobToFile } from "@/shared/files/utils";
 import type { OrdersComputedPatch } from "@/shared/types/solver";
+import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 const SolverControlsWidget = () => {
   const dispatch = useAppDispatch();
@@ -111,6 +116,11 @@ const SolverControlsWidget = () => {
     dispatch(setUiState({ warnings: [] }));
   }, [dispatch]);
 
+  const solverInputPreview = useMemo(
+    () => (solverInput ? stringifyWithInlineArrays(solverInput) : ""),
+    [solverInput],
+  );
+
   return (
     <Paper elevation={3} sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
       <Typography variant="h6" fontWeight={700}>
@@ -152,6 +162,30 @@ const SolverControlsWidget = () => {
           Сбросить результат
         </Button>
       </Stack>
+      {solverInput ? (
+        <Accordion disableGutters sx={{ bgcolor: "background.paper" }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Текущий solver_input.json
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <pre
+              style={{
+                margin: 0,
+                padding: "16px",
+                backgroundColor: "#0f0f0f",
+                color: "#e0e0e0",
+                borderRadius: 8,
+                overflowX: "auto",
+                fontSize: "0.85rem",
+              }}
+            >
+              {solverInputPreview}
+            </pre>
+          </AccordionDetails>
+        </Accordion>
+      ) : null}
       {error ? (
         <Alert severity="error" onClose={() => setError(null)}>
           {error}
