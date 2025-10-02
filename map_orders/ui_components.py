@@ -10,6 +10,7 @@ from folium.plugins import Draw
 import pandas as pd
 import streamlit as st
 from streamlit_folium import st_folium
+import requests
 
 from map_orders.io_handlers import export_case_bundle, export_geojson, import_case_bundle
 from map_orders.osrm_client import OsrmError, fetch_duration_matrix
@@ -274,6 +275,19 @@ def render_main_view(app_state: AppState) -> None:
             )
             with st.expander("Посмотреть solver_input.json"):
                 st.code(payload_json, language="json")
+
+            col_solver_btn, col_solver_status = st.columns([1, 3])
+            with col_solver_btn:
+                send_to_solver = st.button("Отправить в Solver", type="primary")
+            with col_solver_status:
+                solver_response_placeholder = st.empty()
+
+            if send_to_solver:
+                try:
+                    response = _post_solver_request(payload_json)
+                    solver_response_placeholder.code(response, language="json")
+                except Exception as exc:
+                    solver_response_placeholder.error(f"Ошибка отправки: {exc}")
 
 
 def _inject_map_layout_styles() -> None:
@@ -628,3 +642,25 @@ def _is_json_scalar(value: Any) -> bool:
     """Возвращает True для скалярных значений JSON."""
 
     return isinstance(value, (str, int, float, bool)) or value is None
+
+
+def _post_solver_request(payload_json: str) -> str:
+    """Отправляет solver_input.json в локальный солвер и возвращает ответ."""
+
+    try:
+        response = requests.post(
+            "http://127.0.0.1:8000/solve-gpt",
+            headers={"Content-Type": "application/json"},
+            data=payload_json.encode("utf-8"),
+            timeout=30,
+        )
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        raise RuntimeError(f"{exc}") from exc
+
+    try:
+        parsed = response.json()
+    except ValueError:
+        return response.text
+
+    return json.dumps(parsed, ensure_ascii=False, indent=2)
