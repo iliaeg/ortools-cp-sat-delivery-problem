@@ -24,6 +24,7 @@ from .state import AppState, MapPoint
 _POINTS_EDITOR_KEY = "map_orders_points_editor"
 _SOLVER_PAYLOAD_KEY = "map_orders_solver_payload"
 _SOLVER_WARNINGS_KEY = "map_orders_solver_warnings"
+_MAP_LAYOUT_STYLE_KEY = "map_orders_map_layout_style"
 
 def render_sidebar(app_state: AppState) -> None:
     """Отрисовывает боковую панель с основными параметрами."""
@@ -71,10 +72,13 @@ def render_main_view(app_state: AppState) -> None:
     """Отрисовывает карту, таблицу точек и управляющие кнопки."""
 
     st.title("map_orders — подготовка входных данных CP-SAT")
-    map_col, table_col = st.columns([2, 3])
+    _inject_map_layout_styles()
+    map_col, table_col = st.columns([2, 3], vertical_alignment="top")
 
     with map_col:
         st.markdown("#### Карта (Орёл, OSM)")
+        st.markdown('<div class="map-orders-panel">', unsafe_allow_html=True)
+        st.markdown('<div class="map-orders-map">', unsafe_allow_html=True)
         feature_group = _make_feature_group(app_state.points)
         folium_map = folium.Map(
             location=list(app_state.map_center),
@@ -98,17 +102,20 @@ def render_main_view(app_state: AppState) -> None:
 
         returned_objects = ["all_drawings"]
 
-        map_state = st_folium(
-            folium_map,
-            key="map_orders_map",
-            height=520,
-            width=None,
-            center=app_state.map_center,
-            zoom=app_state.map_zoom,
-            returned_objects=returned_objects,
-            feature_group_to_add=feature_group,
-        )
+        with st.spinner("Загружаем карту..."):
+            map_state = st_folium(
+                folium_map,
+                key="map_orders_map",
+                height=520,
+                width=None,
+                center=app_state.map_center,
+                zoom=app_state.map_zoom,
+                returned_objects=returned_objects,
+                feature_group_to_add=feature_group,
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
+        st.markdown('<div class="map-orders-actions">', unsafe_allow_html=True)
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("Импортировать из карты", width="stretch"):
@@ -160,6 +167,8 @@ def render_main_view(app_state: AppState) -> None:
                     st.experimental_rerun()
                 except Exception as exc:
                     st.error(f"Не удалось импортировать кейс: {exc}")
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     with table_col:
         st.markdown("#### Таблица точек")
@@ -231,6 +240,52 @@ def render_main_view(app_state: AppState) -> None:
             )
             with st.expander("Посмотреть solver_input.json"):
                 st.code(payload_json, language="json")
+
+
+def _inject_map_layout_styles() -> None:
+    """Инжектирует CSS для корректного позиционирования карты и кнопок."""
+
+    if st.session_state.get(_MAP_LAYOUT_STYLE_KEY):
+        return
+
+    st.session_state[_MAP_LAYOUT_STYLE_KEY] = True
+    st.markdown(
+        f"""
+        <style>
+        div[data-testid="column"]:has(.map-orders-panel) {{
+            display: flex;
+        }}
+        div[data-testid="column"]:has(.map-orders-panel) > div {{
+            flex: 1 1 auto;
+            display: flex;
+        }}
+        .map-orders-panel {{
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            width: 100%;
+        }}
+        .map-orders-map {{
+            flex: 0 0 auto;
+        }}
+        .map-orders-actions {{
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }}
+        .map-orders-actions .stButton > button,
+        .map-orders-actions .stDownloadButton > button {{
+            width: 100%;
+        }}
+        .map-orders-actions .stFileUploader,
+        .map-orders-actions [data-testid="stFileUploaderDropzone"] {{
+            width: 100%;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None) -> int:
