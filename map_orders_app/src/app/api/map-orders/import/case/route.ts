@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { writePersistedState } from "@/processes/map-orders/lib/stateStorage";
+import {
+  DEFAULT_ADDITIONAL_PARAMS_TEXT,
+  DEFAULT_COURIERS_TEXT,
+  DEFAULT_WEIGHTS_TEXT,
+  ensureDefaultText,
+} from "@/shared/constants/defaults";
 import type { DeliveryPoint } from "@/shared/types/points";
 
 export const dynamic = "force-dynamic";
@@ -43,9 +49,12 @@ export async function POST(request: Request) {
       points,
       mapCenter: payload.map_center ?? [52.9676, 36.0693],
       mapZoom: payload.map_zoom ?? 13,
-      couriersText: payload.couriers ?? "",
-      weightsText: payload.weights ?? "",
-      additionalParamsText: payload.additional_params ?? "",
+      couriersText: ensureDefaultText(payload.couriers, DEFAULT_COURIERS_TEXT),
+      weightsText: ensureDefaultText(payload.weights, DEFAULT_WEIGHTS_TEXT),
+      additionalParamsText: ensureDefaultText(
+        payload.additional_params,
+        DEFAULT_ADDITIONAL_PARAMS_TEXT,
+      ),
       osrmBaseUrl: payload.osrm_base_url ?? "http://localhost:5563",
       t0Time: payload.t0_iso ? payload.t0_iso.split("T")[1]?.slice(0, 8) ?? "09:00:00" : "09:00:00",
       solverInput: null,

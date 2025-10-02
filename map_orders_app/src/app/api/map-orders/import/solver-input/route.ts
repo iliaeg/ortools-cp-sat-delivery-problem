@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { writePersistedState } from "@/processes/map-orders/lib/stateStorage";
 import type { SolverInputPayload } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
+import {
+  DEFAULT_ADDITIONAL_PARAMS_TEXT,
+  DEFAULT_COURIERS_TEXT,
+  DEFAULT_WEIGHTS_TEXT,
+  ensureDefaultText,
+} from "@/shared/constants/defaults";
+import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +33,18 @@ export async function POST(request: Request) {
 
     const state = await writePersistedState({
       points,
-      couriersText: JSON.stringify(combined.couriers ?? {}, null, 2),
-      weightsText: JSON.stringify(combined.weights ?? {}, null, 2),
-      additionalParamsText: JSON.stringify(combined.additional ?? {}, null, 2),
+      couriersText: ensureDefaultText(
+        stringifyWithInlineArrays(combined.couriers ?? {}),
+        DEFAULT_COURIERS_TEXT,
+      ),
+      weightsText: ensureDefaultText(
+        stringifyWithInlineArrays(combined.weights ?? {}),
+        DEFAULT_WEIGHTS_TEXT,
+      ),
+      additionalParamsText: ensureDefaultText(
+        stringifyWithInlineArrays(combined.additional ?? {}),
+        DEFAULT_ADDITIONAL_PARAMS_TEXT,
+      ),
       osrmBaseUrl: solverInput.meta?.osrmBaseUrl ?? "http://localhost:5563",
       t0Time: solverInput.meta?.T0_iso?.split("T")[1]?.slice(0, 8) ?? "09:00:00",
       solverInput,

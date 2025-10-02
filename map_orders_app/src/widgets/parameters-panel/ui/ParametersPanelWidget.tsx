@@ -28,11 +28,12 @@ import {
   setT0Time,
   setWeightsText,
 } from "@/features/map-orders/model/mapOrdersSlice";
+import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 const formatJson = (value: string) => {
   try {
     const parsed = JSON.parse(value);
-    return JSON.stringify(parsed, null, 2);
+    return stringifyWithInlineArrays(parsed);
   } catch (error) {
     throw new Error(`Ошибка форматирования: ${(error as Error).message}`);
   }

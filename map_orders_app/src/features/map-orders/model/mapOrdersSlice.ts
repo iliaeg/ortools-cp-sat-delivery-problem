@@ -14,6 +14,12 @@ import type {
 } from "@/shared/types/solver";
 import { OREL_CENTER, DEFAULT_ZOOM } from "@/shared/constants/map";
 import { getClientEnv } from "@/shared/config/env";
+import {
+  DEFAULT_ADDITIONAL_PARAMS_TEXT,
+  DEFAULT_COURIERS_TEXT,
+  DEFAULT_WEIGHTS_TEXT,
+  ensureDefaultText,
+} from "@/shared/constants/defaults";
 
 const env = getClientEnv();
 
@@ -21,9 +27,9 @@ const initialPersistedState: MapOrdersPersistedState = {
   points: [],
   mapCenter: OREL_CENTER,
   mapZoom: DEFAULT_ZOOM,
-  couriersText: "",
-  weightsText: "",
-  additionalParamsText: "",
+  couriersText: DEFAULT_COURIERS_TEXT,
+  weightsText: DEFAULT_WEIGHTS_TEXT,
+  additionalParamsText: DEFAULT_ADDITIONAL_PARAMS_TEXT,
   t0Time: "09:00:00",
   osrmBaseUrl: env.osrmBaseUrl,
   showSolverRoutes: true,
@@ -113,6 +119,18 @@ const mapOrdersSlice = createSlice({
         points: action.payload.points
           ? ensureDepotConstraints(action.payload.points as DeliveryPoint[])
           : state.data.points,
+        couriersText: ensureDefaultText(
+          action.payload.couriersText ?? state.data.couriersText,
+          DEFAULT_COURIERS_TEXT,
+        ),
+        weightsText: ensureDefaultText(
+          action.payload.weightsText ?? state.data.weightsText,
+          DEFAULT_WEIGHTS_TEXT,
+        ),
+        additionalParamsText: ensureDefaultText(
+          action.payload.additionalParamsText ?? state.data.additionalParamsText,
+          DEFAULT_ADDITIONAL_PARAMS_TEXT,
+        ),
       };
     },
     setUiState: (state, action: PayloadAction<Partial<MapOrdersUiState>>) => {
