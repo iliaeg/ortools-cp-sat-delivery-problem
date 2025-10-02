@@ -15,7 +15,6 @@ import {
   GridActionsCellItem,
   GridColDef,
   GridRowModel,
-  GridToolbarContainer,
 } from "@mui/x-data-grid";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
@@ -245,6 +244,9 @@ const OrdersTableWidget = () => {
           </Button>
         </Stack>
       </Stack>
+      <Typography variant="body2" color="text.secondary">
+        Всего точек: {points.length}
+      </Typography>
       <Box sx={{ flexGrow: 1 }}>
         <DataGrid
           rows={points}
@@ -254,8 +256,6 @@ const OrdersTableWidget = () => {
           disableColumnMenu
           processRowUpdate={processRowUpdate}
           onProcessRowUpdateError={handleProcessError}
-          slots={{ toolbar: GridToolbar }}
-          slotProps={{ toolbar: { rowCount: points.length } }}
         />
       </Box>
       <Snackbar
@@ -271,13 +271,5 @@ const OrdersTableWidget = () => {
     </Paper>
   );
 };
-
-const GridToolbar = ({ rowCount }: { rowCount: number }) => (
-  <GridToolbarContainer>
-    <Typography variant="subtitle2" sx={{ p: 1 }}>
-      Всего точек: {rowCount}
-    </Typography>
-  </GridToolbarContainer>
-);
 
 export default OrdersTableWidget;

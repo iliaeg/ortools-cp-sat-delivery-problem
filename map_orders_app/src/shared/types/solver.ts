@@ -38,13 +38,15 @@ export interface SolverRouteResult {
   eta: number[];
 }
 
+export type SolverVector = number[] | Record<number, number>;
+
 export interface SolverResult {
   routes: number[][];
-  T?: number[];
-  t?: number[];
-  t_dep?: number[];
-  skip?: number[];
-  s?: number[];
+  T?: SolverVector;
+  t?: SolverVector;
+  t_dep?: SolverVector;
+  skip?: SolverVector;
+  s?: SolverVector;
   meta?: unknown;
 }
 

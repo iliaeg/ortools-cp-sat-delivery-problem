@@ -60,8 +60,8 @@ const ensureDepotConstraints = (points: DeliveryPoint[]): DeliveryPoint[] => {
     // Promote the first point to depot if none exists.
     const [first, ...rest] = points;
     return normalizeSeq([
-      { ...first, kind: "depot" },
-      ...rest.map((point) => ({ ...point, kind: "order" })),
+      { ...first, kind: "depot" as PointKind },
+      ...rest.map((point) => ({ ...point, kind: "order" as PointKind })),
     ]);
   }
 
@@ -69,7 +69,7 @@ const ensureDepotConstraints = (points: DeliveryPoint[]): DeliveryPoint[] => {
     const [primaryDepot, ...others] = depots;
     const corrected = points.map((point) => {
       if (others.some((other) => other.internalId === point.internalId)) {
-        return { ...point, kind: "order" };
+        return { ...point, kind: "order" as PointKind };
       }
       return point;
     });
@@ -82,7 +82,7 @@ const ensureDepotConstraints = (points: DeliveryPoint[]): DeliveryPoint[] => {
 const createPoint = (partial: Partial<DeliveryPoint>): DeliveryPoint => ({
   internalId: partial.internalId ?? uuidv4(),
   id: partial.id ?? "",
-  kind: partial.kind ?? "order",
+  kind: (partial.kind ?? "order") as PointKind,
   seq: 0,
   lat: partial.lat ?? OREL_CENTER[0],
   lon: partial.lon ?? OREL_CENTER[1],
@@ -111,7 +111,7 @@ const mapOrdersSlice = createSlice({
         ...state.data,
         ...action.payload,
         points: action.payload.points
-          ? normalizeSeq(action.payload.points)
+          ? ensureDepotConstraints(action.payload.points as DeliveryPoint[])
           : state.data.points,
       };
     },

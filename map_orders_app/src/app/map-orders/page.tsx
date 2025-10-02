@@ -1,4 +1,4 @@
-import { Container, Grid, Stack } from "@mui/material";
+import { Box, Container, Stack } from "@mui/material";
 import { MapOrdersWidget } from "@/widgets/map";
 import { OrdersTableWidget } from "@/widgets/orders-table";
 import { ParametersPanelWidget } from "@/widgets/parameters-panel";
@@ -10,22 +10,32 @@ export default function MapOrdersPage() {
     <Container maxWidth="xl" sx={{ py: 3 }}>
       <StateBootstrapper>
         <Stack spacing={3}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6} lg={5}>
-              <ParametersPanelWidget />
-            </Grid>
-            <Grid item xs={12} md={6} lg={7}>
-              <SolverControlsWidget />
-            </Grid>
-          </Grid>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={5}>
-              <MapOrdersWidget />
-            </Grid>
-            <Grid item xs={12} md={7}>
-              <OrdersTableWidget />
-            </Grid>
-          </Grid>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 3,
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "repeat(2, minmax(0, 1fr))",
+              },
+            }}
+          >
+            <ParametersPanelWidget />
+            <SolverControlsWidget />
+          </Box>
+          <Box
+            sx={{
+              display: "grid",
+              gap: 3,
+              gridTemplateColumns: {
+                xs: "1fr",
+                md: "minmax(320px, 480px) minmax(0, 1fr)",
+              },
+            }}
+          >
+            <MapOrdersWidget />
+            <OrdersTableWidget />
+          </Box>
         </Stack>
       </StateBootstrapper>
     </Container>

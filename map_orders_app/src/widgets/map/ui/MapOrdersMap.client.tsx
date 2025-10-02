@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, type ChangeEvent } from 
 import { MapContainer, TileLayer, Marker, Polyline, FeatureGroup } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
+import type { DrawEvents } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
 import { Box, Checkbox, FormControlLabel, Stack, Typography } from "@mui/material";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
@@ -40,6 +41,7 @@ const MapOrdersMapClient = () => {
   const { center, zoom } = useAppSelector(selectMapView);
   const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
   const routeSegments = useAppSelector(selectRouteSegments);
+  const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     ensureDefaultMarkerIcons();
@@ -59,6 +61,19 @@ const MapOrdersMapClient = () => {
     [dispatch],
   );
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+    map.on("moveend", handleMapMove);
+    map.on("zoomend", handleMapMove);
+    return () => {
+      map.off("moveend", handleMapMove);
+      map.off("zoomend", handleMapMove);
+    };
+  }, [handleMapMove]);
+
   const handleMarkerDragEnd = useCallback(
     (internalId: string) => (event: LeafletEvent) => {
       const target = event.target as MarkerWithInternalId;
@@ -77,8 +92,8 @@ const MapOrdersMapClient = () => {
   );
 
   const handleCreated = useCallback(
-    (event: { layer: MarkerWithInternalId }) => {
-      const layer = event.layer;
+    (event: L.DrawEvents.Created) => {
+      const layer = event.layer as MarkerWithInternalId;
       const { lat, lng } = layer.getLatLng();
       const internalId = uuidv4();
       layer.options.internalId = internalId;
@@ -95,7 +110,7 @@ const MapOrdersMapClient = () => {
   );
 
   const handleEdited = useCallback(
-    (event: { layers: L.LayerGroup<any> }) => {
+    (event: L.DrawEvents.Edited) => {
       event.layers.eachLayer((layer: L.Layer) => {
         const marker = layer as MarkerWithInternalId;
         const internalId = marker.options.internalId;
@@ -115,7 +130,7 @@ const MapOrdersMapClient = () => {
   );
 
   const handleDeleted = useCallback(
-    (event: { layers: L.LayerGroup<any> }) => {
+    (event: L.DrawEvents.Deleted) => {
       event.layers.eachLayer((layer: L.Layer) => {
         const marker = layer as MarkerWithInternalId;
         if (marker.options.internalId) {
@@ -182,13 +197,10 @@ const MapOrdersMapClient = () => {
     <Stack spacing={1.5} sx={{ height: "100%" }}>
       <Box sx={{ height: 480, width: "100%", borderRadius: 2, overflow: "hidden", boxShadow: 2 }}>
         <MapContainer
+          ref={mapRef}
           center={center}
           zoom={zoom}
           style={{ height: "100%", width: "100%" }}
-          whenCreated={(map) => {
-            map.on("moveend", handleMapMove);
-            map.on("zoomend", handleMapMove);
-          }}
         >
           <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" />
           <FeatureGroup>
@@ -207,7 +219,7 @@ const MapOrdersMapClient = () => {
               edit={{
                 edit: true,
                 remove: true,
-              }}
+              } as any}
             />
             {markers}
             {polylines}
