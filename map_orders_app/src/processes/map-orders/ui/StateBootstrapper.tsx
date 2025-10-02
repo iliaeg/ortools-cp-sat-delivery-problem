@@ -19,20 +19,31 @@ const parseErrorMessage = (
   if (!error) {
     return "Неизвестная ошибка";
   }
+
   if ("status" in error) {
-    if (typeof error.error === "string") {
+    if ("error" in error && typeof error.error === "string") {
       return error.error;
     }
-    if (error.data && typeof error.data === "object" && "error" in error.data) {
+
+    if (
+      "data" in error &&
+      error.data &&
+      typeof error.data === "object" &&
+      "error" in (error.data as Record<string, unknown>)
+    ) {
       const data = error.data as { error?: unknown };
       if (typeof data.error === "string") {
         return data.error;
       }
     }
+
+    return `HTTP ${error.status}`;
   }
-  if ("message" in error && error.message) {
-    return error.message as string;
+
+  if (error.message) {
+    return error.message;
   }
+
   return "Неизвестная ошибка";
 };
 
