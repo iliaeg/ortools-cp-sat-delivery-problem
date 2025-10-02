@@ -74,6 +74,7 @@ class CourierParseResult:
     capacities: List[int]
     available_rel: List[int]
     meta_abstime: List[Dict[str, str]]
+    raw_payload: Any
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
@@ -83,6 +84,7 @@ class WeightsParseResult:
     """Результат разбора weights.json."""
 
     weights: Dict[str, int]
+    raw_payload: Any
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
 
@@ -189,6 +191,7 @@ def make_solver_payload(
     points: PointsValidationResult,
     couriers_json: str,
     weights_json: str,
+    additional_params_json: str,
     t0_iso: str,
     osrm_base_url: str,
     tau: List[List[int]],
@@ -217,11 +220,13 @@ def make_solver_payload(
 
     courier_data = _parse_couriers(couriers_json, t0_dt)
     weight_data = _parse_weights(weights_json)
+    additional_params, additional_errors = _parse_additional_params(additional_params_json)
 
     errors.extend(courier_data.errors)
     warnings.extend(courier_data.warnings)
     errors.extend(weight_data.errors)
     warnings.extend(weight_data.warnings)
+    errors.extend(additional_errors)
 
     if errors:
         raise ValidationError(errors)
@@ -290,6 +295,36 @@ def make_solver_payload(
         },
     }
 
+    orders_snapshot: List[Dict[str, Any]] = [
+        {
+            "id": order.id,
+            "type": order.type,
+            "lat": order.lat,
+            "lon": order.lon,
+            "boxes": order.boxes,
+            "created_at": order.created_at,
+            "ready_at": order.ready_at,
+            "extra_json": order.extra_json_raw,
+        }
+        for order in points.orders
+    ]
+
+    combined_params = dict(additional_params)
+    combined_params["weights"] = weight_data.raw_payload
+    combined_params["couriers"] = courier_data.raw_payload
+    combined_params["orders"] = orders_snapshot
+    if points.depot is not None:
+        combined_params["depot"] = {
+            "id": points.depot.id,
+            "lat": points.depot.lat,
+            "lon": points.depot.lon,
+            "created_at": points.depot.created_at,
+            "ready_at": points.depot.ready_at,
+            "extra_json": points.depot.extra_json_raw,
+        }
+
+    payload["meta"]["combined_params"] = combined_params
+
     return payload, warnings
 
 
@@ -300,17 +335,31 @@ def _parse_couriers(couriers_json: str, t0_dt: datetime) -> CourierParseResult:
     capacities: List[int] = []
     available_rel: List[int] = []
     meta_abstime: List[Dict[str, str]] = []
+    raw_payload: Any = []
 
     text = couriers_json.strip() if couriers_json else "[]"
     try:
         payload = json.loads(text or "[]")
+        raw_payload = payload
     except json.JSONDecodeError as exc:
         errors.append(f"couriers.json: {exc}")
-        return CourierParseResult(capacities, available_rel, meta_abstime, errors=errors)
+        return CourierParseResult(
+            capacities,
+            available_rel,
+            meta_abstime,
+            raw_payload=text or couriers_json,
+            errors=errors,
+        )
 
     if not isinstance(payload, list):
         errors.append("couriers.json должен быть массивом объектов")
-        return CourierParseResult(capacities, available_rel, meta_abstime, errors=errors)
+        return CourierParseResult(
+            capacities,
+            available_rel,
+            meta_abstime,
+            raw_payload=payload,
+            errors=errors,
+        )
 
     for idx, item in enumerate(payload, start=1):
         if not isinstance(item, dict):
@@ -349,7 +398,7 @@ def _parse_couriers(couriers_json: str, t0_dt: datetime) -> CourierParseResult:
         available_rel.append(available_rel_minutes)
         meta_abstime.append({"available_at": str(available_at)})
 
-    return CourierParseResult(capacities, available_rel, meta_abstime, errors=errors)
+    return CourierParseResult(capacities, available_rel, meta_abstime, raw_payload, errors=errors)
 
 
 def _parse_weights(weights_json: str) -> WeightsParseResult:
@@ -358,21 +407,23 @@ def _parse_weights(weights_json: str) -> WeightsParseResult:
     errors: List[str] = []
     warnings: List[str] = []
     weights = DEFAULT_WEIGHTS.copy()
+    raw_payload: Any = {}
 
     text = weights_json.strip() if weights_json else ""
     if not text:
         warnings.append("weights.json не задан — используются значения по умолчанию")
-        return WeightsParseResult(weights, errors=errors, warnings=warnings)
+        return WeightsParseResult(weights, raw_payload, errors=errors, warnings=warnings)
 
     try:
         payload = json.loads(text)
+        raw_payload = payload
     except json.JSONDecodeError as exc:
         errors.append(f"weights.json: {exc}")
-        return WeightsParseResult(weights, errors=errors)
+        return WeightsParseResult(weights, text, errors=errors)
 
     if not isinstance(payload, dict):
         errors.append("weights.json должен быть объектом")
-        return WeightsParseResult(weights, errors=errors)
+        return WeightsParseResult(weights, payload, errors=errors)
 
     for key in DEFAULT_WEIGHTS:
         if key not in payload:
@@ -389,7 +440,28 @@ def _parse_weights(weights_json: str) -> WeightsParseResult:
             continue
         weights[key] = value_int
 
-    return WeightsParseResult(weights, errors=errors, warnings=warnings)
+    return WeightsParseResult(weights, payload, errors=errors, warnings=warnings)
+
+
+def _parse_additional_params(additional_json: str) -> Tuple[Dict[str, Any], List[str]]:
+    """Парсит JSON дополнительных параметров и гарантирует, что это объект."""
+
+    errors: List[str] = []
+    text = additional_json.strip() if additional_json else ""
+    if not text:
+        return {}, errors
+
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        errors.append(f"additional_params.json: {exc}")
+        return {}, errors
+
+    if not isinstance(payload, dict):
+        errors.append("additional_params.json должен быть объектом")
+        return {}, errors
+
+    return payload, errors
 
 
 def _describe_point(raw: Dict[str, Any], idx: int) -> str:

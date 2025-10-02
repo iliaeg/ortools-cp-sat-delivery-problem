@@ -19,7 +19,7 @@ from map_orders.transform import (
     parse_and_validate_points,
 )
 
-from .state import AppState, MapPoint
+from .state import AppState, MapPoint, iso_to_hms, merge_time_with_base
 
 _POINTS_EDITOR_KEY = "map_orders_points_editor"
 _SOLVER_PAYLOAD_KEY = "map_orders_solver_payload"
@@ -38,14 +38,20 @@ def render_sidebar(app_state: AppState) -> None:
         )
 
         st.subheader("Текущее время (T0)")
+        t0_display = iso_to_hms(app_state.t0_iso or "")
         t0_value = st.text_input(
-            "T0 в ISO 8601",
-            value=app_state.t0_iso or "",
-            help="Используйте формат 2025-10-02T09:00:00+03:00",
+            "T0 (чч:мм:сс)",
+            value=t0_display,
+            placeholder="15:30:57",
+            help="Укажите время в пределах суток в формате HH:MM:SS",
         )
         if t0_value.strip():
-            app_state.t0_iso = t0_value.strip()
-        st.caption("Абсолютные времена будут переведены в минуты относительно T0")
+            app_state.t0_iso = merge_time_with_base(
+                t0_value.strip(),
+                app_state.t0_iso,
+                app_state.t0_iso,
+            )
+        st.caption("Времена конвертируются в минуты относительно T0")
 
         st.subheader("Курьеры (couriers.json)")
         app_state.couriers_json = st.text_area(
@@ -61,6 +67,14 @@ def render_sidebar(app_state: AppState) -> None:
             value=app_state.weights_json,
             height=120,
             help="W_cert — штраф за сертификат, W_c2e — click-to-eat, W_skip — пропуск",
+        )
+
+        st.subheader("Дополнительные параметры")
+        app_state.additional_params_json = st.text_area(
+            "additional_params.json",
+            value=app_state.additional_params_json,
+            height=100,
+            help="JSON-объект, объединяемый с весами, курьерами и заказами",
         )
 
         st.markdown(
@@ -295,7 +309,10 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
     if map_state and map_state.get("all_drawings"):
         drawings = map_state["all_drawings"]
 
-    existing: Dict[str, MapPoint] = {point.id: point for point in app_state.points}
+    existing_by_id: Dict[str, MapPoint] = {point.id: point for point in app_state.points if point.id}
+    existing_by_coord: Dict[Tuple[float, float], MapPoint] = {
+        (_coord_key(point.lat), _coord_key(point.lon)): point for point in app_state.points
+    }
     imported_points: List[MapPoint] = []
 
     for feature in drawings:
@@ -311,7 +328,10 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
         props = feature.get("properties") or {}
         point_id = props.get("id")
         point_id = str(point_id) if point_id else None
-        base_point = existing.get(point_id) if point_id else None
+        base_point = existing_by_id.get(point_id) if point_id else None
+        coord_key = (_coord_key(lat), _coord_key(lon))
+        if base_point is None:
+            base_point = existing_by_coord.get(coord_key)
 
         extra_payload = props.get("extra_json")
         if isinstance(extra_payload, (dict, list)):
@@ -319,28 +339,32 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
         else:
             extra_json = extra_payload or (base_point.extra_json if base_point else "{}")
 
+        if base_point:
+            base_point.lat = lat
+            base_point.lon = lon
+            imported_points.append(base_point)
+            existing_by_coord.pop(coord_key, None)
+            continue
+
         candidate = {
             "id": point_id,
-            "type": props.get("type") or (base_point.type if base_point else "order"),
+            "type": props.get("type") or "order",
             "lat": lat,
             "lon": lon,
-            "boxes": props.get("boxes")
-            if props.get("boxes") is not None
-            else (base_point.boxes if base_point else 1),
-            "created_at": props.get("created_at")
-            or (base_point.created_at if base_point else None),
-            "ready_at": props.get("ready_at")
-            or (base_point.ready_at if base_point else None),
+            "boxes": props.get("boxes") if props.get("boxes") is not None else 1,
+            "created_at": props.get("created_at"),
+            "ready_at": props.get("ready_at"),
             "extra_json": extra_json,
         }
 
         try:
-            point = MapPoint.from_row(candidate)
+            point = MapPoint.from_row(
+                candidate,
+                default_base_iso=app_state.t0_iso,
+            )
         except ValueError:
             continue
 
-        if base_point and base_point.meta:
-            point.meta = base_point.meta
         imported_points.append(point)
 
     app_state.points = imported_points
@@ -354,9 +378,19 @@ def _prepare_solver_payload(
 
     raw_points: List[Dict[str, Any]] = []
     for point in app_state.points:
-        row = point.to_row()
-        row["meta"] = point.meta
-        raw_points.append(row)
+        raw_points.append(
+            {
+                "id": point.id,
+                "type": point.type,
+                "lat": point.lat,
+                "lon": point.lon,
+                "boxes": point.boxes,
+                "created_at": point.created_at,
+                "ready_at": point.ready_at,
+                "extra_json": point.extra_json,
+                "meta": point.meta,
+            }
+        )
 
     points_result = parse_and_validate_points(raw_points)
     errors = list(points_result.errors)
@@ -380,6 +414,7 @@ def _prepare_solver_payload(
             points_result,
             app_state.couriers_json,
             app_state.weights_json,
+            app_state.additional_params_json,
             app_state.t0_iso or "",
             app_state.osrm_base_url,
             tau,
@@ -458,10 +493,25 @@ def _build_column_config() -> Dict[str, Any]:
             min_value=0,
             step=1,
         ),
-        "created_at": st.column_config.TextColumn("Создан (ISO)"),
-        "ready_at": st.column_config.TextColumn("Готов (ISO)"),
+        "created_at": st.column_config.TextColumn(
+            "Создан в",
+            help="Формат HH:MM:SS",
+        ),
+        "ready_at": st.column_config.TextColumn(
+            "Будет готов",
+            help="Формат HH:MM:SS",
+        ),
         "extra_json": st.column_config.TextColumn("extra_json"),
     }
+
+
+def _coord_key(value: float) -> float:
+    """Округляет координату для сравнения точек."""
+
+    try:
+        return round(float(value), 6)
+    except (TypeError, ValueError):  # pragma: no cover - защитная ветка
+        return float("nan")
 
 
 def _safe_json(extra_str: str) -> Any:

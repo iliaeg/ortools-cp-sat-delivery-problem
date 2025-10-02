@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import re
 import json
 import math
 from typing import Any, Dict, Iterable, List
 from uuid import uuid4
 
 import pandas as pd
+
+
+TIME_PATTERN = re.compile(r"^(\d{2}):(\d{2}):(\d{2})$")
 
 
 POINT_COLUMNS = [
@@ -28,6 +32,71 @@ def _now_iso() -> str:
     """Возвращает текущий момент в ISO 8601 с точностью до секунд."""
 
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def iso_to_hms(value: str) -> str:
+    """Преобразует ISO-время в формат HH:MM:SS."""
+
+    if not isinstance(value, str) or not value.strip():
+        return ""
+
+    try:
+        dt = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+
+    return dt.strftime("%H:%M:%S")
+
+
+def merge_time_with_base(
+    value: Any,
+    fallback_iso: str | None,
+    default_base_iso: str | None,
+) -> str:
+    """Возвращает ISO-строку, комбинируя время HH:MM:SS с базовой датой."""
+
+    if isinstance(value, datetime):
+        base_dt = value
+        if base_dt.tzinfo is None:
+            base_dt = base_dt.astimezone()
+        return base_dt.isoformat(timespec="seconds")
+
+    if not isinstance(value, str) or not value.strip():
+        if fallback_iso:
+            return fallback_iso
+        base_dt = datetime.fromisoformat(default_base_iso) if default_base_iso else datetime.now(timezone.utc).astimezone()
+        return base_dt.isoformat(timespec="seconds")
+
+    text = value.strip()
+
+    try:
+        dt = datetime.fromisoformat(text)
+        return dt.isoformat(timespec="seconds")
+    except ValueError:
+        pass
+
+    match = TIME_PATTERN.match(text)
+    if not match:
+        if fallback_iso:
+            return fallback_iso
+        return text
+
+    hours, minutes, seconds = map(int, match.groups())
+
+    base_source = fallback_iso or default_base_iso
+    if base_source:
+        try:
+            base_dt = datetime.fromisoformat(base_source)
+        except ValueError:
+            base_dt = datetime.now(timezone.utc).astimezone()
+    else:
+        base_dt = datetime.now(timezone.utc).astimezone()
+
+    if base_dt.tzinfo is None:
+        base_dt = base_dt.astimezone()
+
+    combined = base_dt.replace(hour=hours, minute=minutes, second=seconds, microsecond=0)
+    return combined.isoformat(timespec="seconds")
 
 
 def _make_point_id() -> str:
@@ -59,13 +128,19 @@ class MapPoint:
             "lat": self.lat,
             "lon": self.lon,
             "boxes": self.boxes,
-            "created_at": self.created_at,
-            "ready_at": self.ready_at,
+            "created_at": iso_to_hms(self.created_at),
+            "ready_at": iso_to_hms(self.ready_at),
             "extra_json": self.extra_json,
         }
 
     @classmethod
-    def from_row(cls, row: Dict[str, Any]) -> "MapPoint":
+    def from_row(
+        cls,
+        row: Dict[str, Any],
+        *,
+        base_point: "MapPoint" | None = None,
+        default_base_iso: str | None = None,
+    ) -> "MapPoint":
         """Создаёт MapPoint на основе данных из таблицы."""
 
         point_id = str(row.get("id")) if row.get("id") else _make_point_id()
@@ -86,8 +161,16 @@ class MapPoint:
         except (TypeError, ValueError):
             boxes = 0
 
-        created_at = str(row.get("created_at") or _now_iso())
-        ready_at = str(row.get("ready_at") or _now_iso())
+        created_at = merge_time_with_base(
+            row.get("created_at"),
+            base_point.created_at if base_point else None,
+            default_base_iso,
+        )
+        ready_at = merge_time_with_base(
+            row.get("ready_at"),
+            base_point.ready_at if base_point else None,
+            default_base_iso,
+        )
 
         extra_raw = row.get("extra_json")
         if isinstance(extra_raw, (dict, list)):
@@ -117,8 +200,9 @@ class AppState:
     """Контейнер основных данных приложения."""
 
     points: List[MapPoint] = field(default_factory=list)
-    couriers_json: str = "[]"
+    couriers_json: str = "{\"a\": [0, 40]}"
     weights_json: str = "{\"W_cert\": 1000, \"W_c2e\": 1, \"W_skip\": 200}"
+    additional_params_json: str = "{\"time_limit\": 3.0}"
     osrm_base_url: str = "http://localhost:5563"
     t0_iso: str | None = None
     map_center: tuple[float, float] = (52.9676, 36.0693)
@@ -136,9 +220,17 @@ class AppState:
         """Обновляет список точек на основе данных из редактора."""
 
         updated: List[MapPoint] = []
+        existing_by_id = {point.id: point for point in self.points}
         for record in records:
             try:
-                updated.append(MapPoint.from_row(record))
+                base_point = existing_by_id.get(str(record.get("id")) if record.get("id") else "")
+                updated.append(
+                    MapPoint.from_row(
+                        record,
+                        base_point=base_point,
+                        default_base_iso=self.t0_iso,
+                    )
+                )
             except ValueError:
                 # Игнорируем некорректные строки, пользователь увидит ошибки валидации позже
                 continue

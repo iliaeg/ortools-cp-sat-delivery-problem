@@ -47,6 +47,7 @@ def export_case_bundle(app_state: AppState) -> Dict[str, Any]:
     geojson = export_geojson(app_state)
     couriers = _safe_json_loads(app_state.couriers_json, default=[])
     weights = _safe_json_loads(app_state.weights_json, default={})
+    additional_params = _safe_json_loads(app_state.additional_params_json, default={})
 
     bundle = {
         "t0_iso": app_state.t0_iso,
@@ -55,6 +56,7 @@ def export_case_bundle(app_state: AppState) -> Dict[str, Any]:
         "geojson": geojson,
         "couriers": couriers,
         "weights": weights,
+        "additional_params": additional_params,
         "osrm_base_url": app_state.osrm_base_url,
     }
     return bundle
@@ -117,6 +119,9 @@ def import_case_bundle(app_state: AppState, payload: Dict[str, Any]) -> None:
     app_state.points = points
     app_state.couriers_json = _dump_pretty_json(payload.get("couriers", []))
     app_state.weights_json = _dump_pretty_json(payload.get("weights", {}))
+    app_state.additional_params_json = _dump_pretty_json(
+        payload.get("additional_params", {"time_limit": 3.0})
+    )
     app_state.osrm_base_url = str(payload.get("osrm_base_url") or app_state.osrm_base_url)
 
     map_center = payload.get("map_center")
