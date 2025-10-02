@@ -203,101 +203,7 @@ def render_main_view(app_state: AppState) -> None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     with table_col:
-        st.markdown("#### Таблица точек")
-        st.caption("Отметьте один depot, остальные — order")
-
-        if _POINTS_EDITOR_KEY not in st.session_state:
-            st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
-
-        editor_source = st.session_state[_POINTS_EDITOR_KEY]
-        if not isinstance(editor_source, pd.DataFrame):
-            editor_source = app_state.points_dataframe()
-            st.session_state[_POINTS_EDITOR_KEY] = editor_source
-
-        edited_df = st.data_editor(
-            editor_source,
-            num_rows="dynamic",
-            hide_index=True,
-            width="stretch",
-            key="points_editor_widget",
-            column_config=_build_column_config(),
-        )
-
-        st.session_state[_POINTS_EDITOR_KEY] = edited_df
-        records = edited_df.replace({pd.NA: None}).to_dict(orient="records")
-        app_state.update_points_from_records(records)
-        persist_state(app_state)
-
-        if edited_df.empty:
-            st.info(
-                "Таблица пуста. Добавьте точки на карте и нажмите «Импортировать из карты»."
-            )
-
-        st.divider()
-
-        status_placeholder = st.container()
-        pending_feedback = st.session_state.pop(_SOLVER_FEEDBACK_KEY, None)
-        if isinstance(pending_feedback, dict):
-            status = pending_feedback.get("status")
-            warnings_list = pending_feedback.get("warnings") or []
-            if status == "applied":
-                status_placeholder.success("Ответ солвера применён")
-            elif status == "reset":
-                status_placeholder.info("Результат солвера сброшен")
-            if warnings_list:
-                status_placeholder.warning(_format_messages(warnings_list))
-        build_clicked = st.button(
-            "Собрать вход CP-SAT",
-            type="primary",
-            width="stretch",
-            disabled=edited_df.empty,
-        )
-
-        if build_clicked:
-            errors, warnings, payload = _prepare_solver_payload(app_state)
-            if errors:
-                status_placeholder.error(_format_messages(errors))
-                st.session_state.pop(_SOLVER_PAYLOAD_KEY, None)
-                st.session_state.pop(_SOLVER_WARNINGS_KEY, None)
-            else:
-                st.session_state[_SOLVER_PAYLOAD_KEY] = payload
-                st.session_state[_SOLVER_WARNINGS_KEY] = warnings
-                status_placeholder.success(
-                    "Входные данные подготовлены — скачайте solver_input.json ниже"
-                )
-
-        solver_controls_container = st.container()
-        solver_payload = st.session_state.get(_SOLVER_PAYLOAD_KEY)
-        solver_warnings = st.session_state.get(_SOLVER_WARNINGS_KEY, [])
-
-        with solver_controls_container:
-            if solver_payload:
-                if solver_warnings:
-                    st.warning(_format_messages(solver_warnings))
-
-                payload_json = json.dumps(solver_payload, ensure_ascii=False, indent=2)
-                st.download_button(
-                    "Скачать solver_input.json",
-                    data=payload_json.encode("utf-8"),
-                    file_name="solver_input.json",
-                    mime="application/json",
-                    width="stretch",
-                )
-                with st.expander("Посмотреть solver_input.json"):
-                    st.code(payload_json, language="json")
-
-                send_to_solver = st.button("Отправить в Solver", type="primary")
-                solver_response_placeholder = st.empty()
-
-                if send_to_solver:
-                    try:
-                        response = _post_solver_request(payload_json)
-                        solver_response_placeholder.code(response, language="json")
-                        _handle_solver_response(app_state, response, status_placeholder)
-                    except Exception as exc:
-                        solver_response_placeholder.error(f"Ошибка отправки: {exc}")
-
-            _render_solver_result_panel(app_state)
+        _render_points_table_fragment(app_state)
 
     persist_state(app_state)
 
@@ -361,6 +267,104 @@ def _render_map_fragment(app_state: AppState) -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.session_state[_MAP_STATE_KEY] = map_state
+
+
+@st.fragment
+def _render_points_table_fragment(app_state: AppState) -> None:
+    """Отрисовывает таблицу точек и связанные элементы управления."""
+
+    st.markdown("#### Таблица точек")
+    st.caption("Отметьте один depot, остальные — order")
+
+    if _POINTS_EDITOR_KEY not in st.session_state:
+        st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
+
+    editor_source = st.session_state[_POINTS_EDITOR_KEY]
+    if not isinstance(editor_source, pd.DataFrame):
+        editor_source = app_state.points_dataframe()
+        st.session_state[_POINTS_EDITOR_KEY] = editor_source
+
+    edited_df = st.data_editor(
+        editor_source,
+        num_rows="dynamic",
+        hide_index=True,
+        width="stretch",
+        key="points_editor_widget",
+        column_config=_build_column_config(),
+    )
+
+    st.session_state[_POINTS_EDITOR_KEY] = edited_df
+    records = edited_df.replace({pd.NA: None}).to_dict(orient="records")
+    app_state.update_points_from_records(records)
+    persist_state(app_state)
+
+    if edited_df.empty:
+        st.info("Таблица пуста. Добавьте точки на карте и нажмите «Импортировать из карты».")
+
+    st.divider()
+
+    status_placeholder = st.container()
+    pending_feedback = st.session_state.pop(_SOLVER_FEEDBACK_KEY, None)
+    if isinstance(pending_feedback, dict):
+        status = pending_feedback.get("status")
+        warnings_list = pending_feedback.get("warnings") or []
+        if status == "applied":
+            status_placeholder.success("Ответ солвера применён")
+        elif status == "reset":
+            status_placeholder.info("Результат солвера сброшен")
+        if warnings_list:
+            status_placeholder.warning(_format_messages(warnings_list))
+
+    build_clicked = st.button(
+        "Собрать вход CP-SAT",
+        type="primary",
+        width="stretch",
+        disabled=edited_df.empty,
+    )
+
+    if build_clicked:
+        errors, warnings, payload = _prepare_solver_payload(app_state)
+        if errors:
+            status_placeholder.error(_format_messages(errors))
+            st.session_state.pop(_SOLVER_PAYLOAD_KEY, None)
+            st.session_state.pop(_SOLVER_WARNINGS_KEY, None)
+        else:
+            st.session_state[_SOLVER_PAYLOAD_KEY] = payload
+            st.session_state[_SOLVER_WARNINGS_KEY] = warnings
+            status_placeholder.success("Входные данные подготовлены — скачайте solver_input.json ниже")
+
+    solver_controls_container = st.container()
+    solver_payload = st.session_state.get(_SOLVER_PAYLOAD_KEY)
+    solver_warnings = st.session_state.get(_SOLVER_WARNINGS_KEY, [])
+
+    with solver_controls_container:
+        if solver_payload:
+            if solver_warnings:
+                st.warning(_format_messages(solver_warnings))
+
+            payload_json = json.dumps(solver_payload, ensure_ascii=False, indent=2)
+            st.download_button(
+                "Скачать solver_input.json",
+                data=payload_json.encode("utf-8"),
+                file_name="solver_input.json",
+                mime="application/json",
+                width="stretch",
+            )
+            with st.expander("Посмотреть solver_input.json"):
+                st.code(payload_json, language="json")
+
+            send_to_solver = st.button("Отправить в Solver", type="primary")
+            solver_response_placeholder = st.empty()
+
+            if send_to_solver:
+                try:
+                    response = _post_solver_request(payload_json)
+                    solver_response_placeholder.code(response, language="json")
+                    _handle_solver_response(app_state, response, status_placeholder)
+                except Exception as exc:
+                    solver_response_placeholder.error(f"Ошибка отправки: {exc}")
+
+        _render_solver_result_panel(app_state)
 
 
 def _inject_map_layout_styles() -> None:
