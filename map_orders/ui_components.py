@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 from streamlit_folium import st_folium
 
+from map_orders.io_handlers import export_case_bundle, export_geojson, import_case_bundle
 from map_orders.osrm_client import OsrmError, fetch_duration_matrix
 from map_orders.transform import (
     ValidationError,
@@ -131,6 +132,43 @@ def render_main_view(app_state: AppState) -> None:
                 app_state.points = []
                 st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
                 st.experimental_rerun()
+
+        st.divider()
+        col_export_geojson, col_export_case, col_import_case = st.columns(3)
+        with col_export_geojson:
+            geojson_payload = export_geojson(app_state)
+            st.download_button(
+                "Экспорт GeoJSON",
+                data=json.dumps(geojson_payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                file_name="orders.geojson",
+                mime="application/geo+json",
+                use_container_width=True,
+            )
+        with col_export_case:
+            case_payload = export_case_bundle(app_state)
+            st.download_button(
+                "Экспорт кейса",
+                data=json.dumps(case_payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                file_name="case_bundle.json",
+                mime="application/json",
+                use_container_width=True,
+            )
+        with col_import_case:
+            uploaded_bundle = st.file_uploader(
+                "Импорт кейса",
+                type=["json"],
+                accept_multiple_files=False,
+                label_visibility="collapsed",
+            )
+            if uploaded_bundle is not None:
+                try:
+                    payload = json.load(uploaded_bundle)
+                    import_case_bundle(app_state, payload)
+                    st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
+                    st.success("Кейс успешно импортирован")
+                    st.experimental_rerun()
+                except Exception as exc:
+                    st.error(f"Не удалось импортировать кейс: {exc}")
 
     with table_col:
         st.markdown("#### Таблица точек")
