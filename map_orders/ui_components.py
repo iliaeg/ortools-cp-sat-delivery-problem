@@ -145,6 +145,8 @@ def render_main_view(app_state: AppState) -> None:
                 st.session_state[_POINTS_EDITOR_KEY] = app_state.points_dataframe()
                 if imported:
                     st.success(f"Импортировано точек: {imported}")
+                elif app_state.points:
+                    st.info("Новых точек для импорта не найдено — данные в таблице уже актуальны")
                 else:
                     st.info("На карте нет точек для импорта")
                 persist_state(app_state)
@@ -420,11 +422,14 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
     if map_state and map_state.get("all_drawings"):
         drawings = map_state["all_drawings"]
 
-    existing_by_id: Dict[str, MapPoint] = {point.id: point for point in app_state.points if point.id}
+    existing_by_id: Dict[str, MapPoint] = {
+        str(point.id): point for point in app_state.points if point.id not in (None, "")
+    }
     existing_by_coord: Dict[Tuple[float, float], MapPoint] = {
         (_coord_key(point.lat), _coord_key(point.lon)): point for point in app_state.points
     }
-    imported_points: List[MapPoint] = []
+
+    imported_count = 0
 
     for feature in drawings:
         if not isinstance(feature, dict):
@@ -437,24 +442,51 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
             continue
         lon, lat = coordinates[:2]
         props = feature.get("properties") or {}
-        point_id = props.get("id")
-        point_id = str(point_id) if point_id else None
-        base_point = existing_by_id.get(point_id) if point_id else None
+        point_id_raw = props.get("id")
+        point_id = str(point_id_raw) if point_id_raw not in (None, "") else None
         coord_key = (_coord_key(lat), _coord_key(lon))
+
+        base_point = existing_by_id.get(point_id) if point_id else None
         if base_point is None:
             base_point = existing_by_coord.get(coord_key)
 
         extra_payload = props.get("extra_json")
         if isinstance(extra_payload, (dict, list)):
             extra_json = json.dumps(extra_payload, ensure_ascii=False)
+        elif extra_payload:
+            extra_json = extra_payload
+        elif base_point:
+            extra_json = base_point.extra_json
         else:
-            extra_json = extra_payload or (base_point.extra_json if base_point else "{}")
+            extra_json = "{}"
 
         if base_point:
+            old_coord_key = (_coord_key(base_point.lat), _coord_key(base_point.lon))
             base_point.lat = lat
             base_point.lon = lon
-            imported_points.append(base_point)
-            existing_by_coord.pop(coord_key, None)
+            if isinstance(props.get("type"), str) and props.get("type") in {"depot", "order"}:
+                base_point.type = str(props.get("type"))
+
+            boxes_value = props.get("boxes")
+            if boxes_value is not None:
+                try:
+                    base_point.boxes = int(boxes_value)
+                except (TypeError, ValueError):
+                    pass
+
+            if props.get("created_at") is not None:
+                base_point.created_at = props.get("created_at")
+            if props.get("ready_at") is not None:
+                base_point.ready_at = props.get("ready_at")
+            base_point.extra_json = extra_json
+
+            if old_coord_key != coord_key:
+                existing_by_coord.pop(old_coord_key, None)
+            existing_by_coord[coord_key] = base_point
+            if base_point.id:
+                existing_by_id[str(base_point.id)] = base_point
+
+            imported_count += 1
             continue
 
         candidate = {
@@ -469,19 +501,23 @@ def _apply_import_from_map(app_state: AppState, map_state: Dict[str, Any] | None
         }
 
         try:
-            point = MapPoint.from_row(
-                candidate,
-                default_base_iso=app_state.t0_iso,
-            )
+            point = MapPoint.from_row(candidate, default_base_iso=app_state.t0_iso)
         except ValueError:
             continue
 
-        imported_points.append(point)
+        app_state.points.append(point)
+        if point.id:
+            existing_by_id[str(point.id)] = point
+        existing_by_coord[(_coord_key(point.lat), _coord_key(point.lon))] = point
+        imported_count += 1
 
-    app_state.points = imported_points
-    if app_state.points:
+    if imported_count == 0:
+        return 0
+
+    if app_state.points and not any(point.type == "depot" for point in app_state.points):
         app_state.points[0].type = "depot"
-    return len(imported_points)
+
+    return imported_count
 
 
 def _prepare_solver_payload(
