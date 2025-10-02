@@ -119,7 +119,7 @@ class AppState:
     points: List[MapPoint] = field(default_factory=list)
     couriers_json: str = "[]"
     weights_json: str = "{\"W_cert\": 1000, \"W_c2e\": 1, \"W_skip\": 200}"
-    osrm_base_url: str = "http://localhost:5000"
+    osrm_base_url: str = "http://localhost:5563"
     t0_iso: str | None = None
     map_center: tuple[float, float] = (52.9676, 36.0693)
     map_zoom: int = 13
