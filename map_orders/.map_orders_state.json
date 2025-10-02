@@ -1,0 +1,80 @@
+{
+  "points": [
+    {
+      "id": "5e520313",
+      "type": "depot",
+      "lat": 52.967562,
+      "lon": 36.06215,
+      "boxes": 1,
+      "created_at": "17:15:24",
+      "ready_at": "17:15:24",
+      "extra_json": "{}",
+      "meta": {}
+    },
+    {
+      "id": "dcfb669a",
+      "type": "order",
+      "lat": 52.985366,
+      "lon": 36.068459,
+      "boxes": 1,
+      "created_at": "17:15:24",
+      "ready_at": "17:15:24",
+      "extra_json": "{}",
+      "meta": {}
+    },
+    {
+      "id": "0eb4871e",
+      "type": "order",
+      "lat": 52.98627,
+      "lon": 36.063867,
+      "boxes": 1,
+      "created_at": "17:15:24",
+      "ready_at": "17:15:24",
+      "extra_json": "{}",
+      "meta": {}
+    },
+    {
+      "id": "a91d633a",
+      "type": "order",
+      "lat": 53.012827,
+      "lon": 36.141254,
+      "boxes": 1,
+      "created_at": "17:15:24",
+      "ready_at": "17:15:24",
+      "extra_json": "{}",
+      "meta": {}
+    },
+    {
+      "id": "3d9e2265",
+      "type": "order",
+      "lat": 53.011943,
+      "lon": 36.141061,
+      "boxes": 1,
+      "created_at": "17:15:24",
+      "ready_at": "17:15:24",
+      "extra_json": "{}",
+      "meta": {}
+    },
+    {
+      "id": "bc912202",
+      "type": "order",
+      "lat": 53.000529,
+      "lon": 36.136222,
+      "boxes": 1,
+      "created_at": "17:15:24",
+      "ready_at": "17:15:24",
+      "extra_json": "{}",
+      "meta": {}
+    }
+  ],
+  "couriers_json": "{\n  \"a\": [0, 40],\n  \"C\": [25, 25]\n}",
+  "weights_json": "{\n  \"W_cert\": 1000,\n  \"W_c2e\": 1,\n  \"W_skip\": 200\n}",
+  "additional_params_json": "{\n  \"time_limit\": 3\n}",
+  "osrm_base_url": "http://localhost:5563",
+  "t0_iso": "2025-10-02T17:15:24+03:00",
+  "map_center": [
+    52.9676,
+    36.0693
+  ],
+  "map_zoom": 13
+}

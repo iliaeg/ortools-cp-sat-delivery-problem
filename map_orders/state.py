@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-import re
 import json
 import math
+from pathlib import Path
+import re
 from typing import Any, Dict, Iterable, List
 from uuid import uuid4
 
@@ -248,8 +249,95 @@ def ensure_session_state(st_session_state: Any) -> AppState:
     """Гарантирует наличие AppState в session_state Streamlit."""
 
     if "map_orders_state" not in st_session_state:
-        st_session_state.map_orders_state = AppState(t0_iso=_now_iso())
+        persisted = load_persisted_state()
+        if persisted is not None:
+            st_session_state.map_orders_state = persisted
+        else:
+            st_session_state.map_orders_state = AppState(t0_iso=_now_iso())
+            persist_state(st_session_state.map_orders_state)
     state: AppState = st_session_state.map_orders_state
     if not state.t0_iso:
         state.t0_iso = _now_iso()
     return state
+
+
+def persist_state(app_state: AppState) -> None:
+    """Сохраняет текущее состояние приложения на диск."""
+
+    try:
+        data = {
+            "points": [
+                {
+                    **point.to_row(),
+                    "meta": point.meta,
+                }
+                for point in app_state.points
+            ],
+            "couriers_json": app_state.couriers_json,
+            "weights_json": app_state.weights_json,
+            "additional_params_json": app_state.additional_params_json,
+            "osrm_base_url": app_state.osrm_base_url,
+            "t0_iso": app_state.t0_iso,
+            "map_center": list(app_state.map_center),
+            "map_zoom": app_state.map_zoom,
+        }
+        _STATE_STORAGE_PATH.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+
+
+def load_persisted_state() -> AppState | None:
+    """Загружает состояние приложения с диска, если оно существует."""
+
+    if not _STATE_STORAGE_PATH.exists():
+        return None
+
+    try:
+        raw_data = json.loads(_STATE_STORAGE_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+    state = AppState()
+    state.couriers_json = raw_data.get("couriers_json", state.couriers_json)
+    state.weights_json = raw_data.get("weights_json", state.weights_json)
+    state.additional_params_json = raw_data.get(
+        "additional_params_json", state.additional_params_json
+    )
+    state.osrm_base_url = raw_data.get("osrm_base_url", state.osrm_base_url)
+    state.t0_iso = raw_data.get("t0_iso") or state.t0_iso
+
+    map_center = raw_data.get("map_center")
+    if isinstance(map_center, (list, tuple)) and len(map_center) >= 2:
+        try:
+            state.map_center = (float(map_center[0]), float(map_center[1]))
+        except (TypeError, ValueError):
+            pass
+
+    map_zoom = raw_data.get("map_zoom")
+    if isinstance(map_zoom, int) and 1 <= map_zoom <= 20:
+        state.map_zoom = map_zoom
+
+    points_payload = raw_data.get("points", [])
+    restored_points: List[MapPoint] = []
+    for payload in points_payload:
+        if not isinstance(payload, dict):
+            continue
+        payload = payload.copy()
+        meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+        payload["meta"] = meta
+        try:
+            point = MapPoint.from_row(payload)
+            point.meta = meta
+            restored_points.append(point)
+        except ValueError:
+            continue
+
+    state.points = restored_points
+    if state.points:
+        state.points[0].type = "depot"
+
+    return state
+_STATE_STORAGE_PATH = Path(__file__).resolve().parent / ".map_orders_state.json"
