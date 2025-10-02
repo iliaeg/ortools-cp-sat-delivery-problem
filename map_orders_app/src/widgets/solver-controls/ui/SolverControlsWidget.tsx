@@ -25,6 +25,7 @@ import {
   selectSolverInput,
   selectWarnings,
   selectSolverResult,
+  selectSolverSignatures,
 } from "@/features/map-orders/model/selectors";
 import {
   applyComputedFields,
@@ -43,17 +44,61 @@ import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 const SolverControlsWidget = () => {
   const dispatch = useAppDispatch();
-  const points = useAppSelector(selectPoints);
   const { couriersText, weightsText, additionalParamsText, t0Time, osrmBaseUrl } =
     useAppSelector(selectControlTexts);
   const solverInput = useAppSelector(selectSolverInput);
   const solverResult = useAppSelector(selectSolverResult);
+  const points = useAppSelector(selectPoints);
   const warnings = useAppSelector(selectWarnings);
+  const { lastSolverInputSignature, lastSolverResultSignature } =
+    useAppSelector(selectSolverSignatures);
   const [buildSolverInput, { isLoading: isBuilding }]
     = useBuildSolverInputMutation();
   const [solve, { isLoading: isSolving }]
     = useSolveMutation();
   const [error, setError] = useState<string | null>(null);
+
+  const currentSignature = useMemo(
+    () =>
+      stringifyWithInlineArrays({
+        pointsSnapshot: points.map(
+          ({
+            internalId,
+            id,
+            kind,
+            lat,
+            lon,
+            boxes,
+            createdAt,
+            readyAt,
+            extraJson,
+          }) => ({
+            internalId,
+            id,
+            kind,
+            lat,
+            lon,
+            boxes,
+            createdAt,
+            readyAt,
+            extraJson,
+          }),
+        ),
+        couriersText,
+        weightsText,
+        additionalParamsText,
+        t0Time,
+        osrmBaseUrl,
+      }),
+    [
+      points,
+      couriersText,
+      weightsText,
+      additionalParamsText,
+      t0Time,
+      osrmBaseUrl,
+    ],
+  );
 
   const handleBuildSolverInput = useCallback(async () => {
     setError(null);
@@ -68,7 +113,13 @@ const SolverControlsWidget = () => {
         osrmBaseUrl,
       }).unwrap();
       dispatch(setSolverInput(response.input));
-      dispatch(setUiState({ warnings: response.warnings }));
+      dispatch(
+        setUiState({
+          warnings: response.warnings,
+          lastSolverInputSignature: currentSignature,
+          lastSolverResultSignature: undefined,
+        }),
+      );
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -83,6 +134,7 @@ const SolverControlsWidget = () => {
     points,
     t0Time,
     weightsText,
+    currentSignature,
   ]);
 
   const handleSolve = useCallback(async () => {
@@ -96,12 +148,13 @@ const SolverControlsWidget = () => {
       const response = await solve({ solverInput }).unwrap();
       dispatch(setSolverResult(response));
       dispatch(applyComputedFields(response.ordersComputed as OrdersComputedPatch[]));
+      dispatch(setUiState({ lastSolverResultSignature: currentSignature }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
       dispatch(setUiState({ isSolving: false }));
     }
-  }, [dispatch, solve, solverInput]);
+  }, [currentSignature, dispatch, solve, solverInput]);
 
   const handleDownloadSolverInput = useCallback(() => {
     if (!solverInput) {
@@ -115,7 +168,7 @@ const SolverControlsWidget = () => {
 
   const handleResetResult = useCallback(() => {
     dispatch(resetSolverResult());
-    dispatch(setUiState({ warnings: [] }));
+    dispatch(setUiState({ warnings: [], lastSolverResultSignature: undefined }));
   }, [dispatch]);
 
   const solverInputPreview = useMemo(
@@ -127,6 +180,17 @@ const SolverControlsWidget = () => {
     () => (solverResult ? stringifyWithInlineArrays(solverResult) : ""),
     [solverResult],
   );
+
+  const isSolverDataStale = useMemo(() => {
+    const staleInput = Boolean(
+      lastSolverInputSignature && lastSolverInputSignature !== currentSignature,
+    );
+    const staleResult = Boolean(
+      lastSolverResultSignature &&
+        lastSolverResultSignature !== currentSignature,
+    );
+    return staleInput || staleResult;
+  }, [currentSignature, lastSolverInputSignature, lastSolverResultSignature]);
 
   return (
     <Paper elevation={3} sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -178,6 +242,12 @@ const SolverControlsWidget = () => {
               </Typography>
             ))}
           </Stack>
+        </Alert>
+      ) : null}
+      {isSolverDataStale ? (
+        <Alert severity="error" variant="filled">
+          Текущий solver_input и/или ответ решателя не соответствуют точкам на карте или параметрам —
+          пересоберите вход перед отправкой.
         </Alert>
       ) : null}
       {solverInput ? (

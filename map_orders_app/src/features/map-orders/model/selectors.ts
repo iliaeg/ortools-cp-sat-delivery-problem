@@ -54,6 +54,11 @@ export const selectUiFlags = createSelector(selectMapOrdersState, (state) => ({
   isSolving: state.ui.isSolving,
 }));
 
+export const selectSolverSignatures = createSelector(selectMapOrdersState, (state) => ({
+  lastSolverInputSignature: state.ui.lastSolverInputSignature,
+  lastSolverResultSignature: state.ui.lastSolverResultSignature,
+}));
+
 export const selectSolverComputedColumnsVisible = createSelector(
   selectPoints,
   (points: DeliveryPoint[]) =>

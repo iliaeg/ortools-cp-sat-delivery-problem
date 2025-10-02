@@ -60,6 +60,8 @@ export interface MapOrdersUiState {
   isSolving: boolean;
   warnings: string[];
   error?: string;
+  lastSolverInputSignature?: string;
+  lastSolverResultSignature?: string;
 }
 
 export interface MapOrdersState {

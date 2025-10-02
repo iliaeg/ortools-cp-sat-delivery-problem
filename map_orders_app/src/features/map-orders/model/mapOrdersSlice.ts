@@ -45,6 +45,8 @@ const initialUiState: MapOrdersUiState = {
   isSolving: false,
   warnings: [],
   error: undefined,
+  lastSolverInputSignature: undefined,
+  lastSolverResultSignature: undefined,
 };
 
 const initialState: MapOrdersState = {
