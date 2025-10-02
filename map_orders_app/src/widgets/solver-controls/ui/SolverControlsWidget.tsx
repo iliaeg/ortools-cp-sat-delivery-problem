@@ -23,6 +23,7 @@ import {
   selectControlTexts,
   selectPoints,
   selectSolverInput,
+  selectWarnings,
   selectSolverResult,
 } from "@/features/map-orders/model/selectors";
 import {
@@ -47,6 +48,7 @@ const SolverControlsWidget = () => {
     useAppSelector(selectControlTexts);
   const solverInput = useAppSelector(selectSolverInput);
   const solverResult = useAppSelector(selectSolverResult);
+  const warnings = useAppSelector(selectWarnings);
   const [buildSolverInput, { isLoading: isBuilding }]
     = useBuildSolverInputMutation();
   const [solve, { isLoading: isSolving }]
@@ -167,6 +169,17 @@ const SolverControlsWidget = () => {
           Сбросить результат
         </Button>
       </Stack>
+      {warnings.length > 0 ? (
+        <Alert severity="warning" variant="outlined">
+          <Stack spacing={0.75}>
+            {warnings.map((warning, index) => (
+              <Typography key={index} variant="subtitle1" fontWeight={900}>
+                {warning}
+              </Typography>
+            ))}
+          </Stack>
+        </Alert>
+      ) : null}
       {solverInput ? (
         <Accordion disableGutters sx={{ bgcolor: "background.paper" }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>

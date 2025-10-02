@@ -90,6 +90,17 @@ const ParametersPanelWidget = () => {
         </Stack>
       </Stack>
       <TextField
+        label="OSRM Base URL"
+        value={osrmBaseUrl}
+        onChange={(event) => dispatch(setOsrmBaseUrl(event.target.value))}
+      />
+      <TextField
+        label="Текущее время"
+        value={t0Time}
+        onChange={(event) => dispatch(setT0Time(event.target.value))}
+        helperText={`Формат HH:MM:SS · Текущая дата: ${todayIso}`}
+      />
+      <TextField
         label="Курьеры"
         value={couriersText}
         onChange={(event) => dispatch(setCouriersText(event.target.value))}
@@ -124,17 +135,6 @@ const ParametersPanelWidget = () => {
       <Button onClick={handleBeautifyAdditional} startIcon={<CleaningServicesIcon />}>
         Форматировать
       </Button>
-      <TextField
-        label="T0 (HH:MM:SS)"
-        value={t0Time}
-        onChange={(event) => dispatch(setT0Time(event.target.value))}
-        helperText={`Текущая дата: ${todayIso}`}
-      />
-      <TextField
-        label="OSRM Base URL"
-        value={osrmBaseUrl}
-        onChange={(event) => dispatch(setOsrmBaseUrl(event.target.value))}
-      />
       {error ? (
         <Alert severity="error" onClose={() => setError(null)}>
           {error}

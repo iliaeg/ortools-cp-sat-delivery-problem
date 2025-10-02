@@ -21,7 +21,7 @@ import {
   setUiState,
   setPersistedState,
 } from "@/features/map-orders/model/mapOrdersSlice";
-import { selectPoints, selectWarnings } from "@/features/map-orders/model/selectors";
+import { selectPoints } from "@/features/map-orders/model/selectors";
 import {
   useExportCaseMutation,
   useExportGeoJsonMutation,
@@ -53,7 +53,6 @@ const preparePointsFromImport = (points: DeliveryPoint[]): DeliveryPoint[] =>
 const MapOrdersWidget = () => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
-  const warnings = useAppSelector(selectWarnings);
   const [exportGeoJson, { isLoading: isExportingGeo }]
     = useExportGeoJsonMutation();
   const [exportCase, { isLoading: isExportingCase }] = useExportCaseMutation();
@@ -197,11 +196,6 @@ const MapOrdersWidget = () => {
         Перетащите JSON-файл кейса или solver_input сюда, чтобы импортировать.
       </Box>
       {importError ? <Alert severity="error">{importError}</Alert> : null}
-      {warnings.length > 0 ? (
-        <Alert severity="warning" variant="outlined">
-          {warnings.join("\n")}
-        </Alert>
-      ) : null}
     </Paper>
   );
 };

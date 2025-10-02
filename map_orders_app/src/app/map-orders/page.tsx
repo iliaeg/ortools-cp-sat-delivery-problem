@@ -16,12 +16,12 @@ export default function MapOrdersPage() {
               gap: 3,
               gridTemplateColumns: {
                 xs: "1fr",
-                md: "repeat(2, minmax(0, 1fr))",
+                md: "minmax(320px, 480px) minmax(0, 1fr)",
               },
             }}
           >
-            <ParametersPanelWidget />
-            <SolverControlsWidget />
+            <MapOrdersWidget />
+            <OrdersTableWidget />
           </Box>
           <Box
             sx={{
@@ -29,12 +29,12 @@ export default function MapOrdersPage() {
               gap: 3,
               gridTemplateColumns: {
                 xs: "1fr",
-                md: "minmax(320px, 480px) minmax(0, 1fr)",
+                md: "repeat(2, minmax(0, 1fr))",
               },
             }}
           >
-            <MapOrdersWidget />
-            <OrdersTableWidget />
+            <ParametersPanelWidget />
+            <SolverControlsWidget />
           </Box>
         </Stack>
       </StateBootstrapper>
