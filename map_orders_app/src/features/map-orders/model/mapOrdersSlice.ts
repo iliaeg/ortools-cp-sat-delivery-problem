@@ -54,13 +54,43 @@ const initialState: MapOrdersState = {
   ui: initialUiState,
 };
 
-const normalizeSeq = (points: DeliveryPoint[]): DeliveryPoint[] =>
-  points
-    .map((point, index) => ({
-      ...point,
-      seq: index + 1,
-    }))
-    .sort((a, b) => a.seq - b.seq);
+const normalizeSeq = (points: DeliveryPoint[]): DeliveryPoint[] => {
+  if (points.length === 0) {
+    return [];
+  }
+
+  let depot: DeliveryPoint | null = null;
+  const orders: DeliveryPoint[] = [];
+
+  points.forEach((point) => {
+    if (point.kind === "depot" && depot === null) {
+      depot = point;
+    } else {
+      const normalizedOrder =
+        point.kind === "depot"
+          ? { ...point, kind: "order" as PointKind }
+          : point;
+      orders.push(normalizedOrder);
+    }
+  });
+
+  if (!depot && orders.length > 0) {
+    depot = { ...orders[0], kind: "depot" as PointKind };
+    orders.splice(0, 1);
+  }
+
+  const result: DeliveryPoint[] = [];
+  if (depot) {
+    result.push({ ...depot, kind: "depot", seq: 0 });
+  }
+
+  let nextSeq = depot ? 1 : 1;
+  orders.forEach((order) => {
+    result.push({ ...order, seq: nextSeq++ });
+  });
+
+  return result;
+};
 
 const ensureDepotConstraints = (points: DeliveryPoint[]): DeliveryPoint[] => {
   const depots = points.filter((point) => point.kind === "depot");
