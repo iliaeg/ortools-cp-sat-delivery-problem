@@ -591,11 +591,13 @@ def _format_json_value(value: Any, indent: int = 0) -> str:
     if isinstance(value, dict):
         if not value:
             return "{}"
+        items = list(value.items())
         inner_lines = []
-        for key, val in value.items():
+        for idx, (key, val) in enumerate(items):
             formatted = _format_json_value(val, indent + _JSON_INDENT)
+            comma = "," if idx < len(items) - 1 else ""
             inner_lines.append(
-                f"{' ' * (indent + _JSON_INDENT)}{json.dumps(key, ensure_ascii=False)}: {formatted}"
+                f"{' ' * (indent + _JSON_INDENT)}{json.dumps(key, ensure_ascii=False)}: {formatted}{comma}"
             )
         inner = "\n".join(inner_lines)
         return "{\n" + inner + "\n" + space + "}"
@@ -606,10 +608,13 @@ def _format_json_value(value: Any, indent: int = 0) -> str:
         if all(_is_json_scalar(item) for item in value):
             items = ", ".join(json.dumps(item, ensure_ascii=False) for item in value)
             return "[" + items + "]"
-        inner_lines = [
-            f"{' ' * (indent + _JSON_INDENT)}{_format_json_value(item, indent + _JSON_INDENT)}"
-            for item in value
-        ]
+        inner_lines = []
+        for idx, item in enumerate(value):
+            formatted = _format_json_value(item, indent + _JSON_INDENT)
+            comma = "," if idx < len(value) - 1 else ""
+            inner_lines.append(
+                f"{' ' * (indent + _JSON_INDENT)}{formatted}{comma}"
+            )
         inner = "\n".join(inner_lines)
         return "[\n" + inner + "\n" + space + "]"
 
