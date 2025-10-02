@@ -27,12 +27,12 @@
       "ready_at": "2025-10-02T17:25:00+03:00",
       "extra_json": "{}",
       "meta": {},
-      "group_id": 1,
-      "route_pos": 1,
-      "eta_rel_min": 29,
-      "planned_c2e_min": 44,
-      "skip": false,
-      "cert": false
+      "group_id": null,
+      "route_pos": null,
+      "eta_rel_min": null,
+      "planned_c2e_min": null,
+      "skip": null,
+      "cert": null
     },
     {
       "id": "0eb4871e",
@@ -44,12 +44,12 @@
       "ready_at": "2025-10-02T17:35:00+03:00",
       "extra_json": "{}",
       "meta": {},
-      "group_id": 1,
-      "route_pos": 2,
-      "eta_rel_min": 30,
-      "planned_c2e_min": 38,
-      "skip": false,
-      "cert": false
+      "group_id": null,
+      "route_pos": null,
+      "eta_rel_min": null,
+      "planned_c2e_min": null,
+      "skip": null,
+      "cert": null
     },
     {
       "id": "a91d633a",
@@ -61,12 +61,12 @@
       "ready_at": "2025-10-02T17:15:00+03:00",
       "extra_json": "{}",
       "meta": {},
-      "group_id": 0,
-      "route_pos": 2,
-      "eta_rel_min": 19,
-      "planned_c2e_min": 38,
-      "skip": false,
-      "cert": false
+      "group_id": null,
+      "route_pos": null,
+      "eta_rel_min": null,
+      "planned_c2e_min": null,
+      "skip": null,
+      "cert": null
     },
     {
       "id": "3d9e2265",
@@ -78,12 +78,12 @@
       "ready_at": "2025-10-02T17:15:00+03:00",
       "extra_json": "{}",
       "meta": {},
-      "group_id": 0,
-      "route_pos": 1,
-      "eta_rel_min": 18,
-      "planned_c2e_min": 28,
-      "skip": false,
-      "cert": false
+      "group_id": null,
+      "route_pos": null,
+      "eta_rel_min": null,
+      "planned_c2e_min": null,
+      "skip": null,
+      "cert": null
     },
     {
       "id": "bc912202",
@@ -95,12 +95,12 @@
       "ready_at": "2025-10-02T17:23:00+03:00",
       "extra_json": "{}",
       "meta": {},
-      "group_id": 1,
-      "route_pos": 3,
-      "eta_rel_min": 40,
-      "planned_c2e_min": 42,
-      "skip": false,
-      "cert": false
+      "group_id": null,
+      "route_pos": null,
+      "eta_rel_min": null,
+      "planned_c2e_min": null,
+      "skip": null,
+      "cert": null
     }
   ],
   "couriers_json": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",

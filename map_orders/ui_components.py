@@ -314,8 +314,8 @@ def render_main_view(app_state: AppState) -> None:
         solver_payload = st.session_state.get(_SOLVER_PAYLOAD_KEY)
         solver_warnings = st.session_state.get(_SOLVER_WARNINGS_KEY, [])
 
-        if solver_payload:
-            with solver_controls_container:
+        with solver_controls_container:
+            if solver_payload:
                 if solver_warnings:
                     st.warning(_format_messages(solver_warnings))
 
@@ -330,11 +330,8 @@ def render_main_view(app_state: AppState) -> None:
                 with st.expander("Посмотреть solver_input.json"):
                     st.code(payload_json, language="json")
 
-                col_solver_btn, col_solver_status = st.columns([1, 3])
-                with col_solver_btn:
-                    send_to_solver = st.button("Отправить в Solver", type="primary")
-                with col_solver_status:
-                    solver_response_placeholder = st.empty()
+                send_to_solver = st.button("Отправить в Solver", type="primary")
+                solver_response_placeholder = st.empty()
 
                 if send_to_solver:
                     try:
@@ -344,7 +341,7 @@ def render_main_view(app_state: AppState) -> None:
                     except Exception as exc:
                         solver_response_placeholder.error(f"Ошибка отправки: {exc}")
 
-    _render_solver_result_panel(app_state)
+            _render_solver_result_panel(app_state)
 
     persist_state(app_state)
 
