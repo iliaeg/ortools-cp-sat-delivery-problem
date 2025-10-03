@@ -309,7 +309,7 @@ const MapOrdersMapClient = () => {
             onClick={handleToggleFullScreen}
             sx={{
               position: "absolute",
-              top: 12,
+              bottom: 12,
               right: 12,
               zIndex: 1200,
               bgcolor: "background.paper",
