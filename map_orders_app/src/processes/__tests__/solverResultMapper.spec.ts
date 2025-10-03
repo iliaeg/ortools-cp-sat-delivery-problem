@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { mapSolverResult } from "@/processes/map-orders/lib/solverResultMapper";
+import { getStableColorFromSeed } from "@/shared/lib/color";
 import type { SolverInputPayload, SolverResult } from "@/shared/types/solver";
 
 const buildSolverInput = (): SolverInputPayload => ({
@@ -81,7 +82,7 @@ describe("mapSolverResult", () => {
     expect(response.routesSegments).toEqual([
       {
         groupId: 0,
-        color: expect.any(String),
+        color: getStableColorFromSeed("route-0"),
         polyline: [
           [1, 1],
           [2, 2],
