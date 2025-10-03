@@ -26,10 +26,7 @@ export const StateAutoSaver = () => {
     const timer = setTimeout(async () => {
       try {
         const response = await saveState(mapOrdersState.data).unwrap();
-        lastSavedSnapshot.current = JSON.stringify({
-          ...response,
-          lastSavedAtIso: undefined,
-        });
+        lastSavedSnapshot.current = serialised;
         dispatch(setLastSavedAt(response.lastSavedAtIso));
         dispatch(setUiState({ isSaving: false }));
       } catch (error) {
