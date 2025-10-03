@@ -115,8 +115,8 @@
     }
   ],
   "mapCenter": [
-    53.0086897075325,
-    36.12373352050782
+    53.00259530880577,
+    36.10519409179688
   ],
   "mapZoom": 13,
   "couriersText": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",
@@ -518,7 +518,7 @@
     "routesSegments": [
       {
         "groupId": 0,
-        "color": "#d78742",
+        "color": "#429bd7",
         "polyline": [
           [
             53.007760109104076,
@@ -587,7 +587,7 @@
       },
       {
         "groupId": 1,
-        "color": "#d78a42",
+        "color": "#42d74e",
         "polyline": [
           [
             52.97784734548465,
@@ -656,7 +656,7 @@
       }
     ]
   },
-  "lastSavedAtIso": "2025-10-03T09:48:17.183Z",
+  "lastSavedAtIso": "2025-10-03T09:55:38.576Z",
   "showRoutePositions": false,
   "showDepotSegments": false
 }

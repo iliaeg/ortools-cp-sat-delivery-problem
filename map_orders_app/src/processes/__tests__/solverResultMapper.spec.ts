@@ -79,10 +79,12 @@ describe("mapSolverResult", () => {
       },
     ]);
 
+    const expectedColor = getStableColorFromSeed("route-order-1|order-2");
+
     expect(response.routesSegments).toEqual([
       {
         groupId: 0,
-        color: getStableColorFromSeed("route-0"),
+        color: expectedColor,
         polyline: [
           [1, 1],
           [2, 2],
