@@ -5,7 +5,6 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Polyline,
   FeatureGroup,
   Tooltip,
   useMap,
@@ -21,6 +20,7 @@ import {
   addPoint,
   removePoint,
   setMapView,
+  setShowRoutePositions,
   setShowSolverRoutes,
   updatePoint,
 } from "@/features/map-orders/model/mapOrdersSlice";
@@ -28,6 +28,7 @@ import {
   selectMapView,
   selectPoints,
   selectRouteSegments,
+  selectShowRoutePositions,
   selectShowSolverRoutes,
 } from "@/features/map-orders/model/selectors";
 import { ensureDefaultMarkerIcons, createNumberedPinIcon, createRouteArrowIcon } from "@/shared/lib/leaflet";
@@ -61,6 +62,7 @@ const MapOrdersMapClient = () => {
   const points = useAppSelector(selectPoints);
   const { center, zoom } = useAppSelector(selectMapView);
   const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
+  const showRoutePositions = useAppSelector(selectShowRoutePositions);
   const routeSegments = useAppSelector(selectRouteSegments);
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
@@ -207,15 +209,23 @@ const MapOrdersMapClient = () => {
             <RouteSegment
               key={`${segment.groupId}`}
               segment={segment}
+              showPositions={showRoutePositions}
             />
           ))
         : null,
-    [routeSegments, showSolverRoutes],
+    [routeSegments, showSolverRoutes, showRoutePositions],
   );
 
   const toggleRoutes = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       dispatch(setShowSolverRoutes(checked));
+    },
+    [dispatch],
+  );
+
+  const togglePositions = useCallback(
+    (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+      dispatch(setShowRoutePositions(checked));
     },
     [dispatch],
   );
@@ -252,6 +262,10 @@ const MapOrdersMapClient = () => {
           label="Показать маршруты решателя"
         />
         <FormControlLabel
+          control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
+          label="Показать номер позиции в маршруте"
+        />
+        <FormControlLabel
           control={
             <Switch
               checked={isEditingEnabled}
@@ -270,9 +284,10 @@ export default memo(MapOrdersMapClient);
 
 interface RouteSegmentProps {
   segment: RoutesSegmentDto;
+  showPositions: boolean;
 }
 
-const RouteSegmentComponent = ({ segment }: RouteSegmentProps) => {
+const RouteSegmentComponent = ({ segment, showPositions }: RouteSegmentProps) => {
   const map = useMap();
   const [, forceUpdate] = useState(0);
 
@@ -290,7 +305,7 @@ const RouteSegmentComponent = ({ segment }: RouteSegmentProps) => {
     const fromPoint = map.latLngToLayerPoint(fromLatLng);
     const toPoint = map.latLngToLayerPoint(toLatLng);
     const angle = Math.atan2(toPoint.y - fromPoint.y, toPoint.x - fromPoint.x) * (180 / Math.PI);
-    const label = String(item.toPos ?? "");
+    const label = showPositions && item.toPos ? String(item.toPos) : undefined;
     const lengthPx = fromPoint.distanceTo(toPoint);
 
     return (

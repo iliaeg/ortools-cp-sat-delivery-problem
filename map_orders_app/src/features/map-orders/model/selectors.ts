@@ -41,6 +41,11 @@ export const selectShowSolverRoutes = createSelector(
   (state) => state.data.showSolverRoutes,
 );
 
+export const selectShowRoutePositions = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.showRoutePositions,
+);
+
 export const selectWarnings = createSelector(
   selectMapOrdersState,
   (state) => state.ui.warnings,

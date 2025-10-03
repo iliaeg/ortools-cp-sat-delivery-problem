@@ -4,6 +4,7 @@ import reducer, {
   addPoint,
   applyComputedFields,
   resetSolverResult,
+  setShowRoutePositions,
   setSolverResult,
 } from "@/features/map-orders/model/mapOrdersSlice";
 import type { SolverSolveResponse } from "@/shared/types/solver";
@@ -76,5 +77,16 @@ describe("mapOrdersSlice", () => {
     expect(point?.plannedC2eMin).toBeUndefined();
     expect(point?.skip).toBeUndefined();
     expect(point?.cert).toBeUndefined();
+  });
+
+  it("setShowRoutePositions toggles persisted flag", () => {
+    let state = createInitialState();
+    expect(state.data.showRoutePositions).toBe(true);
+
+    state = reducer(state, setShowRoutePositions(false));
+    expect(state.data.showRoutePositions).toBe(false);
+
+    state = reducer(state, setShowRoutePositions(true));
+    expect(state.data.showRoutePositions).toBe(true);
   });
 });

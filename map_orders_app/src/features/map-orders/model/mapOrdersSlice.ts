@@ -33,6 +33,7 @@ const initialPersistedState: MapOrdersPersistedState = {
   t0Time: "09:00:00",
   osrmBaseUrl: env.osrmBaseUrl,
   showSolverRoutes: true,
+  showRoutePositions: true,
   solverInput: null,
   solverResult: null,
   lastSavedAtIso: undefined,
@@ -225,6 +226,9 @@ const mapOrdersSlice = createSlice({
     setShowSolverRoutes: (state, action: PayloadAction<boolean>) => {
       state.data.showSolverRoutes = action.payload;
     },
+    setShowRoutePositions: (state, action: PayloadAction<boolean>) => {
+      state.data.showRoutePositions = action.payload;
+    },
     setSolverInput: (
       state,
       action: PayloadAction<SolverInputPayload | null>,
@@ -292,6 +296,7 @@ export const {
   setT0Time,
   setOsrmBaseUrl,
   setShowSolverRoutes,
+  setShowRoutePositions,
   setSolverInput,
   setSolverResult,
   applyComputedFields,

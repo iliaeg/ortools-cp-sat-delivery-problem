@@ -52,6 +52,7 @@ export interface MapOrdersPersistedState {
   t0Time: string; // HH:MM:SS
   osrmBaseUrl: string;
   showSolverRoutes: boolean;
+  showRoutePositions: boolean;
   solverInput: SolverInputPayload | null;
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;
