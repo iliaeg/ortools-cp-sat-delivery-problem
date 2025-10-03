@@ -36,6 +36,9 @@ export interface MapRouteSegment {
   segments: Array<{
     from: [number, number];
     to: [number, number];
+    mid: [number, number];
+    fromPos: number;
+    toPos: number;
   }>;
 }
 

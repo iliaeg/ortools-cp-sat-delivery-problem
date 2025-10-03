@@ -71,19 +71,29 @@ body {
   background: #e53935;
 }
 
-.route-arrow__wrapper {
-  width: 0;
-  height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.route-arrow {
+  pointer-events: none;
 }
 
-.route-arrow__tip {
-  width: 0;
-  height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 10px solid #1976d2;
+.route-arrow__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.route-arrow__svg {
+  width: 40px;
+  height: 24px;
   filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+
+.route-arrow__label {
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+  white-space: nowrap;
 }

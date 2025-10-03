@@ -290,14 +290,14 @@ const RouteSegmentComponent = ({ segment }: RouteSegmentProps) => {
     const fromPoint = map.latLngToLayerPoint(fromLatLng);
     const toPoint = map.latLngToLayerPoint(toLatLng);
     const angle = Math.atan2(toPoint.y - fromPoint.y, toPoint.x - fromPoint.x) * (180 / Math.PI);
-    const midLat = (item.from[0] + item.to[0]) / 2;
-    const midLon = (item.from[1] + item.to[1]) / 2;
+    const label = `${item.fromPos}→${item.toPos}`;
+    const lengthPx = fromPoint.distanceTo(toPoint);
 
     return (
       <Marker
         key={`${segment.groupId}-arrow-${index}`}
-        position={[midLat, midLon]}
-        icon={createRouteArrowIcon(angle, color)}
+        position={[item.mid[0], item.mid[1]]}
+        icon={createRouteArrowIcon(angle, color, label, lengthPx)}
         interactive={false}
       />
     );
@@ -305,15 +305,6 @@ const RouteSegmentComponent = ({ segment }: RouteSegmentProps) => {
 
   return (
     <>
-      <Polyline
-        pathOptions={{ color, weight: 4 }}
-        positions={segment.polyline.map(([lat, lon]) => [lat, lon])}
-        ref={(instance) => {
-          if (instance) {
-            instance.bindTooltip(segment.tooltip, { sticky: true });
-          }
-        }}
-      />
       {arrowMarkers}
     </>
   );

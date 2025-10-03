@@ -77,6 +77,27 @@ describe("mapSolverResult", () => {
         cert: 1,
       },
     ]);
+
+    expect(response.routesSegments).toEqual([
+      {
+        groupId: 0,
+        color: expect.any(String),
+        polyline: [
+          [1, 1],
+          [2, 2],
+        ],
+        segments: [
+          {
+            from: [1, 1],
+            to: [2, 2],
+            mid: [1.5, 1.5],
+            fromPos: 1,
+            toPos: 2,
+          },
+        ],
+        tooltip: "Маршрут 1: order-1, order-2",
+      },
+    ]);
   });
 
   it("respects wrapped solver payloads and skipped orders", () => {
@@ -113,5 +134,7 @@ describe("mapSolverResult", () => {
         skip: 1,
       }),
     ]);
+
+    expect(response.routesSegments).toEqual([]);
   });
 });
