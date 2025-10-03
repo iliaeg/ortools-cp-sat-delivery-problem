@@ -46,7 +46,7 @@
    # создайте .env.local по инструкции из map_orders_app/README.md
    ```
 2. Убедитесь, что доступны внешние сервисы:
-   - локальный OSRM: `docker compose -f docker/osrm/docker-compose.yml up`
+   - локальный OSRM (см. пример ниже)
    - HTTP-обёртка над CP-SAT (`order_grouping.api`) — см. раздел выше про FastAPI
 3. Запустите dev-сервер:
    ```bash
@@ -59,6 +59,23 @@
 - `yarn type-check` — строгий `tsc --noEmit`
 - `yarn test` — unit/logic тесты (Vitest)
 - `yarn test:e2e` — Playwright smoke-сценарии (dev-сервер должен быть запущен отдельно)
+
+<details>
+<summary>Запуск локального OSRM</summary>
+
+В репозитории есть готовая конфигурация для Docker Compose:
+
+```bash
+docker compose -f docker/osrm/docker-compose.yml up --build
+```
+
+Команда поднимет контейнер с демо-картой Orel (порт 5563). После запуска сервис будет доступен по адресу `http://localhost:5563`. Не забудьте остановить контейнер, когда он больше не нужен:
+
+```bash
+docker compose -f docker/osrm/docker-compose.yml down
+```
+
+</details>
 
 Экспортируемые файлы:
 - `orders.geojson` — `FeatureCollection` с точками `depot/order`; свойства включают `boxes`, `created_at`, `ready_at`, а при ошибках разбора добавляется `_extra_parse_error`.
