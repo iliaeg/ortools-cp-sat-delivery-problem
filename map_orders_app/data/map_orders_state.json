@@ -121,10 +121,10 @@
     }
   ],
   "mapCenter": [
-    52.9967066826718,
-    36.10021591186524
+    52.98089639901785,
+    36.078414916992195
   ],
-  "mapZoom": 13,
+  "mapZoom": 12,
   "couriersText": "{\n  \"a\": [0, 15],\n  \"C\": [25, 25]\n}",
   "weightsText": "{\n  \"W_cert\": 1000,\n  \"W_c2e\": 1,\n  \"W_skip\": 10000\n}",
   "additionalParamsText": "{\n  \"time_limit\": 3\n}",
@@ -668,7 +668,7 @@
       }
     ]
   },
-  "lastSavedAtIso": "2025-10-03T10:02:12.573Z",
+  "lastSavedAtIso": "2025-10-03T10:14:35.647Z",
   "showRoutePositions": false,
   "showDepotSegments": false
 }

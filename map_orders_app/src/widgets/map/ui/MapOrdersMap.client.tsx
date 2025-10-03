@@ -13,7 +13,7 @@ import {
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
-import { Box, Checkbox, FormControlLabel, Stack, Switch } from "@mui/material";
+import { Box, Checkbox, FormControlLabel, IconButton, Stack, Switch } from "@mui/material";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
@@ -33,7 +33,13 @@ import {
   selectShowRoutePositions,
   selectShowSolverRoutes,
 } from "@/features/map-orders/model/selectors";
-import { ensureDefaultMarkerIcons, createNumberedPinIcon, createRouteArrowIcon } from "@/shared/lib/leaflet";
+import {
+  ensureDefaultMarkerIcons,
+  createNumberedPinIcon,
+  createRouteArrowIcon,
+} from "@/shared/lib/leaflet";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -68,11 +74,30 @@ const MapOrdersMapClient = () => {
   const showRoutePositions = useAppSelector(selectShowRoutePositions);
   const routeSegments = useAppSelector(selectRouteSegments);
   const [isEditingEnabled, setEditingEnabled] = useState(false);
+  const [isFullScreen, setFullScreen] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     ensureDefaultMarkerIcons();
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 0);
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    if (isFullScreen) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullScreen]);
 
   const handleMapMove = useCallback(
     (event: LeafletEvent) => {
@@ -241,57 +266,112 @@ const MapOrdersMapClient = () => {
     [dispatch],
   );
 
+  const handleToggleFullScreen = useCallback(() => {
+    setFullScreen((prev) => !prev);
+  }, []);
+
+  const mapWrapperSx = isFullScreen
+    ? {
+        position: "fixed" as const,
+        top: { xs: 8, sm: 16 },
+        right: { xs: 8, sm: 16 },
+        bottom: { xs: 8, sm: 16 },
+        left: { xs: 8, sm: 16 },
+        zIndex: 1400,
+        backgroundColor: "background.default",
+        borderRadius: 2,
+        boxShadow: 24,
+        display: "flex",
+        flexDirection: "column" as const,
+        gap: 1.5,
+        p: 2,
+        height: { xs: "calc(100vh - 16px)", sm: "calc(100vh - 32px)" },
+        width: { xs: "calc(100vw - 16px)", sm: "calc(100vw - 32px)" },
+      }
+    : { height: "100%" };
+
+  const mapBoxSx = isFullScreen
+    ? { flexGrow: 1, position: "relative", borderRadius: 2, overflow: "hidden", boxShadow: 2 }
+    : { height: 480, width: "100%", borderRadius: 2, overflow: "hidden", boxShadow: 2, position: "relative" };
+
   return (
-    <Stack spacing={1.5} sx={{ height: "100%" }}>
-      <Box sx={{ height: 480, width: "100%", borderRadius: 2, overflow: "hidden", boxShadow: 2 }}>
-        <MapContainer
-          ref={mapRef}
-          center={center}
-          zoom={zoom}
-          style={{ height: "100%", width: "100%" }}
-        >
-          <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" />
-          <FeatureGroup>
-            {isEditingEnabled ? (
-              <EditControl
-                position="topright"
-                onCreated={handleCreated}
-                onEdited={handleEdited}
-                onDeleted={handleDeleted}
-                draw={DRAW_OPTIONS}
-                edit={EDIT_OPTIONS}
+    <>
+      {isFullScreen ? (
+        <Box
+          sx={{ position: "fixed", inset: 0, bgcolor: "rgba(16, 16, 16, 0.55)", zIndex: 1399 }}
+          onClick={() => setFullScreen(false)}
+        />
+      ) : null}
+      <Stack spacing={1.5} sx={mapWrapperSx}>
+        <Box sx={mapBoxSx}>
+          <IconButton
+            size="small"
+            onClick={handleToggleFullScreen}
+            sx={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              zIndex: 1200,
+              bgcolor: "background.paper",
+              color: "text.primary",
+              boxShadow: 2,
+              '&:hover': {
+                bgcolor: "background.paper",
+                boxShadow: 4,
+              },
+            }}
+          >
+            {isFullScreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
+          </IconButton>
+          <MapContainer
+            ref={mapRef}
+            center={center}
+            zoom={zoom}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" />
+            <FeatureGroup>
+              {isEditingEnabled ? (
+                <EditControl
+                  position="topright"
+                  onCreated={handleCreated}
+                  onEdited={handleEdited}
+                  onDeleted={handleDeleted}
+                  draw={DRAW_OPTIONS}
+                  edit={EDIT_OPTIONS}
+                />
+              ) : null}
+              {markers}
+              {polylines}
+            </FeatureGroup>
+          </MapContainer>
+        </Box>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isEditingEnabled}
+                onChange={(_event, checked) => setEditingEnabled(checked)}
+                color="primary"
               />
-            ) : null}
-            {markers}
-            {polylines}
-          </FeatureGroup>
-        </MapContainer>
-      </Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={isEditingEnabled}
-              onChange={(_event, checked) => setEditingEnabled(checked)}
-              color="primary"
-            />
-          }
-          label="Режим редактирования точек"
-        />
-        <FormControlLabel
-          control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
-          label="Показывать маршруты решателя"
-        />
-        <FormControlLabel
-          control={<Checkbox checked={showDepotSegments} onChange={toggleDepotSegments} />}
-          label="Показывать стрелки из депо"
-        />
-        <FormControlLabel
-          control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
-          label="Показывать позиции в маршруте"
-        />
+            }
+            label="Режим редактирования точек"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
+            label="Показывать маршруты решателя"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={showDepotSegments} onChange={toggleDepotSegments} />}
+            label="Показывать стрелки из депо"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
+            label="Показывать позиции в маршруте"
+          />
+        </Stack>
       </Stack>
-    </Stack>
+    </>
   );
 };
 
