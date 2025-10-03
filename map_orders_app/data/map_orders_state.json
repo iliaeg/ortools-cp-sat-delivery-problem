@@ -9,8 +9,7 @@
       "lon": 36.06571197509766,
       "boxes": 0,
       "createdAt": "00:00:00",
-      "readyAt": "00:00:00",
-      "extraJson": "{}"
+      "readyAt": "00:00:00"
     },
     {
       "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557",
@@ -21,10 +20,7 @@
       "lon": 36.06751441955567,
       "boxes": 2,
       "createdAt": "10:45:00",
-      "readyAt": "11:05:00",
-      "extraJson": "{}",
-      "skip": false,
-      "cert": false
+      "readyAt": "11:05:00"
     },
     {
       "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
@@ -35,10 +31,7 @@
       "lon": 36.07172012329102,
       "boxes": 5,
       "createdAt": "10:45:00",
-      "readyAt": "11:05:00",
-      "extraJson": "{}",
-      "skip": false,
-      "cert": false
+      "readyAt": "11:05:00"
     },
     {
       "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
@@ -49,10 +42,7 @@
       "lon": 36.07455253601075,
       "boxes": 0,
       "createdAt": "10:45:00",
-      "readyAt": "11:05:00",
-      "extraJson": "{}",
-      "skip": false,
-      "cert": false
+      "readyAt": "11:05:00"
     }
   ],
   "mapCenter": [
@@ -121,11 +111,6 @@
     "W_c2e": 1,
     "W_skip": 10000,
     "meta": {
-      "ordersExtra": [
-        {},
-        {},
-        {}
-      ],
       "pointsLatLon": [
         [
           52.986322148551594,
@@ -146,7 +131,7 @@
       ],
       "mode": "OSRM",
       "osrmBaseUrl": "http://localhost:5563",
-      "T0_iso": "2025-10-02T10:45:00.000Z",
+      "T0_iso": "2025-10-03T10:45:00.000Z",
       "pointInternalIds": [
         "23cb655f-a833-4ccb-9a35-0533647259db",
         "73dc7014-ac08-4910-bb86-2fa77fc58557",
@@ -160,13 +145,13 @@
       ],
       "abstime": {
         "orders": [
-          "2025-10-02T14:05:00+03:00",
-          "2025-10-02T14:05:00+03:00",
-          "2025-10-02T14:05:00+03:00"
+          "2025-10-03T14:05:00+03:00",
+          "2025-10-03T14:05:00+03:00",
+          "2025-10-03T14:05:00+03:00"
         ],
         "couriers": [
-          "2025-10-02T13:45:00+03:00",
-          "2025-10-02T14:40:00+03:00"
+          "2025-10-03T13:45:00+03:00",
+          "2025-10-03T14:40:00+03:00"
         ]
       },
       "combinedParams": {
@@ -180,8 +165,7 @@
             "lon": 36.06751441955567,
             "boxes": 2,
             "createdAt": "10:45:00",
-            "readyAt": "11:05:00",
-            "extraJson": "{}"
+            "readyAt": "11:05:00"
           },
           {
             "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
@@ -192,8 +176,7 @@
             "lon": 36.07172012329102,
             "boxes": 5,
             "createdAt": "10:45:00",
-            "readyAt": "11:05:00",
-            "extraJson": "{}"
+            "readyAt": "11:05:00"
           },
           {
             "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
@@ -204,8 +187,7 @@
             "lon": 36.07455253601075,
             "boxes": 0,
             "createdAt": "10:45:00",
-            "readyAt": "11:05:00",
-            "extraJson": "{}"
+            "readyAt": "11:05:00"
           }
         ],
         "depot": {
@@ -217,8 +199,7 @@
           "lon": 36.06571197509766,
           "boxes": 0,
           "createdAt": "00:00:00",
-          "readyAt": "00:00:00",
-          "extraJson": "{}"
+          "readyAt": "00:00:00"
         },
         "weights": {
           "W_cert": 1000,
@@ -291,23 +272,16 @@
     },
     "ordersComputed": [
       {
-        "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557",
-        "skip": false,
-        "cert": false
+        "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557"
       },
       {
-        "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
-        "skip": false,
-        "cert": false
+        "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175"
       },
       {
-        "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
-        "skip": false,
-        "cert": false
+        "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6"
       }
     ],
     "routesSegments": []
   },
-  "lastSavedAtIso": "2025-10-02T23:36:17.364Z",
-  "solverColumnsVisible": true
+  "lastSavedAtIso": "2025-10-03T07:57:01.098Z"
 }

@@ -58,11 +58,6 @@ export const selectSolverSignatures = createSelector(selectMapOrdersState, (stat
   lastSolverResultSignature: state.ui.lastSolverResultSignature,
 }));
 
-export const selectSolverComputedColumnsVisible = createSelector(
-  selectMapOrdersState,
-  (state) => Boolean(state.data.solverColumnsVisible),
-);
-
 export const selectControlTexts = createSelector(selectMapOrdersState, (state) => ({
   couriersText: state.data.couriersText,
   weightsText: state.data.weightsText,

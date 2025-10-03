@@ -27,7 +27,6 @@ export async function POST(request: Request) {
         boxes?: number;
         created_at?: string;
         ready_at?: string;
-        extra_json?: string;
       };
     };
 
@@ -42,7 +41,6 @@ export async function POST(request: Request) {
       boxes: feature.properties?.boxes ?? 0,
       createdAt: feature.properties?.created_at ?? "00:00:00",
       readyAt: feature.properties?.ready_at ?? "00:00:00",
-      extraJson: feature.properties?.extra_json ?? "{}",
     }));
 
     const state = await writePersistedState({

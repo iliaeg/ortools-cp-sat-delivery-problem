@@ -8,7 +8,6 @@ import {
   PointKind,
 } from "@/shared/types/points";
 import type {
-  OrdersComputedPatch,
   SolverInputPayload,
   SolverSolveResponse,
 } from "@/shared/types/solver";
@@ -36,7 +35,6 @@ const initialPersistedState: MapOrdersPersistedState = {
   solverInput: null,
   solverResult: null,
   lastSavedAtIso: undefined,
-  solverColumnsVisible: false,
 };
 
 const initialUiState: MapOrdersUiState = {
@@ -128,13 +126,6 @@ const createPoint = (partial: Partial<DeliveryPoint>): DeliveryPoint => ({
   boxes: partial.boxes ?? 0,
   createdAt: partial.createdAt ?? "00:00:00",
   readyAt: partial.readyAt ?? "00:00:00",
-  extraJson: partial.extraJson ?? "{}",
-  groupId: partial.groupId,
-  routePos: partial.routePos,
-  etaRelMin: partial.etaRelMin,
-  plannedC2eMin: partial.plannedC2eMin,
-  skip: partial.skip,
-  cert: partial.cert,
 });
 
 const mapOrdersSlice = createSlice({
@@ -164,8 +155,6 @@ const mapOrdersSlice = createSlice({
           action.payload.additionalParamsText ?? state.data.additionalParamsText,
           DEFAULT_ADDITIONAL_PARAMS_TEXT,
         ),
-        solverColumnsVisible:
-          action.payload.solverColumnsVisible ?? state.data.solverColumnsVisible ?? false,
       };
     },
     setUiState: (state, action: PayloadAction<Partial<MapOrdersUiState>>) => {
@@ -203,7 +192,6 @@ const mapOrdersSlice = createSlice({
       state.data.points = [];
       state.data.solverResult = null;
       state.data.solverInput = null;
-      state.data.solverColumnsVisible = false;
     },
     setMapView: (
       state,
@@ -235,9 +223,6 @@ const mapOrdersSlice = createSlice({
       action: PayloadAction<SolverInputPayload | null>,
     ) => {
       state.data.solverInput = action.payload;
-      if (action.payload === null) {
-        state.data.solverColumnsVisible = false;
-      }
     },
     setSolverResult: (
       state,
@@ -245,42 +230,11 @@ const mapOrdersSlice = createSlice({
     ) => {
       state.data.solverResult = action.payload;
     },
-    applyComputedFields: (
-      state,
-      action: PayloadAction<
-        OrdersComputedPatch[]
-      >,
-    ) => {
-      const patchMap = new Map(
-        action.payload.map((item) => [item.internalId, item]),
-      );
-      state.data.points = state.data.points.map((point) => {
-        const patch = patchMap.get(point.internalId);
-        if (!patch) {
-          return point;
-        }
-        return {
-          ...point,
-          ...patch,
-        };
-      });
-      state.data.solverColumnsVisible = true;
-    },
     setLastSavedAt: (state, action: PayloadAction<string | undefined>) => {
       state.data.lastSavedAtIso = action.payload;
     },
     resetSolverResult: (state) => {
       state.data.solverResult = null;
-      state.data.points = state.data.points.map((point) => ({
-        ...point,
-        groupId: undefined,
-        routePos: undefined,
-        etaRelMin: undefined,
-        plannedC2eMin: undefined,
-        skip: undefined,
-        cert: undefined,
-      }));
-      state.data.solverColumnsVisible = false;
     },
   },
 });
@@ -303,7 +257,6 @@ export const {
   setShowSolverRoutes,
   setSolverInput,
   setSolverResult,
-  applyComputedFields,
   setLastSavedAt,
   resetSolverResult,
 } = mapOrdersSlice.actions;

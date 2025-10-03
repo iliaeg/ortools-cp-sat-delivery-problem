@@ -28,7 +28,6 @@ import {
   selectSolverSignatures,
 } from "@/features/map-orders/model/selectors";
 import {
-  applyComputedFields,
   resetSolverResult,
   setSolverInput,
   setSolverResult,
@@ -39,7 +38,6 @@ import {
   useSolveMutation,
 } from "@/shared/api/mapOrdersApi";
 import { saveBlobToFile } from "@/shared/files/utils";
-import type { OrdersComputedPatch } from "@/shared/types/solver";
 import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 const SolverControlsWidget = () => {
@@ -71,7 +69,6 @@ const SolverControlsWidget = () => {
             boxes,
             createdAt,
             readyAt,
-            extraJson,
           }) => ({
             internalId,
             id,
@@ -81,7 +78,6 @@ const SolverControlsWidget = () => {
             boxes,
             createdAt,
             readyAt,
-            extraJson,
           }),
         ),
         couriersText,
@@ -147,7 +143,6 @@ const SolverControlsWidget = () => {
       dispatch(setUiState({ isSolving: true }));
       const response = await solve({ solverInput }).unwrap();
       dispatch(setSolverResult(response));
-      dispatch(applyComputedFields(response.ordersComputed as OrdersComputedPatch[]));
       dispatch(setUiState({ lastSolverResultSignature: currentSignature }));
     } catch (err) {
       setError((err as Error).message);

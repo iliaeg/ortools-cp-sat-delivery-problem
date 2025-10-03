@@ -17,19 +17,9 @@ export interface BasePoint {
   boxes: number;
   createdAt: string; // HH:MM:SS
   readyAt: string; // HH:MM:SS
-  extraJson: string; // JSON string, validated on submit
 }
 
-export interface SolverComputedFields {
-  groupId?: number;
-  routePos?: number;
-  etaRelMin?: number;
-  plannedC2eMin?: number;
-  skip?: boolean;
-  cert?: boolean;
-}
-
-export type DeliveryPoint = BasePoint & SolverComputedFields;
+export type DeliveryPoint = BasePoint;
 
 export interface MapRouteSegment {
   groupId: number;
@@ -55,7 +45,6 @@ export interface MapOrdersPersistedState {
   solverInput: SolverInputPayload | null;
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;
-  solverColumnsVisible?: boolean;
 }
 
 export interface MapOrdersUiState {

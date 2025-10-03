@@ -26,10 +26,7 @@ import {
   removePoint,
   updatePoint,
 } from "@/features/map-orders/model/mapOrdersSlice";
-import {
-  selectPoints,
-  selectSolverComputedColumnsVisible,
-} from "@/features/map-orders/model/selectors";
+import { selectPoints } from "@/features/map-orders/model/selectors";
 import type { DeliveryPoint } from "@/shared/types/points";
 
 const columnsBase: GridColDef<DeliveryPoint>[] = [
@@ -89,53 +86,6 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 140,
     editable: true,
   },
-  {
-    field: "extraJson",
-    headerName: "extra_json",
-    width: 220,
-    editable: true,
-  },
-];
-
-const solverColumns: GridColDef<DeliveryPoint>[] = [
-  {
-    field: "groupId",
-    headerName: "Маршрут",
-    width: 110,
-    editable: false,
-  },
-  {
-    field: "routePos",
-    headerName: "Позиция",
-    width: 110,
-    editable: false,
-  },
-  {
-    field: "etaRelMin",
-    headerName: "ETA, мин",
-    width: 130,
-    editable: false,
-  },
-  {
-    field: "plannedC2eMin",
-    headerName: "C2E, мин",
-    width: 130,
-    editable: false,
-  },
-  {
-    field: "skip",
-    headerName: "Пропуск",
-    width: 120,
-    type: "boolean",
-    editable: false,
-  },
-  {
-    field: "cert",
-    headerName: "Сертификат",
-    width: 130,
-    type: "boolean",
-    editable: false,
-  },
 ];
 
 const validateTime = (value: string) => /^\d{2}:\d{2}:\d{2}$/.test(value ?? "");
@@ -146,13 +96,6 @@ const validatePoint = (point: DeliveryPoint) => {
   }
   if (!validateTime(point.createdAt) || !validateTime(point.readyAt)) {
     throw new Error("Формат времени HH:MM:SS");
-  }
-  if (point.extraJson.trim().length > 0) {
-    try {
-      JSON.parse(point.extraJson);
-    } catch (error) {
-      throw new Error(`Некорректный JSON: ${(error as Error).message}`);
-    }
   }
 };
 
@@ -166,13 +109,11 @@ const createEmptyPoint = (kind: DeliveryPoint["kind"]): DeliveryPoint => ({
   boxes: 0,
   createdAt: "00:00:00",
   readyAt: "00:00:00",
-  extraJson: "{}",
 });
 
 const OrdersTableWidget = () => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
-  const showSolverColumns = useAppSelector(selectSolverComputedColumnsVisible);
   const [error, setError] = useState<string | null>(null);
 
   const columns = useMemo(() => {
@@ -193,11 +134,8 @@ const OrdersTableWidget = () => {
       ],
     };
     base.push(actions);
-    if (showSolverColumns) {
-      return [...base, ...solverColumns];
-    }
     return base;
-  }, [dispatch, showSolverColumns]);
+  }, [dispatch]);
 
   const processRowUpdate = useCallback(
     async (newRow: GridRowModel<DeliveryPoint>) => {

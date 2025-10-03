@@ -35,25 +35,31 @@
   poetry run pytest
   ```
 
-## map_orders — Streamlit интерфейс подготовки входа
-1. Запустите локальный OSRM:
-   - Запуск с docker compose (репозиторий уже содержит `docker/osrm/docker-compose.yml`):
-     ```bash
-     docker compose -f docker/osrm/docker-compose.yml up
-    ```
-   > Примечания: используем фиксированный образ `osrm/osrm-backend:v5.25.0` (актуальный на 2025-10-02); сервис слушает `http://localhost:5563` — это значение уже установлено по умолчанию в интерфейсе `map_orders`. Если пробросите другой порт, вручную измените URL в боковой панели.
-2. Запустите интерфейс:
-   ```bash
-   poetry run streamlit run map_orders.py
-   ```
-3. На странице приложения:
-   - Расставьте точки на карте и импортируйте их в таблицу.
-   - Отметьте ровно один `depot` и заполните параметры заказов.
-   - Задайте курьеров и веса, установите T0.
-   - Нажмите **«Собрать вход CP-SAT»** — при успешной валидации скачайте `solver_input.json`.
-   - Экспортируйте состояние через кнопки **«Экспорт GeoJSON»** или **«Экспорт кейса»**.
-   - Для восстановления состояния используйте загрузку файла в блоке **«Импорт кейса»**.
+## map_orders — Next.js интерфейс подготовки входных данных
 
-### Формат экспортируемых файлов
-- `orders.geojson` — `FeatureCollection` с точками `depot/order`; свойства включают `boxes`, `created_at`, `ready_at`, `extra_json`, а также `_extra_parse_error` при сбое парсинга.
-- `case_bundle.json` — бандл для полного восстановления интерфейса: содержит `t0_iso`, координаты карты, GeoJSON, `couriers`, `weights`, `osrm_base_url`.
+Для работы клиентского приложения используются Node.js ≥ 20 и Yarn Classic. Подробное описание находится в `map_orders_app/README.md`, ниже — краткое резюме.
+
+1. Установите зависимости и подготовьте окружение:
+   ```bash
+   cd map_orders_app
+   yarn install
+   # создайте .env.local по инструкции из map_orders_app/README.md
+   ```
+2. Убедитесь, что доступны внешние сервисы:
+   - локальный OSRM: `docker compose -f docker/osrm/docker-compose.yml up`
+   - HTTP-обёртка над CP-SAT (`order_grouping.api`) — см. раздел выше про FastAPI
+3. Запустите dev-сервер:
+   ```bash
+   yarn dev
+   ```
+   Приложение будет доступно на `http://localhost:3000`.
+
+Полезные команды (выполняются из каталога `map_orders_app`):
+- `yarn lint` — проверки кода ESLint
+- `yarn type-check` — строгий `tsc --noEmit`
+- `yarn test` — unit/logic тесты (Vitest)
+- `yarn test:e2e` — Playwright smoke-сценарии (dev-сервер должен быть запущен отдельно)
+
+Экспортируемые файлы:
+- `orders.geojson` — `FeatureCollection` с точками `depot/order`; свойства включают `boxes`, `created_at`, `ready_at`, а при ошибках разбора добавляется `_extra_parse_error`.
+- `case_bundle.json` — полный бандл состояния (`t0_iso`, параметры, GeoJSON, настройки OSRM и т.д.).

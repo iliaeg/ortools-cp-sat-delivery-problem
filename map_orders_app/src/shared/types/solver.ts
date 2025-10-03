@@ -1,5 +1,4 @@
 export interface SolverInputMeta {
-  ordersExtra: unknown[];
   pointsLatLon: [number, number][];
   mode: string;
   osrmBaseUrl: string;
@@ -57,12 +56,6 @@ export interface SolverInputResponse {
 
 export interface OrdersComputedPatch {
   internalId: string;
-  groupId?: number;
-  routePos?: number;
-  etaRelMin?: number;
-  plannedC2eMin?: number;
-  skip?: boolean;
-  cert?: boolean;
 }
 
 export interface RoutesSegmentDto {

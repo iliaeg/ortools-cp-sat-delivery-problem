@@ -18,7 +18,6 @@ export async function GET() {
       boxes: point.boxes,
       created_at: point.createdAt,
       ready_at: point.readyAt,
-      extra_json: point.extraJson,
     },
   }));
   const featureCollection = {

@@ -65,6 +65,15 @@ docker compose up            # сервис слушает 5563 порт
 | `yarn test`          | unit/интеграционные тесты (Vitest + RTL)      |
 | `yarn test:e2e`      | e2e Playwright (перед запуском `npx playwright install`) |
 
+Все команды выполняются из директории `map_orders_app`. Например, полный прогон проверок:
+
+```bash
+cd map_orders_app
+yarn lint
+yarn type-check
+yarn test
+```
+
 Playwright использует `tests/e2e`. Для smoke-тестов необходимо поднять dev-сервер: `yarn dev` в одном терминале, `yarn test:e2e` в другом.
 
 ## Архитектура
@@ -104,7 +113,6 @@ src/
 ## Полезно знать
 
 - Все времена вводятся в формате `HH:MM:SS`. `created_at` допускает значения ≤0 относительно T0, `ready_at` и времена доступности курьеров — только ≥0.
-- Дополнительные JSON-поля форматируются через кнопки «Форматировать». Валидация extra_json выполняется на клиенте и сервере.
 - Цвета маршрутов фиксированы (`src/shared/constants/routes.ts`).
 - Файлы solver_input сохраняются через FileSaver. Импорт кейса/solver_input автоматически обновляет состояние и глобальное хранилище.
 
