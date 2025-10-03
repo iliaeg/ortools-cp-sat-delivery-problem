@@ -4,6 +4,7 @@ import reducer, {
   addPoint,
   applyComputedFields,
   resetSolverResult,
+  setShowDepotSegments,
   setShowRoutePositions,
   setSolverResult,
 } from "@/features/map-orders/model/mapOrdersSlice";
@@ -88,5 +89,16 @@ describe("mapOrdersSlice", () => {
 
     state = reducer(state, setShowRoutePositions(true));
     expect(state.data.showRoutePositions).toBe(true);
+  });
+
+  it("setShowDepotSegments toggles persisted flag", () => {
+    let state = createInitialState();
+    expect(state.data.showDepotSegments).toBe(false);
+
+    state = reducer(state, setShowDepotSegments(true));
+    expect(state.data.showDepotSegments).toBe(true);
+
+    state = reducer(state, setShowDepotSegments(false));
+    expect(state.data.showDepotSegments).toBe(false);
   });
 });

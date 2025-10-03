@@ -40,6 +40,13 @@ export interface MapRouteSegment {
     fromPos: number;
     toPos: number;
   }>;
+  depotSegment?: {
+    from: [number, number];
+    to: [number, number];
+    mid: [number, number];
+    fromPos: number;
+    toPos: number;
+  };
 }
 
 export interface MapOrdersPersistedState {
@@ -52,6 +59,7 @@ export interface MapOrdersPersistedState {
   t0Time: string; // HH:MM:SS
   osrmBaseUrl: string;
   showSolverRoutes: boolean;
+  showDepotSegments: boolean;
   showRoutePositions: boolean;
   solverInput: SolverInputPayload | null;
   solverResult: SolverSolveResponse | null;

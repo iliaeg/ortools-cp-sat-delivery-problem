@@ -20,6 +20,7 @@ import {
   addPoint,
   removePoint,
   setMapView,
+  setShowDepotSegments,
   setShowRoutePositions,
   setShowSolverRoutes,
   updatePoint,
@@ -28,6 +29,7 @@ import {
   selectMapView,
   selectPoints,
   selectRouteSegments,
+  selectShowDepotSegments,
   selectShowRoutePositions,
   selectShowSolverRoutes,
 } from "@/features/map-orders/model/selectors";
@@ -62,6 +64,7 @@ const MapOrdersMapClient = () => {
   const points = useAppSelector(selectPoints);
   const { center, zoom } = useAppSelector(selectMapView);
   const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
+  const showDepotSegments = useAppSelector(selectShowDepotSegments);
   const showRoutePositions = useAppSelector(selectShowRoutePositions);
   const routeSegments = useAppSelector(selectRouteSegments);
   const [isEditingEnabled, setEditingEnabled] = useState(false);
@@ -209,16 +212,24 @@ const MapOrdersMapClient = () => {
             <RouteSegment
               key={`${segment.groupId}`}
               segment={segment}
+              showDepotSegments={showDepotSegments}
               showPositions={showRoutePositions}
             />
           ))
         : null,
-    [routeSegments, showSolverRoutes, showRoutePositions],
+    [routeSegments, showDepotSegments, showSolverRoutes, showRoutePositions],
   );
 
   const toggleRoutes = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       dispatch(setShowSolverRoutes(checked));
+    },
+    [dispatch],
+  );
+
+  const toggleDepotSegments = useCallback(
+    (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+      dispatch(setShowDepotSegments(checked));
     },
     [dispatch],
   );
@@ -256,15 +267,7 @@ const MapOrdersMapClient = () => {
           </FeatureGroup>
         </MapContainer>
       </Box>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap">
-        <FormControlLabel
-          control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
-          label="Показать маршруты решателя"
-        />
-        <FormControlLabel
-          control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
-          label="Показать номер позиции в маршруте"
-        />
+      <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
         <FormControlLabel
           control={
             <Switch
@@ -275,6 +278,18 @@ const MapOrdersMapClient = () => {
           }
           label="Режим редактирования точек"
         />
+        <FormControlLabel
+          control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
+          label="Показывать маршруты решателя"
+        />
+        <FormControlLabel
+          control={<Checkbox checked={showDepotSegments} onChange={toggleDepotSegments} />}
+          label="Показывать стрелки из депо"
+        />
+        <FormControlLabel
+          control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
+          label="Показывать позиции в маршруте"
+        />
       </Stack>
     </Stack>
   );
@@ -284,10 +299,15 @@ export default memo(MapOrdersMapClient);
 
 interface RouteSegmentProps {
   segment: RoutesSegmentDto;
+  showDepotSegments: boolean;
   showPositions: boolean;
 }
 
-const RouteSegmentComponent = ({ segment, showPositions }: RouteSegmentProps) => {
+const RouteSegmentComponent = ({
+  segment,
+  showDepotSegments,
+  showPositions,
+}: RouteSegmentProps) => {
   const map = useMap();
   const [, forceUpdate] = useState(0);
 
@@ -298,7 +318,11 @@ const RouteSegmentComponent = ({ segment, showPositions }: RouteSegmentProps) =>
 
   const color = segment.color ?? getRouteColor(segment.groupId);
 
-  const arrowMarkers = segment.segments.map((item, index) => {
+  const segmentsToRender = showDepotSegments && segment.depotSegment
+    ? [segment.depotSegment, ...segment.segments]
+    : segment.segments;
+
+  const arrowMarkers = segmentsToRender.map((item, index) => {
     const fromLatLng = L.latLng(item.from[0], item.from[1]);
     const toLatLng = L.latLng(item.to[0], item.to[1]);
 
@@ -318,11 +342,7 @@ const RouteSegmentComponent = ({ segment, showPositions }: RouteSegmentProps) =>
     );
   });
 
-  return (
-    <>
-      {arrowMarkers}
-    </>
-  );
+  return <>{arrowMarkers}</>;
 };
 
 const RouteSegment = memo(RouteSegmentComponent);

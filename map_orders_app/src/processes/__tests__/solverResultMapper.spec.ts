@@ -87,6 +87,13 @@ describe("mapSolverResult", () => {
           [1, 1],
           [2, 2],
         ],
+        depotSegment: {
+          from: [0, 0],
+          to: [1, 1],
+          mid: [0.5, 0.5],
+          fromPos: 0,
+          toPos: 1,
+        },
         segments: [
           {
             from: [1, 1],

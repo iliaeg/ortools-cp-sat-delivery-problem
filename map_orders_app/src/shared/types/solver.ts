@@ -72,7 +72,17 @@ export interface RoutesSegmentDto {
   segments: Array<{
     from: [number, number];
     to: [number, number];
+    mid: [number, number];
+    fromPos: number;
+    toPos: number;
   }>;
+  depotSegment?: {
+    from: [number, number];
+    to: [number, number];
+    mid: [number, number];
+    fromPos: number;
+    toPos: number;
+  };
 }
 
 export interface SolverSolveResponse {

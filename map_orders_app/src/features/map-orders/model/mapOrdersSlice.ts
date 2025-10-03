@@ -33,6 +33,7 @@ const initialPersistedState: MapOrdersPersistedState = {
   t0Time: "09:00:00",
   osrmBaseUrl: env.osrmBaseUrl,
   showSolverRoutes: true,
+  showDepotSegments: false,
   showRoutePositions: true,
   solverInput: null,
   solverResult: null,
@@ -163,6 +164,12 @@ const mapOrdersSlice = createSlice({
           action.payload.additionalParamsText ?? state.data.additionalParamsText,
           DEFAULT_ADDITIONAL_PARAMS_TEXT,
         ),
+        showSolverRoutes:
+          action.payload.showSolverRoutes ?? state.data.showSolverRoutes,
+        showDepotSegments:
+          action.payload.showDepotSegments ?? state.data.showDepotSegments,
+        showRoutePositions:
+          action.payload.showRoutePositions ?? state.data.showRoutePositions,
       };
     },
     setUiState: (state, action: PayloadAction<Partial<MapOrdersUiState>>) => {
@@ -225,6 +232,9 @@ const mapOrdersSlice = createSlice({
     },
     setShowSolverRoutes: (state, action: PayloadAction<boolean>) => {
       state.data.showSolverRoutes = action.payload;
+    },
+    setShowDepotSegments: (state, action: PayloadAction<boolean>) => {
+      state.data.showDepotSegments = action.payload;
     },
     setShowRoutePositions: (state, action: PayloadAction<boolean>) => {
       state.data.showRoutePositions = action.payload;
@@ -297,6 +307,7 @@ export const {
   setT0Time,
   setOsrmBaseUrl,
   setShowSolverRoutes,
+  setShowDepotSegments,
   setShowRoutePositions,
   setSolverInput,
   setSolverResult,
