@@ -1,0 +1,87 @@
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    container_name: map-orders-osrm
+    # platform: "linux/arm64"  # можно зафиксировать явную архитектуру
+    ports:
+      - "5563:5000"
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    command: >
+      /bin/bash -lc '
+        set -euo pipefail
+        mkdir -p /data
+
+        PBF_NAME=central-fed-district-latest.osm.pbf
+        DOWNLOAD_URL=https://download.geofabrik.de/russia/central-fed-district-latest.osm.pbf
+        SHA_URL=$$DOWNLOAD_URL.sha256
+        PROFILE=/opt/car.lua
+        ALGORITHM=mld
+        BASE_NAME=$${PBF_NAME%.osm.pbf}
+
+        # --- функции ---
+        download_file() {
+          local url="$$1" out="$$2"
+          # качаем во временный файл и атомарно переименовываем
+          local tmp="$$out.part"
+          rm -f "$$tmp"
+          if command -v curl >/dev/null 2>&1; then
+            curl -fL --retry 5 --retry-delay 3 -o "$$tmp" "$$url"
+          elif command -v wget >/dev/null 2>&1; then
+            wget -O "$$tmp" "$$url"
+          else
+            apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+            curl -fL --retry 5 --retry-delay 3 -o "$$tmp" "$$url"
+          fi
+          mv -f "$$tmp" "$$out"
+        }
+
+        verify_sha256() {
+          local file="$$1" sha_file="$$2"
+          [ -f "$$sha_file" ] || return 0  # если не скачали sha — пропускаем
+          # формат у geofabrik: "<sha256>  <filename>"
+          local expected actual
+          expected=$$(cut -d" " -f1 "$$sha_file")
+          actual=$$(sha256sum "$$file" | cut -d" " -f1)
+          [ -n "$$expected" ] && [ "$$expected" = "$$actual" ]
+        }
+
+        ensure_pbf_ok() {
+          local tries=3
+          while [ $$tries -gt 0 ]; do
+            if [ ! -f /data/$$PBF_NAME ] || [ $$(stat -c%s /data/$$PBF_NAME 2>/dev/null || echo 0) -lt 500000000 ]; then
+              echo "Downloading OSM extract from $$DOWNLOAD_URL"
+              download_file "$$DOWNLOAD_URL" "/data/$$PBF_NAME"
+              # попытаться скачать sha256 (не критично, если нет)
+              (curl -fsSL "$$SHA_URL" -o "/data/$$PBF_NAME.sha256" || wget -qO "/data/$$PBF_NAME.sha256" "$$SHA_URL" || true) >/dev/null 2>&1
+            fi
+            if verify_sha256 "/data/$$PBF_NAME" "/data/$$PBF_NAME.sha256"; then
+              return 0
+            fi
+            echo "Checksum mismatch, re-downloading…"
+            rm -f "/data/$$PBF_NAME" "/data/$$PBF_NAME.sha256"
+            tries=$$((tries-1))
+          done
+          echo "Failed to obtain a valid PBF after retries" >&2
+          exit 1
+        }
+
+        ensure_pbf_ok
+
+        if [ ! -f /data/$$BASE_NAME.osrm ]; then
+          echo "Preparing OSRM files (extract/partition/customize)…"
+          osrm-extract -p "$$PROFILE" "/data/$$PBF_NAME"
+          osrm-partition "/data/$$BASE_NAME.osrm"
+          osrm-customize "/data/$$BASE_NAME.osrm"
+        fi
+
+        echo "Starting OSRM routed service on port 5000 via algorithm $$ALGORITHM"
+        exec osrm-routed --algorithm "$$ALGORITHM" "/data/$$BASE_NAME.osrm"
+      '
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://localhost:5000/health || curl -fsS http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 45m

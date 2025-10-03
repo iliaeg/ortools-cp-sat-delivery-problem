@@ -8,15 +8,15 @@ import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-_SOLVER_PATH = Path(__file__).resolve().parents[1] / "order_grouping" / "solver-gpt.py"
-_SOLVER_SPEC = importlib.util.spec_from_file_location("solver_gpt_module", _SOLVER_PATH)
+_SOLVER_PATH = Path(__file__).resolve().parents[1] / "order_grouping" / "solver_custom.py"
+_SOLVER_SPEC = importlib.util.spec_from_file_location("solver_extension_module", _SOLVER_PATH)
 _SOLVER_MODULE = importlib.util.module_from_spec(_SOLVER_SPEC)
 assert _SOLVER_SPEC and _SOLVER_SPEC.loader
 _SOLVER_SPEC.loader.exec_module(_SOLVER_MODULE)
 Solver = _SOLVER_MODULE.Solver
 
 
-class TestSolverGPT:
+class TestSolverExtension:
     @staticmethod
     def _solve(problem: dict) -> dict:
         return Solver().solve(problem)

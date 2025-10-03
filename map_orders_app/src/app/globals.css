@@ -1,0 +1,104 @@
+:root {
+  color-scheme: dark;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif;
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  min-height: 100%;
+  background-color: #121212;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.numbered-marker__wrapper {
+  position: relative;
+  width: 26px;
+  height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.numbered-marker__body {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.numbered-marker__tail {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 10px solid currentColor;
+  margin-top: -1px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+}
+
+.numbered-marker__label {
+  line-height: 1;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.numbered-marker__wrapper--order {
+  color: #1976d2;
+}
+
+.numbered-marker__wrapper--depot {
+  color: #e53935;
+}
+
+.numbered-marker__wrapper--order .numbered-marker__body {
+  background: #1976d2;
+}
+
+.numbered-marker__wrapper--depot .numbered-marker__body {
+  background: #e53935;
+}
+
+.route-arrow {
+  pointer-events: none;
+}
+
+.route-arrow__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.route-arrow__svg {
+  width: 40px;
+  height: 24px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.4));
+}
+
+.route-arrow__label {
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.orders-table__row--depot .MuiDataGrid-cell {
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+}

@@ -6,17 +6,14 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any
 
-from .solver import CPData, CPResult, solve_cp_sat
-
-
-def _load_gpt_solver() -> Any:
-    """Dynamically import Solver from solver-gpt module."""
-    module_path = Path(__file__).with_name("solver-gpt.py")
+def _load_solver_extension() -> Any:
+    """Dynamically import Solver implementation from the extension module."""
+    module_path = Path(__file__).with_name("solver.py")
     spec = importlib.util.spec_from_file_location(
-        "order_grouping.solver_gpt", module_path
+        "order_grouping.solver", module_path
     )
     if spec is None or spec.loader is None:  # pragma: no cover - defensive branch
-        msg = "Failed to load solver-gpt module"
+        msg = "Failed to load solver extension module"
         raise ImportError(msg)
 
     module = importlib.util.module_from_spec(spec)
@@ -24,25 +21,18 @@ def _load_gpt_solver() -> Any:
     return module.Solver()
 
 app = FastAPI()
-_gpt_solver = _load_gpt_solver()
+_extension_solver = _load_solver_extension()
 
 
 class SolveResponse(BaseModel):
     """Response schema wrapping the CP-SAT solver result."""
 
     # Пока заглушили выходной тип, чтобы не тратить время на обработку выходного значения
-    result: dict[str, Any] #CPResult
+    result: dict[str, Any]
 
 
-@app.post("/solve-gpt", response_model=SolveResponse)
-def solve_with_gpt_solver(problem: dict[str, Any]) -> SolveResponse:
-    """Invoke the GPT solver implementation."""
-    result = _gpt_solver.solve(problem)
-    return SolveResponse(result=result)
-
-
-@app.post("/solve/v2", response_model=SolveResponse)
-def solve(data: CPData) -> SolveResponse:
-    """Invoke the CP-SAT solver wrapper."""
-    result = solve_cp_sat(data)
+@app.post("/solve", response_model=SolveResponse)
+def solve_with_extension_solver(problem: dict[str, Any]) -> SolveResponse:
+    """Invoke the dynamically loaded solver implementation."""
+    result = _extension_solver.solve(problem)
     return SolveResponse(result=result)
