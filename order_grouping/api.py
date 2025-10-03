@@ -6,14 +6,11 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any
 
-from .solver import CPData, CPResult, solve_cp_sat
-
-
 def _load_solver_extension() -> Any:
     """Dynamically import Solver implementation from the extension module."""
-    module_path = Path(__file__).with_name("solver_custom.py")
+    module_path = Path(__file__).with_name("solver.py")
     spec = importlib.util.spec_from_file_location(
-        "order_grouping.solver_custom", module_path
+        "order_grouping.solver", module_path
     )
     if spec is None or spec.loader is None:  # pragma: no cover - defensive branch
         msg = "Failed to load solver extension module"
@@ -31,7 +28,7 @@ class SolveResponse(BaseModel):
     """Response schema wrapping the CP-SAT solver result."""
 
     # Пока заглушили выходной тип, чтобы не тратить время на обработку выходного значения
-    result: dict[str, Any] #CPResult
+    result: dict[str, Any]
 
 
 @app.post("/solve", response_model=SolveResponse)
