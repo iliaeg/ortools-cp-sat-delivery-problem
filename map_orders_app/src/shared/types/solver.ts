@@ -62,6 +62,7 @@ export interface OrdersComputedPatch {
   plannedC2eMin?: number;
   skip?: number;
   cert?: number;
+  depotDirectMin?: number;
 }
 
 export interface RoutesSegmentDto {

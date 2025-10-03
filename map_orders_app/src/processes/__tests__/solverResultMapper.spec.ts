@@ -67,6 +67,7 @@ describe("mapSolverResult", () => {
         plannedC2eMin: 20,
         skip: 0,
         cert: 0,
+        depotDirectMin: 5,
       },
       {
         internalId: "order-2",
@@ -76,6 +77,7 @@ describe("mapSolverResult", () => {
         plannedC2eMin: 25,
         skip: 0,
         cert: 1,
+        depotDirectMin: 7,
       },
     ]);
 

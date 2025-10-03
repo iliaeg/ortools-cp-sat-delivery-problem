@@ -21,6 +21,7 @@ test.describe("map orders smoke", () => {
 
     expect(headerFields[0]).toBe("seq");
     expect(headerFields[1]).toBe("id");
+    expect(headerFields).toContain("depotDirectMin");
     expect(headerFields).toContain("groupId");
     expect(headerFields).toContain("routePos");
     expect(headerFields).toContain("etaRelMin");
@@ -31,6 +32,7 @@ test.describe("map orders smoke", () => {
 
     await expect(page.getByRole("columnheader", { name: "ETA, мин" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "C2E, мин" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Депо, мин" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "Поз. в группе" })).toBeVisible();
 
     const deleteButtons = page.getByRole("button", { name: "Удалить" });

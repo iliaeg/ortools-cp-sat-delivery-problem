@@ -22,6 +22,7 @@ describe("mapOrdersSlice", () => {
       plannedC2eMin: 90,
       skip: 0,
       cert: 1,
+      depotDirectMin: 12,
     };
 
     let state = createInitialState();
@@ -40,6 +41,7 @@ describe("mapOrdersSlice", () => {
       plannedC2eMin: ordersComputed.plannedC2eMin,
       skip: ordersComputed.skip,
       cert: ordersComputed.cert,
+      depotDirectMin: ordersComputed.depotDirectMin,
     });
   });
 
@@ -52,6 +54,7 @@ describe("mapOrdersSlice", () => {
       plannedC2eMin: 60,
       skip: 1,
       cert: 0,
+      depotDirectMin: 18,
     };
 
     const solverResponse: SolverSolveResponse = {
@@ -78,6 +81,7 @@ describe("mapOrdersSlice", () => {
     expect(point?.plannedC2eMin).toBeUndefined();
     expect(point?.skip).toBeUndefined();
     expect(point?.cert).toBeUndefined();
+    expect(point?.depotDirectMin).toBeUndefined();
   });
 
   it("setShowRoutePositions toggles persisted flag", () => {

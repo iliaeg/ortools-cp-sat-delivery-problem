@@ -135,6 +135,7 @@ const createPoint = (partial: Partial<DeliveryPoint>): DeliveryPoint => ({
   plannedC2eMin: partial.plannedC2eMin,
   skip: partial.skip,
   cert: partial.cert,
+  depotDirectMin: partial.depotDirectMin,
 });
 
 const mapOrdersSlice = createSlice({
@@ -286,6 +287,7 @@ const mapOrdersSlice = createSlice({
         point.plannedC2eMin = undefined;
         point.skip = undefined;
         point.cert = undefined;
+        point.depotDirectMin = undefined;
       });
     },
   },

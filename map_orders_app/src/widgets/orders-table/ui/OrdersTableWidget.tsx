@@ -87,6 +87,13 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     editable: true,
   },
   {
+    field: "depotDirectMin",
+    headerName: "Из депо, мин",
+    width: 110,
+    type: "number",
+    editable: false,
+  },
+  {
     field: "groupId",
     headerName: "Группа",
     width: 110,

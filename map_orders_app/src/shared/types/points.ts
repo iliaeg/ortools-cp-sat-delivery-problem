@@ -26,6 +26,7 @@ export interface DeliveryPoint extends BasePoint {
   plannedC2eMin?: number;
   skip?: number;
   cert?: number;
+  depotDirectMin?: number;
 }
 
 export interface MapRouteSegment {
