@@ -290,7 +290,7 @@ const RouteSegmentComponent = ({ segment }: RouteSegmentProps) => {
     const fromPoint = map.latLngToLayerPoint(fromLatLng);
     const toPoint = map.latLngToLayerPoint(toLatLng);
     const angle = Math.atan2(toPoint.y - fromPoint.y, toPoint.x - fromPoint.x) * (180 / Math.PI);
-    const label = `${item.fromPos}→${item.toPos}`;
+    const label = String(item.toPos ?? "");
     const lengthPx = fromPoint.distanceTo(toPoint);
 
     return (
