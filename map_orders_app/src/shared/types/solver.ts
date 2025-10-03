@@ -56,6 +56,12 @@ export interface SolverInputResponse {
 
 export interface OrdersComputedPatch {
   internalId: string;
+  groupId?: number;
+  routePos?: number;
+  etaRelMin?: number;
+  plannedC2eMin?: number;
+  skip?: number;
+  cert?: number;
 }
 
 export interface RoutesSegmentDto {

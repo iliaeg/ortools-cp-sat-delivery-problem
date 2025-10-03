@@ -37,6 +37,13 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     editable: false,
   },
   {
+    field: "routePos",
+    headerName: "Позиция в маршруте",
+    width: 160,
+    type: "number",
+    editable: false,
+  },
+  {
     field: "id",
     headerName: "ID",
     width: 140,
@@ -85,6 +92,41 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     headerName: "Готов",
     width: 140,
     editable: true,
+  },
+  {
+    field: "groupId",
+    headerName: "Группа",
+    width: 110,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "etaRelMin",
+    headerName: "ETA, мин",
+    width: 130,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "plannedC2eMin",
+    headerName: "C2E, мин",
+    width: 130,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "skip",
+    headerName: "Пропуск",
+    width: 110,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "cert",
+    headerName: "Сертификат",
+    width: 130,
+    type: "number",
+    editable: false,
   },
 ];
 

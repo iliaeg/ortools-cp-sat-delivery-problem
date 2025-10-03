@@ -28,6 +28,7 @@ import {
   selectSolverSignatures,
 } from "@/features/map-orders/model/selectors";
 import {
+  applyComputedFields,
   resetSolverResult,
   setSolverInput,
   setSolverResult,
@@ -143,6 +144,7 @@ const SolverControlsWidget = () => {
       dispatch(setUiState({ isSolving: true }));
       const response = await solve({ solverInput }).unwrap();
       dispatch(setSolverResult(response));
+      dispatch(applyComputedFields(response.ordersComputed));
       dispatch(setUiState({ lastSolverResultSignature: currentSignature }));
     } catch (err) {
       setError((err as Error).message);

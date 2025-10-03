@@ -19,7 +19,14 @@ export interface BasePoint {
   readyAt: string; // HH:MM:SS
 }
 
-export type DeliveryPoint = BasePoint;
+export interface DeliveryPoint extends BasePoint {
+  groupId?: number;
+  routePos?: number;
+  etaRelMin?: number;
+  plannedC2eMin?: number;
+  skip?: number;
+  cert?: number;
+}
 
 export interface MapRouteSegment {
   groupId: number;

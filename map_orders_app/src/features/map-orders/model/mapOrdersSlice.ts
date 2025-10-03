@@ -8,6 +8,7 @@ import {
   PointKind,
 } from "@/shared/types/points";
 import type {
+  OrdersComputedPatch,
   SolverInputPayload,
   SolverSolveResponse,
 } from "@/shared/types/solver";
@@ -126,6 +127,12 @@ const createPoint = (partial: Partial<DeliveryPoint>): DeliveryPoint => ({
   boxes: partial.boxes ?? 0,
   createdAt: partial.createdAt ?? "00:00:00",
   readyAt: partial.readyAt ?? "00:00:00",
+  groupId: partial.groupId,
+  routePos: partial.routePos,
+  etaRelMin: partial.etaRelMin,
+  plannedC2eMin: partial.plannedC2eMin,
+  skip: partial.skip,
+  cert: partial.cert,
 });
 
 const mapOrdersSlice = createSlice({
@@ -230,11 +237,41 @@ const mapOrdersSlice = createSlice({
     ) => {
       state.data.solverResult = action.payload;
     },
+    applyComputedFields: (
+      state,
+      action: PayloadAction<OrdersComputedPatch[]>,
+    ) => {
+      if (action.payload.length === 0) {
+        return;
+      }
+
+      const patches = new Map(
+        action.payload.map((patch) => [patch.internalId, patch]),
+      );
+
+      state.data.points = state.data.points.map((point) => {
+        const patch = patches.get(point.internalId);
+        if (!patch) {
+          return point;
+        }
+
+        const { internalId: _ignored, ...rest } = patch;
+        return { ...point, ...rest };
+      });
+    },
     setLastSavedAt: (state, action: PayloadAction<string | undefined>) => {
       state.data.lastSavedAtIso = action.payload;
     },
     resetSolverResult: (state) => {
       state.data.solverResult = null;
+      state.data.points.forEach((point) => {
+        point.groupId = undefined;
+        point.routePos = undefined;
+        point.etaRelMin = undefined;
+        point.plannedC2eMin = undefined;
+        point.skip = undefined;
+        point.cert = undefined;
+      });
     },
   },
 });
@@ -257,6 +294,7 @@ export const {
   setShowSolverRoutes,
   setSolverInput,
   setSolverResult,
+  applyComputedFields,
   setLastSavedAt,
   resetSolverResult,
 } = mapOrdersSlice.actions;
