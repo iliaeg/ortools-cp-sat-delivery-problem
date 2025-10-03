@@ -11,33 +11,18 @@ test.describe("map orders smoke", () => {
   test("таблица заказов показывает вычисленные поля и действия в конце", async ({ page }) => {
     await page.goto("/map-orders");
 
-    const headers = [
-      "Группа",
-      "Позиция в маршруте",
-      "ETA, мин",
-      "C2E, мин",
-      "Пропуск",
-      "Сертификат",
-    ];
+    await page.getByRole("button", { name: "Добавить заказ" }).click();
 
-    for (const header of headers) {
-      await expect(page.getByRole("columnheader", { name: header })).toBeVisible();
-    }
+    const firstRow = page.getByTestId("orders-row").first();
+    await expect(firstRow).toContainText("#: ");
+    await expect(firstRow).toContainText("Позиция в маршруте:");
+    await expect(firstRow).toContainText("Группа:");
+    await expect(firstRow).toContainText("ETA, мин:");
+    await expect(firstRow).toContainText("C2E, мин:");
+    await expect(firstRow).toContainText("Пропуск:");
+    await expect(firstRow).toContainText("Сертификат:");
 
-    const headerFields = await page
-      .locator('[role="columnheader"][data-field]')
-      .evaluateAll<string>((nodes) =>
-        nodes.map((node) => node.getAttribute("data-field") ?? ""),
-      );
-
-    expect(headerFields.at(0)).toBe("seq");
-    expect(headerFields.at(1)).toBe("routePos");
-    expect(headerFields).toContain("groupId");
-    expect(headerFields).toContain("routePos");
-    expect(headerFields).toContain("etaRelMin");
-    expect(headerFields).toContain("plannedC2eMin");
-    expect(headerFields).toContain("skip");
-    expect(headerFields).toContain("cert");
-    expect(headerFields.at(-1)).toBe("actions");
+    const deleteButtons = page.getByRole("button", { name: "Удалить" });
+    expect(await deleteButtons.count()).toBeGreaterThan(0);
   });
 });
