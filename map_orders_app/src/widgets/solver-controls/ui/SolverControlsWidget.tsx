@@ -17,6 +17,7 @@ import SettingsInputComponentIcon from "@mui/icons-material/SettingsInputCompone
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import DownloadIcon from "@mui/icons-material/Download";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
@@ -168,6 +169,22 @@ const SolverControlsWidget = () => {
     dispatch(setUiState({ warnings: [], lastSolverResultSignature: undefined }));
   }, [dispatch]);
 
+  const handleCopyJson = useCallback(
+    async (payload: unknown) => {
+      if (!payload) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(
+          typeof payload === "string" ? payload : JSON.stringify(payload, null, 2),
+        );
+      } catch (clipboardError) {
+        setError((clipboardError as Error).message);
+      }
+    },
+    [],
+  );
+
   const solverInputPreview = useMemo(
     () => (solverInput ? stringifyWithInlineArrays(solverInput) : ""),
     [solverInput],
@@ -255,6 +272,18 @@ const SolverControlsWidget = () => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                solver_input.json
+              </Typography>
+              <Button
+                size="small"
+                startIcon={<ContentCopyIcon fontSize="small" />}
+                onClick={() => handleCopyJson(solverInput)}
+              >
+                Копировать
+              </Button>
+            </Stack>
             <pre
               style={{
                 margin: 0,
@@ -279,6 +308,18 @@ const SolverControlsWidget = () => {
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                solver_result.json
+              </Typography>
+              <Button
+                size="small"
+                startIcon={<ContentCopyIcon fontSize="small" />}
+                onClick={() => handleCopyJson(solverResult)}
+              >
+                Копировать
+              </Button>
+            </Stack>
             <pre
               style={{
                 margin: 0,
