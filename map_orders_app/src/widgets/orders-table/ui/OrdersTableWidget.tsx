@@ -35,12 +35,14 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     headerName: "#",
     width: 60,
     editable: false,
+    description: "Порядковый номер точки в таблице",
   },
   {
     field: "id",
     headerName: "ID",
     width: 140,
     editable: true,
+    description: "Внутренний идентификатор заказа или депо",
   },
   {
     field: "kind",
@@ -52,6 +54,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
       { value: "depot", label: "депо" },
       { value: "order", label: "заказ" },
     ],
+    description: "Категория точки: депо или заказ",
   },
   {
     field: "lat",
@@ -59,6 +62,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 130,
     type: "number",
     editable: true,
+    description: "Широта координаты точки",
   },
   {
     field: "lon",
@@ -66,6 +70,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 130,
     type: "number",
     editable: true,
+    description: "Долгота координаты точки",
   },
   {
     field: "boxes",
@@ -73,18 +78,21 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 120,
     type: "number",
     editable: true,
+    description: "Количество коробок в заказе",
   },
   {
     field: "createdAt",
     headerName: "Создан",
     width: 140,
     editable: true,
+    description: "Время создания заказа (HH:MM:SS)",
   },
   {
     field: "readyAt",
     headerName: "Будет готов",
     width: 140,
     editable: true,
+    description: "Время готовности заказа (HH:MM:SS)",
   },
   {
     field: "depotDirectMin",
@@ -92,6 +100,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 110,
     type: "number",
     editable: false,
+    description: "Время пути от депо до точки по матрице",
   },
   {
     field: "groupId",
@@ -99,6 +108,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 110,
     type: "number",
     editable: false,
+    description: "Номер маршрута, присвоенный солвером",
   },
   {
     field: "routePos",
@@ -106,6 +116,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 110,
     type: "number",
     editable: false,
+    description: "Позиция заказа внутри маршрута",
   },
   {
     field: "etaRelMin",
@@ -113,6 +124,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 130,
     type: "number",
     editable: false,
+    description: "Ожидаемое прибытие курьера (минуты от старта)",
   },
   {
     field: "plannedC2eMin",
@@ -120,6 +132,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 130,
     type: "number",
     editable: false,
+    description: "Плановый click-to-eat время",
   },
   {
     field: "skip",
@@ -127,6 +140,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 110,
     type: "number",
     editable: false,
+    description: "Признак, что заказ пропущен (1 — пропуск)",
   },
   {
     field: "cert",
@@ -134,6 +148,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 130,
     type: "number",
     editable: false,
+    description: "Признак необходимости сертификата (1 — требуется)",
   },
 ];
 
