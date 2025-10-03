@@ -37,13 +37,6 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     editable: false,
   },
   {
-    field: "routePos",
-    headerName: "Поз. в группе",
-    width: 160,
-    type: "number",
-    editable: false,
-  },
-  {
     field: "id",
     headerName: "ID",
     width: 140,
@@ -96,6 +89,13 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
   {
     field: "groupId",
     headerName: "Группа",
+    width: 110,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "routePos",
+    headerName: "Поз. в группе",
     width: 110,
     type: "number",
     editable: false,
@@ -232,6 +232,7 @@ const OrdersTableWidget = () => {
           rows={points}
           columns={columns}
           getRowId={(row) => row.internalId}
+          getRowClassName={({ row }) => (row.kind === "depot" ? "orders-table__row--depot" : "")}
           disableColumnMenu
           disableColumnSelector
           disableDensitySelector

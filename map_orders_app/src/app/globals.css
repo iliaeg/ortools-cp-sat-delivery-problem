@@ -97,3 +97,8 @@ body {
   line-height: 1.2;
   white-space: nowrap;
 }
+
+.orders-table__row--depot .MuiDataGrid-cell {
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+}

@@ -20,17 +20,18 @@ test.describe("map orders smoke", () => {
       );
 
     expect(headerFields[0]).toBe("seq");
-    expect(headerFields[1]).toBe("routePos");
+    expect(headerFields[1]).toBe("id");
     expect(headerFields).toContain("groupId");
+    expect(headerFields).toContain("routePos");
     expect(headerFields).toContain("etaRelMin");
     expect(headerFields).toContain("plannedC2eMin");
     expect(headerFields).toContain("skip");
     expect(headerFields).toContain("cert");
     expect(headerFields.at(-1)).toBe("actions");
 
-    await expect(page.getByRole("columnheader", { name: "Поз. в группе" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "ETA, мин" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "C2E, мин" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Поз. в группе" })).toBeVisible();
 
     const deleteButtons = page.getByRole("button", { name: "Удалить" });
     expect(await deleteButtons.count()).toBeGreaterThan(0);
