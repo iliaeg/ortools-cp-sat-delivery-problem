@@ -1,51 +1,145 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
-  IconButton,
   Paper,
+  Snackbar,
   Stack,
   Typography,
 } from "@mui/material";
+import {
+  DataGrid,
+  GridActionsCellItem,
+  GridColDef,
+  GridRowModel,
+} from "@mui/x-data-grid";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { v4 as uuidv4 } from "uuid";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
-import { addPoint, removePoint } from "@/features/map-orders/model/mapOrdersSlice";
+import {
+  addPoint,
+  removePoint,
+  updatePoint,
+} from "@/features/map-orders/model/mapOrdersSlice";
 import { selectPoints } from "@/features/map-orders/model/selectors";
 import type { DeliveryPoint } from "@/shared/types/points";
 
-const columns: Array<{ field: keyof DeliveryPoint; label: string }> = [
-  { field: "seq", label: "#" },
-  { field: "routePos", label: "Позиция в маршруте" },
-  { field: "id", label: "ID" },
-  { field: "kind", label: "Тип" },
-  { field: "lat", label: "Широта" },
-  { field: "lon", label: "Долгота" },
-  { field: "boxes", label: "Коробки" },
-  { field: "createdAt", label: "Создан" },
-  { field: "readyAt", label: "Готов" },
-  { field: "groupId", label: "Группа" },
-  { field: "etaRelMin", label: "ETA, мин" },
-  { field: "plannedC2eMin", label: "C2E, мин" },
-  { field: "skip", label: "Пропуск" },
-  { field: "cert", label: "Сертификат" },
+const columnsBase: GridColDef<DeliveryPoint>[] = [
+  {
+    field: "seq",
+    headerName: "#",
+    width: 60,
+    editable: false,
+  },
+  {
+    field: "routePos",
+    headerName: "Позиция в маршруте",
+    width: 160,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "id",
+    headerName: "ID",
+    width: 140,
+    editable: true,
+  },
+  {
+    field: "kind",
+    headerName: "Тип",
+    width: 120,
+    editable: true,
+    type: "singleSelect",
+    valueOptions: [
+      { value: "depot", label: "депо" },
+      { value: "order", label: "заказ" },
+    ],
+  },
+  {
+    field: "lat",
+    headerName: "Широта",
+    width: 130,
+    type: "number",
+    editable: true,
+  },
+  {
+    field: "lon",
+    headerName: "Долгота",
+    width: 130,
+    type: "number",
+    editable: true,
+  },
+  {
+    field: "boxes",
+    headerName: "Коробки",
+    width: 120,
+    type: "number",
+    editable: true,
+  },
+  {
+    field: "createdAt",
+    headerName: "Создан",
+    width: 140,
+    editable: true,
+  },
+  {
+    field: "readyAt",
+    headerName: "Готов",
+    width: 140,
+    editable: true,
+  },
+  {
+    field: "groupId",
+    headerName: "Группа",
+    width: 110,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "etaRelMin",
+    headerName: "ETA, мин",
+    width: 130,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "plannedC2eMin",
+    headerName: "C2E, мин",
+    width: 130,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "skip",
+    headerName: "Пропуск",
+    width: 110,
+    type: "number",
+    editable: false,
+  },
+  {
+    field: "cert",
+    headerName: "Сертификат",
+    width: 130,
+    type: "number",
+    editable: false,
+  },
 ];
 
-const formatValue = (value: DeliveryPoint[keyof DeliveryPoint]) => {
-  if (value === undefined || value === null) {
-    return "";
-  }
-  return String(value);
-};
+const timePattern = /^\d{2}:\d{2}:\d{2}$/;
 
-const buildLine = (point: DeliveryPoint) =>
-  columns
-    .map((column) => `${column.label}: ${formatValue(point[column.field])}`)
-    .join(" | ");
+const validatePoint = (point: DeliveryPoint) => {
+  if (point.lat < -90 || point.lat > 90 || point.lon < -180 || point.lon > 180) {
+    throw new Error("Координаты вне диапазона");
+  }
+  if (!timePattern.test(point.createdAt) || !timePattern.test(point.readyAt)) {
+    throw new Error("Формат времени HH:MM:SS");
+  }
+};
 
 const createEmptyPoint = (kind: DeliveryPoint["kind"]): DeliveryPoint => ({
   internalId: uuidv4(),
@@ -62,6 +156,47 @@ const createEmptyPoint = (kind: DeliveryPoint["kind"]): DeliveryPoint => ({
 const OrdersTableWidget = () => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
+  const [error, setError] = useState<string | null>(null);
+
+  const columns = useMemo(() => {
+    const base = [...columnsBase];
+    const actions: GridColDef<DeliveryPoint> = {
+      field: "actions",
+      headerName: "",
+      type: "actions",
+      width: 80,
+      getActions: (params) => [
+        <GridActionsCellItem
+          key="delete"
+          icon={<DeleteIcon />}
+          label="Удалить"
+          onClick={() => dispatch(removePoint(params.row.internalId))}
+          color="inherit"
+        />,
+      ],
+    };
+    base.push(actions);
+    return base;
+  }, [dispatch]);
+
+  const processRowUpdate = useCallback(
+    async (newRow: GridRowModel<DeliveryPoint>) => {
+      const updated = newRow as DeliveryPoint;
+      validatePoint(updated);
+      dispatch(
+        updatePoint({
+          internalId: updated.internalId,
+          patch: updated,
+        }),
+      );
+      return updated;
+    },
+    [dispatch],
+  );
+
+  const handleProcessError = useCallback((err: Error) => {
+    setError(err.message);
+  }, []);
 
   const handleAddOrder = useCallback(() => {
     dispatch(addPoint(createEmptyPoint("order")));
@@ -92,41 +227,28 @@ const OrdersTableWidget = () => {
       <Typography variant="body2" color="text.secondary">
         Всего точек: {points.length}
       </Typography>
-      <Box sx={{ flexGrow: 1, overflow: "auto" }}>
-        {points.length === 0 ? (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Нет точек
-          </Typography>
-        ) : (
-          <Stack spacing={1.5}>
-            {points.map((point) => (
-              <Stack
-                key={point.internalId}
-                data-testid="orders-row"
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Typography
-                  variant="body2"
-                  sx={{ whiteSpace: "pre-wrap", flexGrow: 1 }}
-                >
-                  {buildLine(point)}
-                </Typography>
-                <IconButton
-                  aria-label="Удалить"
-                  color="error"
-                  onClick={() => dispatch(removePoint(point.internalId))}
-                  size="small"
-                >
-                  <DeleteIcon fontSize="inherit" />
-                </IconButton>
-              </Stack>
-            ))}
-          </Stack>
-        )}
+      <Box sx={{ flexGrow: 1 }}>
+        <DataGrid
+          rows={points}
+          columns={columns}
+          getRowId={(row) => row.internalId}
+          disableColumnMenu
+          disableColumnSelector
+          disableDensitySelector
+          processRowUpdate={processRowUpdate}
+          onProcessRowUpdateError={handleProcessError}
+        />
       </Box>
+      <Snackbar
+        open={Boolean(error)}
+        autoHideDuration={4000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 };

@@ -13,14 +13,24 @@ test.describe("map orders smoke", () => {
 
     await page.getByRole("button", { name: "Добавить заказ" }).click();
 
-    const firstRow = page.getByTestId("orders-row").first();
-    await expect(firstRow).toContainText("#: ");
-    await expect(firstRow).toContainText("Позиция в маршруте:");
-    await expect(firstRow).toContainText("Группа:");
-    await expect(firstRow).toContainText("ETA, мин:");
-    await expect(firstRow).toContainText("C2E, мин:");
-    await expect(firstRow).toContainText("Пропуск:");
-    await expect(firstRow).toContainText("Сертификат:");
+    const headerFields = await page
+      .locator('[role="columnheader"][data-field]')
+      .evaluateAll<string>((nodes) =>
+        nodes.map((node) => node.getAttribute("data-field") ?? ""),
+      );
+
+    expect(headerFields[0]).toBe("seq");
+    expect(headerFields[1]).toBe("routePos");
+    expect(headerFields).toContain("groupId");
+    expect(headerFields).toContain("etaRelMin");
+    expect(headerFields).toContain("plannedC2eMin");
+    expect(headerFields).toContain("skip");
+    expect(headerFields).toContain("cert");
+    expect(headerFields.at(-1)).toBe("actions");
+
+    await expect(page.getByRole("columnheader", { name: "Позиция в маршруте" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "ETA, мин" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "C2E, мин" })).toBeVisible();
 
     const deleteButtons = page.getByRole("button", { name: "Удалить" });
     expect(await deleteButtons.count()).toBeGreaterThan(0);
