@@ -28,7 +28,7 @@ test.describe("map orders smoke", () => {
     expect(headerFields).toContain("cert");
     expect(headerFields.at(-1)).toBe("actions");
 
-    await expect(page.getByRole("columnheader", { name: "Позиция в маршруте" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Поз. в группе" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "ETA, мин" })).toBeVisible();
     await expect(page.getByRole("columnheader", { name: "C2E, мин" })).toBeVisible();
 

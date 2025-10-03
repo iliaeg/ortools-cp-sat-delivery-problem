@@ -21,10 +21,10 @@
       "boxes": 2,
       "createdAt": "10:45:00",
       "readyAt": "11:05:00",
-      "groupId": 1,
-      "routePos": 2,
-      "etaRelMin": 25,
-      "plannedC2eMin": 25,
+      "groupId": 0,
+      "routePos": 1,
+      "etaRelMin": 23,
+      "plannedC2eMin": 23,
       "skip": 0,
       "cert": 0
     },
@@ -38,7 +38,7 @@
       "boxes": 5,
       "createdAt": "10:45:00",
       "readyAt": "11:05:00",
-      "groupId": 0,
+      "groupId": 1,
       "routePos": 1,
       "etaRelMin": 23,
       "plannedC2eMin": 23,
@@ -53,14 +53,47 @@
       "lat": 52.98523705315929,
       "lon": 36.07455253601075,
       "boxes": 0,
-      "createdAt": "10:45:00",
+      "createdAt": "10:40:00",
       "readyAt": "11:05:00",
-      "groupId": 1,
-      "routePos": 1,
-      "etaRelMin": 23,
-      "plannedC2eMin": 23,
+      "groupId": 0,
+      "routePos": 2,
+      "etaRelMin": 25,
+      "plannedC2eMin": 30,
       "skip": 0,
       "cert": 0
+    },
+    {
+      "internalId": "5801cf08-09bc-4791-b70a-347d165a1757",
+      "id": "",
+      "kind": "order",
+      "seq": 4,
+      "lat": 53.016229043909654,
+      "lon": 36.13574981689454,
+      "boxes": 0,
+      "createdAt": "00:00:00",
+      "readyAt": "00:00:00"
+    },
+    {
+      "internalId": "d4c1a90b-0510-4002-a753-7489f82d237e",
+      "id": "",
+      "kind": "order",
+      "seq": 5,
+      "lat": 53.007760109104076,
+      "lon": 36.136093139648445,
+      "boxes": 0,
+      "createdAt": "00:00:00",
+      "readyAt": "00:00:00"
+    },
+    {
+      "internalId": "668c3e42-99f3-4b02-9ea0-b1d4b163a57e",
+      "id": "",
+      "kind": "order",
+      "seq": 6,
+      "lat": 52.99164388840454,
+      "lon": 36.12321853637696,
+      "boxes": 0,
+      "createdAt": "00:00:00",
+      "readyAt": "00:00:00"
     }
   ],
   "mapCenter": [
@@ -114,7 +147,7 @@
     "c": [
       0,
       0,
-      0
+      -5
     ],
     "r": [
       20,
@@ -204,7 +237,7 @@
             "lat": 52.98523705315929,
             "lon": 36.07455253601075,
             "boxes": 0,
-            "createdAt": "10:45:00",
+            "createdAt": "10:40:00",
             "readyAt": "11:05:00"
           }
         ],
@@ -245,17 +278,17 @@
     "result": {
       "result": {
         "status": "OPTIMAL",
-        "objective": 71,
+        "objective": 76,
         "routes": [
           [
             0,
-            2,
+            1,
+            3,
             0
           ],
           [
             0,
-            3,
-            1,
+            2,
             0
           ]
         ],
@@ -264,9 +297,9 @@
           20
         ],
         "T": {
-          "1": 25,
+          "1": 23,
           "2": 23,
-          "3": 23
+          "3": 25
         },
         "s": {
           "1": 0,
@@ -279,27 +312,18 @@
           "3": 0
         },
         "z": {
-          "1,0": 0,
-          "1,1": 1,
-          "2,0": 1,
-          "2,1": 0,
-          "3,0": 0,
-          "3,1": 1
+          "1,0": 1,
+          "1,1": 0,
+          "2,0": 0,
+          "2,1": 1,
+          "3,0": 1,
+          "3,1": 0
         }
       }
     },
     "ordersComputed": [
       {
         "internalId": "73dc7014-ac08-4910-bb86-2fa77fc58557",
-        "groupId": 1,
-        "routePos": 2,
-        "etaRelMin": 25,
-        "plannedC2eMin": 25,
-        "skip": 0,
-        "cert": 0
-      },
-      {
-        "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
         "groupId": 0,
         "routePos": 1,
         "etaRelMin": 23,
@@ -308,38 +332,47 @@
         "cert": 0
       },
       {
-        "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
+        "internalId": "6fd37e0b-6909-43ff-ad2d-d0627a526175",
         "groupId": 1,
         "routePos": 1,
         "etaRelMin": 23,
         "plannedC2eMin": 23,
         "skip": 0,
         "cert": 0
+      },
+      {
+        "internalId": "c1559d03-b4ba-4ad0-9302-91eddd3c07c6",
+        "groupId": 0,
+        "routePos": 2,
+        "etaRelMin": 25,
+        "plannedC2eMin": 30,
+        "skip": 0,
+        "cert": 0
       }
     ],
     "routesSegments": [
       {
-        "groupId": 1,
-        "color": "#d78a42",
+        "groupId": 0,
+        "color": "#d78742",
         "polyline": [
-          [
-            52.98523705315929,
-            36.07455253601075
-          ],
           [
             52.97784734548465,
             36.06751441955567
+          ],
+          [
+            52.98523705315929,
+            36.07455253601075
           ]
         ],
         "segments": [
           {
             "from": [
-              52.98523705315929,
-              36.07455253601075
-            ],
-            "to": [
               52.97784734548465,
               36.06751441955567
+            ],
+            "to": [
+              52.98523705315929,
+              36.07455253601075
             ],
             "mid": [
               52.981542199321964,
@@ -349,10 +382,10 @@
             "toPos": 2
           }
         ],
-        "tooltip": "Маршрут 2: c1559d03-b4ba-4ad0-9302-91eddd3c07c6, 73dc7014-ac08-4910-bb86-2fa77fc58557"
+        "tooltip": "Маршрут 1: 73dc7014-ac08-4910-bb86-2fa77fc58557, c1559d03-b4ba-4ad0-9302-91eddd3c07c6"
       }
     ]
   },
-  "lastSavedAtIso": "2025-10-03T09:04:59.782Z",
+  "lastSavedAtIso": "2025-10-03T09:20:02.442Z",
   "showRoutePositions": false
 }

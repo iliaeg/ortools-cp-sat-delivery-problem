@@ -38,7 +38,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
   },
   {
     field: "routePos",
-    headerName: "Позиция в маршруте",
+    headerName: "Поз. в группе",
     width: 160,
     type: "number",
     editable: false,
@@ -89,7 +89,7 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
   },
   {
     field: "readyAt",
-    headerName: "Готов",
+    headerName: "Будет готов",
     width: 140,
     editable: true,
   },

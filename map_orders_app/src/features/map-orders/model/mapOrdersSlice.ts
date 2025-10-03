@@ -259,7 +259,8 @@ const mapOrdersSlice = createSlice({
           return point;
         }
 
-        const { internalId: _ignored, ...rest } = patch;
+        const rest = { ...patch };
+        delete rest.internalId;
         return { ...point, ...rest };
       });
     },
