@@ -1,4 +1,4 @@
-# ortools-cp-sat-v2
+# ortools-cp-sat-delivery-problem
 
 Проект для экспериментов с CP-SAT из библиотеки OR-Tools и локального интерфейса подготовки входных данных.
 
