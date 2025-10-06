@@ -8,7 +8,7 @@
 - Таблица заказов на базе MUI DataGrid с валидацией координат, времени, JSON и ограничением на единственное депо.
 - Панель параметров: курьеры, весовые коэффициенты, дополнительные опции, T0 и базовый URL OSRM.
 - Сбор solver_input с обращением к локальному OSRM (`/table/v1/driving`) и преобразованием времени к T0.
-- Отправка solver_input в локальный CP-SAT решатель (`POST http://127.0.0.1:8000/solve`), расчёт ETA/Click-to-Eat, визуализация маршрутов и computed-колонок.
+- Отправка solver_input в локальный CP-SAT решатель (`POST http://127.0.0.1:8000/solve-internal`), расчёт ETA/Click-to-Eat, визуализация маршрутов и computed-колонок.
 - Импорт/экспорт GeoJSON, solver_input и полноценных кейсов. Состояние хранится в `data/map_orders_state.json`.
 - Автосохранение состояния через API `GET/PUT /api/map-orders/state`.
 
@@ -17,7 +17,7 @@
 - Node.js ≥ 20
 - Yarn 1 (Classic)
 - Локальный OSRM (`docker/osrm/docker-compose.yml`) с портом 5563
-- Локальный REST-обёртка CP-SAT (`http://127.0.0.1:8000/solve`)
+- Локальный REST-обёртка CP-SAT (`http://127.0.0.1:8000/solve-internal`)
 
 ## Установка
 
@@ -31,9 +31,9 @@ yarn install
 
 ```
 NEXT_PUBLIC_OSRM_BASE_URL=http://localhost:5563
-NEXT_PUBLIC_SOLVER_URL=http://127.0.0.1:8000/solve
+NEXT_PUBLIC_SOLVER_URL=http://127.0.0.1:8000/solve-internal
 OSRM_BASE_URL=http://localhost:5563
-SOLVER_URL=http://127.0.0.1:8000/solve
+SOLVER_URL=http://127.0.0.1:8000/solve-internal
 MAP_ORDERS_STATE_PATH=./data/map_orders_state.json
 ```
 
@@ -51,7 +51,7 @@ docker compose up            # сервис слушает 5563 порт
 
 ### CP-SAT solver
 
-Запустите имеющийся REST сервис (`python map_orders.py` либо требуемый docker). API должен принимать `POST /solve` и возвращать структуру, описанную в техническом задании.
+Запустите имеющийся REST сервис (`python map_orders.py` либо требуемый docker). API должен принимать `POST /solve-internal` и возвращать структуру, описанную в техническом задании.
 
 ## Скрипты
 

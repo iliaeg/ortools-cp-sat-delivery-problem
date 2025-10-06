@@ -86,7 +86,7 @@ class SolverSettings(BaseModel):
 
 
 class DomainSolveRequest(BaseModel):
-    """Entry payload for the domain-oriented `/solve-domain` endpoint."""
+    """Entry payload for the domain-oriented `/solve` endpoint."""
 
     current_timestamp_utc: datetime = Field(
         ..., description="Текущий момент времени (UTC), принимаемый за точку отсчёта"

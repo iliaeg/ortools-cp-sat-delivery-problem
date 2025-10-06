@@ -50,14 +50,14 @@ class DomainSolveResponse(BaseModel):
     meta: DomainSolveMetadata
 
 
-@app.post("/solve", response_model=SolveResponse)
+@app.post("/solve-internal", response_model=SolveResponse)
 def solve_with_extension_solver(problem: Dict[str, Any]) -> SolveResponse:
     """Invoke the dynamically loaded solver implementation."""
     result = _extension_solver.solve(problem)
     return SolveResponse(result=result)
 
 
-@app.post("/solve-domain", response_model=DomainSolveResponse)
+@app.post("/solve", response_model=DomainSolveResponse)
 def solve_from_domain_payload(payload: DomainSolveRequest) -> DomainSolveResponse:
     """Translate a domain payload into solver input and run the optimization."""
     mapper = DomainToSolverMapper(payload)

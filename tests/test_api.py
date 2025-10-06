@@ -64,7 +64,7 @@ def test_domain_payload_mapping(sample_payload: dict) -> None:
 def test_solve_domain_endpoint(sample_payload: dict) -> None:
     client = TestClient(app)
 
-    response = client.post("/solve-domain", json=sample_payload)
+    response = client.post("/solve", json=sample_payload)
 
     assert response.status_code == 200
     body = response.json()
