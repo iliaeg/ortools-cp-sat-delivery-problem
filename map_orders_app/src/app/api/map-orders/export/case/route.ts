@@ -28,6 +28,8 @@ export async function GET() {
     weights: state.weightsText,
     additional_params: state.additionalParamsText,
     osrm_base_url: state.osrmBaseUrl,
+    manual_tau_text: state.manualTauText,
+    use_manual_tau: state.useManualTau,
   };
   return new NextResponse(JSON.stringify(payload, null, 2), {
     headers: {

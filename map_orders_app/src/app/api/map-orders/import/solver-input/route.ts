@@ -47,6 +47,8 @@ export async function POST(request: Request) {
       ),
       osrmBaseUrl: solverInput.meta?.osrmBaseUrl ?? "http://localhost:5563",
       t0Time: solverInput.meta?.T0_iso?.split("T")[1]?.slice(0, 8) ?? "09:00:00",
+      manualTauText: stringifyWithInlineArrays(solverInput.tau ?? []),
+      useManualTau: true,
       solverInput,
       solverResult: null,
     });

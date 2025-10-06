@@ -6,6 +6,8 @@ import reducer, {
   resetSolverResult,
   setShowDepotSegments,
   setShowRoutePositions,
+  setManualTauText,
+  setUseManualTau,
   setSolverResult,
 } from "@/features/map-orders/model/mapOrdersSlice";
 import type { SolverSolveResponse } from "@/shared/types/solver";
@@ -104,5 +106,17 @@ describe("mapOrdersSlice", () => {
 
     state = reducer(state, setShowDepotSegments(false));
     expect(state.data.showDepotSegments).toBe(false);
+  });
+
+  it("manages manual tau fields", () => {
+    let state = createInitialState();
+    expect(state.data.manualTauText).toBe("");
+    expect(state.data.useManualTau).toBe(false);
+
+    state = reducer(state, setManualTauText("[[0,1],[1,0]]"));
+    expect(state.data.manualTauText).toBe("[[0,1],[1,0]]");
+
+    state = reducer(state, setUseManualTau(true));
+    expect(state.data.useManualTau).toBe(true);
   });
 });

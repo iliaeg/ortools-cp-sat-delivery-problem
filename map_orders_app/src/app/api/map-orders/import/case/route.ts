@@ -55,6 +55,8 @@ export async function POST(request: Request) {
       ),
       osrmBaseUrl: payload.osrm_base_url ?? "http://localhost:5563",
       t0Time: payload.t0_iso ? payload.t0_iso.split("T")[1]?.slice(0, 8) ?? "09:00:00" : "09:00:00",
+      manualTauText: typeof payload.manual_tau_text === "string" ? payload.manual_tau_text : "",
+      useManualTau: Boolean(payload.use_manual_tau),
       solverInput: null,
       solverResult: null,
     });

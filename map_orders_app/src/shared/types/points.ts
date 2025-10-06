@@ -59,6 +59,8 @@ export interface MapOrdersPersistedState {
   additionalParamsText: string;
   t0Time: string; // HH:MM:SS
   osrmBaseUrl: string;
+  manualTauText: string;
+  useManualTau: boolean;
   showSolverRoutes: boolean;
   showDepotSegments: boolean;
   showRoutePositions: boolean;

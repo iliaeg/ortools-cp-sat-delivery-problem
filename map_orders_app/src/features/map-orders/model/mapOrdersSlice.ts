@@ -32,6 +32,8 @@ const initialPersistedState: MapOrdersPersistedState = {
   additionalParamsText: DEFAULT_ADDITIONAL_PARAMS_TEXT,
   t0Time: "09:00:00",
   osrmBaseUrl: env.osrmBaseUrl,
+  manualTauText: "",
+  useManualTau: false,
   showSolverRoutes: true,
   showDepotSegments: false,
   showRoutePositions: true,
@@ -165,6 +167,8 @@ const mapOrdersSlice = createSlice({
           action.payload.additionalParamsText ?? state.data.additionalParamsText,
           DEFAULT_ADDITIONAL_PARAMS_TEXT,
         ),
+        manualTauText: action.payload.manualTauText ?? state.data.manualTauText,
+        useManualTau: action.payload.useManualTau ?? state.data.useManualTau,
         showSolverRoutes:
           action.payload.showSolverRoutes ?? state.data.showSolverRoutes,
         showDepotSegments:
@@ -230,6 +234,12 @@ const mapOrdersSlice = createSlice({
     },
     setOsrmBaseUrl: (state, action: PayloadAction<string>) => {
       state.data.osrmBaseUrl = action.payload;
+    },
+    setManualTauText: (state, action: PayloadAction<string>) => {
+      state.data.manualTauText = action.payload;
+    },
+    setUseManualTau: (state, action: PayloadAction<boolean>) => {
+      state.data.useManualTau = action.payload;
     },
     setShowSolverRoutes: (state, action: PayloadAction<boolean>) => {
       state.data.showSolverRoutes = action.payload;
@@ -308,6 +318,8 @@ export const {
   setAdditionalParamsText,
   setT0Time,
   setOsrmBaseUrl,
+  setManualTauText,
+  setUseManualTau,
   setShowSolverRoutes,
   setShowDepotSegments,
   setShowRoutePositions,

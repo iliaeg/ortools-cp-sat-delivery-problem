@@ -12,6 +12,8 @@ export interface BuildSolverInputRequest {
   additionalParamsText: string;
   t0Time: string;
   osrmBaseUrl: string;
+  manualTauText: string;
+  useManualTau: boolean;
 }
 
 export interface SolveRequest {

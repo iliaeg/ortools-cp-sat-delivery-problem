@@ -74,6 +74,8 @@ export const selectControlTexts = createSelector(selectMapOrdersState, (state) =
   additionalParamsText: state.data.additionalParamsText,
   t0Time: state.data.t0Time,
   osrmBaseUrl: state.data.osrmBaseUrl,
+  manualTauText: state.data.manualTauText,
+  useManualTau: state.data.useManualTau,
 }));
 
 export const selectLastSavedAt = createSelector(

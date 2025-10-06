@@ -31,6 +31,7 @@ import {
 import {
   applyComputedFields,
   resetSolverResult,
+  setManualTauText,
   setSolverInput,
   setSolverResult,
   setUiState,
@@ -44,8 +45,15 @@ import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 const SolverControlsWidget = () => {
   const dispatch = useAppDispatch();
-  const { couriersText, weightsText, additionalParamsText, t0Time, osrmBaseUrl } =
-    useAppSelector(selectControlTexts);
+  const {
+    couriersText,
+    weightsText,
+    additionalParamsText,
+    manualTauText,
+    useManualTau,
+    t0Time,
+    osrmBaseUrl,
+  } = useAppSelector(selectControlTexts);
   const solverInput = useAppSelector(selectSolverInput);
   const solverResult = useAppSelector(selectSolverResult);
   const points = useAppSelector(selectPoints);
@@ -85,6 +93,8 @@ const SolverControlsWidget = () => {
         couriersText,
         weightsText,
         additionalParamsText,
+        manualTauText,
+        useManualTau,
         t0Time,
         osrmBaseUrl,
       }),
@@ -93,6 +103,8 @@ const SolverControlsWidget = () => {
       couriersText,
       weightsText,
       additionalParamsText,
+      manualTauText,
+      useManualTau,
       t0Time,
       osrmBaseUrl,
     ],
@@ -107,10 +119,13 @@ const SolverControlsWidget = () => {
         couriersText,
         weightsText,
         additionalParamsText,
+        manualTauText,
+        useManualTau,
         t0Time,
         osrmBaseUrl,
       }).unwrap();
       dispatch(setSolverInput(response.input));
+      dispatch(setManualTauText(stringifyWithInlineArrays(response.input.tau)));
       dispatch(
         setUiState({
           warnings: response.warnings,
@@ -129,6 +144,8 @@ const SolverControlsWidget = () => {
     couriersText,
     dispatch,
     osrmBaseUrl,
+    manualTauText,
+    useManualTau,
     points,
     t0Time,
     weightsText,

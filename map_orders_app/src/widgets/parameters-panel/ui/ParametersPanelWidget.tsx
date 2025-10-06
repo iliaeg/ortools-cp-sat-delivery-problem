@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Button,
+  Checkbox,
+  FormControlLabel,
   Paper,
   Stack,
   TextField,
@@ -23,8 +25,10 @@ import {
 import {
   setAdditionalParamsText,
   setCouriersText,
+  setManualTauText,
   setOsrmBaseUrl,
   setT0Time,
+  setUseManualTau,
   setWeightsText,
 } from "@/features/map-orders/model/mapOrdersSlice";
 import { stringifyWithInlineArrays } from "@/shared/lib/json";
@@ -40,7 +44,15 @@ const formatJson = (value: string) => {
 
 const ParametersPanelWidget = () => {
   const dispatch = useAppDispatch();
-  const { couriersText, weightsText, additionalParamsText, t0Time, osrmBaseUrl } =
+  const {
+    couriersText,
+    weightsText,
+    additionalParamsText,
+    manualTauText,
+    useManualTau,
+    t0Time,
+    osrmBaseUrl,
+  } =
     useAppSelector(selectControlTexts);
   const lastSavedAt = useAppSelector(selectLastSavedAt);
   const { isSaving } = useAppSelector(selectUiFlags);
@@ -56,6 +68,18 @@ const ParametersPanelWidget = () => {
       setError((err as Error).message);
     }
   }, [couriersText, dispatch]);
+
+  const handleBeautifyTau = useCallback(() => {
+    if (!useManualTau) {
+      return;
+    }
+    try {
+      dispatch(setManualTauText(formatJson(manualTauText)));
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }, [dispatch, manualTauText, useManualTau]);
 
   const handleBeautifyWeights = useCallback(() => {
     try {
@@ -99,6 +123,41 @@ const ParametersPanelWidget = () => {
         onChange={(event) => dispatch(setT0Time(event.target.value))}
         helperText={`Формат HH:MM:SS · Текущая дата (UTC): ${todayIsoUtc}`}
       />
+      <FormControlLabel
+        control={
+          <Checkbox
+            checked={useManualTau}
+            onChange={(_event, checked) => dispatch(setUseManualTau(checked))}
+          />
+        }
+        label="Задать матрицу времени вручную"
+      />
+      <TextField
+        label="Матрица времени между точками"
+        value={manualTauText}
+        onChange={(event) => dispatch(setManualTauText(event.target.value))}
+        multiline
+        minRows={6}
+        disabled={!useManualTau}
+        InputProps={{ readOnly: !useManualTau }}
+        helperText="Квадратная матрица (депо + заказы) в минутах"
+      />
+      <Stack direction="row" spacing={1}>
+        <Button
+          onClick={handleBeautifyTau}
+          startIcon={<CleaningServicesIcon />}
+          disabled={!useManualTau}
+        >
+          Форматировать
+        </Button>
+        <Button
+          onClick={() => dispatch(setManualTauText(""))}
+          startIcon={<DeleteSweepIcon />}
+          disabled={!useManualTau}
+        >
+          Очистить
+        </Button>
+      </Stack>
       <TextField
         label="Курьеры"
         value={couriersText}
