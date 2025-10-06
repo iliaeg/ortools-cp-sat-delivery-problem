@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Box,
   Button,
+  Stack,
   Paper,
   Snackbar,
-  Stack,
   Typography,
+  CircularProgress,
 } from "@mui/material";
 import {
   DataGrid,
@@ -16,13 +17,16 @@ import {
   GridColDef,
   GridRowModel,
 } from "@mui/x-data-grid";
+import type { Feature, FeatureCollection, Point } from "geojson";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
+import UploadIcon from "@mui/icons-material/Upload";
 import { v4 as uuidv4 } from "uuid";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
   addPoint,
+  replacePoints,
   removePoint,
   updatePoint,
 } from "@/features/map-orders/model/mapOrdersSlice";
@@ -179,6 +183,7 @@ const OrdersTableWidget = () => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
   const [error, setError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
 
   const columns = useMemo(() => {
     const base = [...columnsBase];
@@ -220,6 +225,65 @@ const OrdersTableWidget = () => {
     setError(err.message);
   }, []);
 
+  const handleImportOrders = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+      setIsImporting(true);
+      try {
+        const text = await file.text();
+        const payload = JSON.parse(text) as FeatureCollection;
+        if (payload?.type !== "FeatureCollection" || !Array.isArray(payload.features)) {
+          throw new Error("Ожидается GeoJSON FeatureCollection");
+        }
+        const imported: DeliveryPoint[] = payload.features.map((feature: Feature<Point>, index: number) => {
+          if (!feature || feature.geometry?.type !== "Point") {
+            throw new Error(`Объект ${index + 1} не является точкой`);
+          }
+          const coordinates = feature.geometry.coordinates ?? [];
+          const props = (feature.properties ?? {}) as Record<string, unknown>;
+          const kind = props.kind === "depot" ? "depot" : "order";
+          const lat = Number(coordinates[1]);
+          const lon = Number(coordinates[0]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            throw new Error(`Некорректные координаты у объекта ${index + 1}`);
+          }
+          const boxes = Number(props.boxes);
+          const createdAt = typeof props.created_at === "string" ? props.created_at : "00:00:00";
+          const readyAt = typeof props.ready_at === "string" ? props.ready_at : "00:00:00";
+
+          return {
+            internalId: uuidv4(),
+            id: typeof props.id === "string" ? props.id : `import_${index + 1}`,
+            kind,
+            seq: 0,
+            lat,
+            lon,
+            boxes: Number.isFinite(boxes) ? boxes : 0,
+            createdAt,
+            readyAt,
+          };
+        });
+
+        if (!imported.length) {
+          throw new Error("GeoJSON не содержит объектов");
+        }
+
+        const nextPoints = [...points, ...imported];
+        dispatch(replacePoints(nextPoints));
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+      } finally {
+        setIsImporting(false);
+        event.target.value = "";
+      }
+    },
+    [dispatch, points],
+  );
+
   const handleAddOrder = useCallback(() => {
     dispatch(addPoint(createEmptyPoint("order")));
   }, [dispatch]);
@@ -238,6 +302,20 @@ const OrdersTableWidget = () => {
           Таблица заказов
         </Typography>
         <Stack direction="row" spacing={1}>
+          <Button
+            variant="text"
+            startIcon={isImporting ? <CircularProgress size={16} /> : <UploadIcon />}
+            component="label"
+            disabled={isImporting}
+          >
+            Импорт заказов
+            <input
+              type="file"
+              hidden
+              accept="application/json,application/geo+json"
+              onChange={handleImportOrders}
+            />
+          </Button>
           <Button variant="outlined" startIcon={<AddIcon />} onClick={handleAddDepot}>
             Добавить депо
           </Button>
