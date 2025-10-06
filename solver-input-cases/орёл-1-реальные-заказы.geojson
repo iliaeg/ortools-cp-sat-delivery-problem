@@ -267,7 +267,7 @@
                 "boxes": 3,
                 "state": "Kitchen",
                 "unit_id": "000d3a2231e0a95211e843a0ffc81b90",
-                "ready_at": null,
+                "ready_at": "",
                 "created_at": "09:44:09",
                 "start_cooking_at": "09:45:49"
             }
@@ -288,7 +288,7 @@
                 "boxes": 2,
                 "state": "Kitchen",
                 "unit_id": "000d3a2231e0a95211e843a0ffc81b90",
-                "ready_at": null,
+                "ready_at": "10:04:53",
                 "created_at": "09:45:43",
                 "start_cooking_at": "09:51:02"
             }
