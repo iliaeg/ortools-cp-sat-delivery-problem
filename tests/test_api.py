@@ -61,6 +61,18 @@ def test_domain_payload_mapping(sample_payload: dict) -> None:
     assert mapped["W_skip"] == 200
 
 
+def test_mapping_allows_ready_before_created(sample_payload: dict) -> None:
+    payload = sample_payload
+    payload["orders"][0]["created_at_utc"] = "2024-01-01T11:50:00Z"
+    payload["orders"][0]["expected_ready_at_utc"] = "2024-01-01T11:40:00Z"
+
+    request_model = DomainSolveRequest(**payload)
+    mapped = map_domain_request(request_model)
+
+    assert mapped["r"][0] == -20
+    assert mapped["c"][0] == -10
+
+
 def test_solve_domain_endpoint(sample_payload: dict) -> None:
     client = TestClient(app)
 

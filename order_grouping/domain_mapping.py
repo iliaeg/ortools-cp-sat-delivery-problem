@@ -44,14 +44,6 @@ class DeliveryOrder(BaseModel):
     def _parse_datetime(cls, value: Any) -> datetime:
         return _parse_iso_datetime(value)
 
-    @model_validator(mode="after")
-    def _check_ready_after_created(self) -> "DeliveryOrder":
-        if self.expected_ready_at_utc < self.created_at_utc:
-            msg = "expected_ready_at_utc must not be earlier than created_at_utc"
-            raise ValueError(msg)
-        return self
-
-
 class CourierShift(BaseModel):
     """Domain-facing payload describing a courier."""
 
