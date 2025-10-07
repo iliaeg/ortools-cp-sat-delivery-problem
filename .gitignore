@@ -175,3 +175,6 @@ databricks.yml
 
 # JB Rider
 .idea
+
+# Local solver inputs
+solver-input-cases/
