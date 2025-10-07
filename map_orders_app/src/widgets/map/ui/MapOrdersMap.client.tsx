@@ -40,6 +40,7 @@ import {
 } from "@/shared/lib/leaflet";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -270,6 +271,28 @@ const MapOrdersMapClient = () => {
     setFullScreen((prev) => !prev);
   }, []);
 
+  const handleFitToView = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+
+    const pointsLatLng = points.map((point) => L.latLng(point.lat, point.lon));
+    if (pointsLatLng.length === 0) {
+      return;
+    }
+
+    if (pointsLatLng.length === 1) {
+      const target = pointsLatLng[0];
+      const targetZoom = Math.min(Math.max(map.getZoom(), 14), map.getMaxZoom() || 18);
+      map.setView(target, targetZoom, { animate: true });
+      return;
+    }
+
+    const bounds = L.latLngBounds(pointsLatLng);
+    map.fitBounds(bounds.pad(0.1), { animate: true });
+  }, [points]);
+
   const mapWrapperSx = isFullScreen
     ? {
         position: "fixed" as const,
@@ -304,25 +327,52 @@ const MapOrdersMapClient = () => {
       ) : null}
       <Stack spacing={1.5} sx={mapWrapperSx}>
         <Box sx={mapBoxSx}>
-          <IconButton
-            size="small"
-            onClick={handleToggleFullScreen}
+          <Stack
+            direction="column"
+            spacing={1}
             sx={{
               position: "absolute",
               bottom: 12,
               right: 12,
               zIndex: 1200,
-              bgcolor: "background.paper",
-              color: "text.primary",
-              boxShadow: 2,
-              '&:hover': {
-                bgcolor: "background.paper",
-                boxShadow: 4,
-              },
             }}
           >
-            {isFullScreen ? <FullscreenExitIcon fontSize="small" /> : <FullscreenIcon fontSize="small" />}
-          </IconButton>
+            <IconButton
+              size="small"
+              onClick={handleFitToView}
+              disabled={points.length === 0}
+              sx={{
+                bgcolor: "background.paper",
+                color: "text.primary",
+                boxShadow: 2,
+                '&:hover': {
+                  bgcolor: "background.paper",
+                  boxShadow: 4,
+                },
+              }}
+            >
+              <CenterFocusStrongIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={handleToggleFullScreen}
+              sx={{
+                bgcolor: "background.paper",
+                color: "text.primary",
+                boxShadow: 2,
+                '&:hover': {
+                  bgcolor: "background.paper",
+                  boxShadow: 4,
+                },
+              }}
+            >
+              {isFullScreen ? (
+                <FullscreenExitIcon fontSize="small" />
+              ) : (
+                <FullscreenIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Stack>
           <MapContainer
             ref={mapRef}
             center={center}
