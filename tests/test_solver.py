@@ -2,21 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
-import importlib.util
 
 import pytest
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-_SOLVER_PATH = Path(__file__).resolve().parents[1] / "order_grouping" / "solver.py"
-_SOLVER_SPEC = importlib.util.spec_from_file_location("solver_extension_module", _SOLVER_PATH)
-_SOLVER_MODULE = importlib.util.module_from_spec(_SOLVER_SPEC)
-assert _SOLVER_SPEC and _SOLVER_SPEC.loader
-_SOLVER_SPEC.loader.exec_module(_SOLVER_MODULE)
-Solver = _SOLVER_MODULE.Solver
+from order_grouping.solver import Solver
 
 
-class TestSolverExtension:
+class TestSolver:
     @staticmethod
     def _solve(problem: dict) -> dict:
         return Solver().solve(problem)
