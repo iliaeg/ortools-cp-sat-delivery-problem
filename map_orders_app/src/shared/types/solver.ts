@@ -20,11 +20,11 @@ export interface SolverInputMeta {
 
 export interface SolverInputPayload {
   tau: number[][];
-  C: number[];
-  box: number[];
-  c: number[];
-  r: number[];
-  a: number[];
+  courier_capacity_boxes: number[];
+  boxes_per_order: number[];
+  order_created_offset: number[];
+  order_ready_offset: number[];
+  courier_available_offset: number[];
   W_cert: number;
   W_c2e: number;
   W_skip: number;

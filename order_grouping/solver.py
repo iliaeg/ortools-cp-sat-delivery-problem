@@ -14,14 +14,13 @@ class Solver:
     Обязательные поля:
       - "tau": 2D список/матрица размера (N+1)x(N+1) времени пути в МИНУТАХ (int),
                узел 0 — депо/пиццерия, узлы 1..N — заказы.
-      - "c":   List[int] длины N — created_at (в минутах, целые) для заказов i (1..N).
-      - "r":   List[int] длины N — время готовности (в минутах) для заказов i (1..N),
+      - "order_created_offset": List[int] длины N — created_at (в минутах, целые) для заказов i (1..N).
+      - "order_ready_offset": List[int] длины N — время готовности (в минутах) для заказов i (1..N),
                например r_i = tau0 + forecast_i.
-      - "box": List[int] длины N — число коробок для каждого заказа i (1..N).
-      - "a":   List[int] — время доступности курьера k (в минутах);
-                число курьеров — длина этого массива (и оно должно совпадать с длиной `C`).
-      - "C":   List[int] длины числа курьеров (длина массива `a`) —
-                вместимость в коробках для каждого курьера k.
+      - "boxes_per_order": List[int] длины N — число коробок для каждого заказа i (1..N).
+      - "courier_available_offset": List[int] — время доступности курьера k (в минутах);
+                число курьеров — длина этого массива (и оно должно совпадать с длиной `courier_capacity_boxes`).
+      - "courier_capacity_boxes": List[int] той же длины — вместимость в коробках для каждого курьера k.
       - "W_cert": int, вес штрафа за «сертификат» (>60 минут click-to-eat).
       - "W_c2e": int, вес компоненты click-to-eat в целевой функции.
       - "W_skip": int — штраф за пропуск заказа.
@@ -57,19 +56,19 @@ class Solver:
         # Чтение входа
         # --------
         tau = problem["tau"]  # (N+1)x(N+1)
-        C = list(problem["C"])
-        box = list(problem["box"])
-        c = list(problem["c"])
-        r = list(problem["r"])
-        a = list(problem["a"])
+        courier_capacity_boxes = list(problem["courier_capacity_boxes"])
+        boxes_per_order = list(problem["boxes_per_order"])
+        order_created_offset = list(problem["order_created_offset"])
+        order_ready_offset = list(problem["order_ready_offset"])
+        courier_available_offset = list(problem["courier_available_offset"])
         W_cert = int(problem["W_cert"])
         W_c2e = int(problem["W_c2e"])
         W_skip = int(problem.get("W_skip", W_cert))
 
-        N = len(box)
-        K = len(a)
-        assert len(C) == K, "len(C) must equal number of couriers"
-        assert len(c) == N and len(r) == N, "c and r must have length N"
+        N = len(boxes_per_order)
+        K = len(courier_available_offset)
+        assert len(courier_capacity_boxes) == K, "courier_capacity_boxes must equal number of couriers"
+        assert len(order_created_offset) == N and len(order_ready_offset) == N, "order offsets must have length N"
         assert len(tau) == N + 1 and all(len(row) == N + 1 for row in tau), "tau must be (N+1)x(N+1)"
 
         time_limit = float(problem.get("time_limit", 15.0))
@@ -83,8 +82,11 @@ class Solver:
         # Оценка большого M (динамически разумная верхняя граница)
         # --------
         max_tau = max(tau[i][j] for i in nodes for j in nodes if i != j)
-        # Верхняя оценка времени доставки: max(a_k, max r_i) + (N+1)*max_tau
-        horizon_start = max(max(a), max(r)) if N > 0 else max(a)
+        # Верхняя оценка времени доставки: max(courier_available_offset_k, max order_ready_offset_i)
+        # плюс запас (N+1)*max_tau
+        max_courier_available = max(courier_available_offset) if courier_available_offset else 0
+        max_order_ready = max(order_ready_offset) if order_ready_offset else 0
+        horizon_start = max(max_courier_available, max_order_ready)
         M = horizon_start + (N + 1) * max_tau + 60  # запас к порогу сертификата
         # Для пустых входов защитимся:
         if N == 0:
@@ -110,7 +112,7 @@ class Solver:
                         y[(i, j, k)] = model.NewBoolVar(f"y_{i}_{j}_k{k}")
 
         # Время выезда t_departure[k] (целые минуты)
-        # Нижнюю границу можно положить min(a_k), но это не обязательно
+        # Нижнюю границу можно положить min(courier_available_offset_k), но это не обязательно
         t_departure = [model.NewIntVar(0, M, f"t_departure_{k}") for k in range(K)]
 
         # Время доставки t_delivery[i] (целые минуты), определено для всех i, но «включается» через назначения
@@ -135,19 +137,26 @@ class Solver:
 
         # (2) Вместимость по коробкам у каждого курьера
         for k in range(K):
-            model.Add(sum(box[i - 1] * assigned_to_courier[(i, k)] for i in orders) <= C[k])
+            model.Add(
+                sum(boxes_per_order[i - 1] * assigned_to_courier[(i, k)] for i in orders)
+                <= courier_capacity_boxes[k]
+            )
 
         # Связь used_k с assigned_to_courier: used_k == 1, если есть хотя бы один назначенный заказ
         for k in range(K):
             model.Add(sum(assigned_to_courier[(i, k)] for i in orders) >= 1).OnlyEnforceIf(used[k])
             model.Add(sum(assigned_to_courier[(i, k)] for i in orders) == 0).OnlyEnforceIf(used[k].Not())
 
-        # (3) Доступность и готовность: t_departure_k >= a_k и t_departure_k >= r_i при назначении
+        # (3) Доступность и готовность: t_departure_k >= courier_available_offset_k
+        # и t_departure_k >= order_ready_offset_i при назначении
         for k in range(K):
-            model.Add(t_departure[k] >= a[k])
+            model.Add(t_departure[k] >= courier_available_offset[k])
             for i in orders:
-                # t_departure_k ≥ r_i - M*(1 - assigned_to_courier[i,k])
-                model.Add(t_departure[k] >= r[i - 1] - M * (1 - assigned_to_courier[(i, k)]))
+                # t_departure_k ≥ order_ready_offset_i - M*(1 - assigned_to_courier[i,k])
+                model.Add(
+                    t_departure[k]
+                    >= order_ready_offset[i - 1] - M * (1 - assigned_to_courier[(i, k)])
+                )
 
         # (4) Последовательности/степени для каждого курьера на y:
         for k in range(K):
@@ -179,11 +188,11 @@ class Solver:
                         )
             # Времени для j=depot не задаём — t_delivery[depot] не определено/не требуется.
 
-        # (5) Сертификаты: t_delivery_i - c_i <= 60 + M*cert_i
+        # (5) Сертификаты: t_delivery_i - order_created_offset_i <= 60 + M*cert_i
         for i in orders:
-            model.Add(t_delivery[i] - c[i - 1] <= 60 + M * cert[i])
+            model.Add(t_delivery[i] - order_created_offset[i - 1] <= 60 + M * cert[i])
             # t_delivery[i] не может быть раньше created_at (опционально; можно убрать, если не нужно)
-            model.Add(t_delivery[i] >= c[i - 1])
+            model.Add(t_delivery[i] >= order_created_offset[i - 1])
 
         # Дополнительно: чтобы t_delivery[i] было «включено» только при назначении,
         # можно связать с assigned_to_courier суммами входящих дуг (эквивалентно уже сделанным степеням).
@@ -195,7 +204,7 @@ class Solver:
         # minimize штрафы за сертификаты, click-to-eat и отложенные заказы
         model.Minimize(
             W_cert * sum(cert[i] for i in orders)
-            + W_c2e * sum(t_delivery[i] - c[i - 1] for i in orders)
+            + W_c2e * sum(t_delivery[i] - order_created_offset[i - 1] for i in orders)
             + W_skip * sum(skip[i] for i in orders)
         )
 

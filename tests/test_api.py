@@ -51,11 +51,11 @@ def test_domain_payload_mapping(sample_payload: dict) -> None:
 
     assert mapped["tau"] == sample_payload["travel_time_matrix_minutes"]
     assert "K" not in mapped
-    assert mapped["C"] == [3]
-    assert mapped["box"] == [1, 2]
-    assert mapped["c"] == [-15, -10]
-    assert mapped["r"] == [5, 10]
-    assert mapped["a"] == [0]
+    assert mapped["courier_capacity_boxes"] == [3]
+    assert mapped["boxes_per_order"] == [1, 2]
+    assert mapped["order_created_offset"] == [-15, -10]
+    assert mapped["order_ready_offset"] == [5, 10]
+    assert mapped["courier_available_offset"] == [0]
     assert mapped["W_cert"] == 100
     assert mapped["W_c2e"] == 1
     assert mapped["W_skip"] == 200

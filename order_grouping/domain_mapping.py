@@ -132,11 +132,15 @@ class DomainToSolverMapper:
 
         solver_problem: Dict[str, Any] = {
             "tau": self._payload.travel_time_matrix_minutes,
-            "C": [courier.box_capacity for courier in couriers],
-            "box": [order.boxes_count for order in orders],
-            "c": [_minutes_between(ref, order.created_at_utc) for order in orders],
-            "r": [_minutes_between(ref, order.expected_ready_at_utc) for order in orders],
-            "a": [
+            "courier_capacity_boxes": [courier.box_capacity for courier in couriers],
+            "boxes_per_order": [order.boxes_count for order in orders],
+            "order_created_offset": [
+                _minutes_between(ref, order.created_at_utc) for order in orders
+            ],
+            "order_ready_offset": [
+                _minutes_between(ref, order.expected_ready_at_utc) for order in orders
+            ],
+            "courier_available_offset": [
                 _minutes_between(ref, courier.expected_courier_return_at_utc) for courier in couriers
             ],
             "W_cert": self._payload.optimization_weights.certificate_penalty_weight,
