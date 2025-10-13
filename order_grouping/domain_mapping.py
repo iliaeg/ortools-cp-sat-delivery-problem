@@ -74,7 +74,6 @@ class SolverSettings(BaseModel):
 
     time_limit_seconds: Optional[float] = Field(None, gt=0)
     max_parallel_workers: Optional[int] = Field(None, ge=1)
-    max_route_arcs_per_courier: Optional[int] = Field(None, ge=1)
 
 
 class DomainSolveRequest(BaseModel):
@@ -154,9 +153,6 @@ class DomainToSolverMapper:
             solver_problem["time_limit"] = settings.time_limit_seconds
         if settings and settings.max_parallel_workers is not None:
             solver_problem["workers"] = settings.max_parallel_workers
-        if settings and settings.max_route_arcs_per_courier is not None:
-            solver_problem["max_route_arcs_per_courier"] = settings.max_route_arcs_per_courier
-
         return solver_problem
 
     def build_metadata(self) -> Dict[str, Any]:
