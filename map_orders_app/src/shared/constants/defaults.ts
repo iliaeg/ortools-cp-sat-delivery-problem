@@ -1,8 +1,8 @@
 import { stringifyWithInlineArrays } from "@/shared/lib/json";
 
 export const DEFAULT_COURIERS = {
-  a: [0, 15],
-  C: [25, 25],
+  courier_available_offset: [0, 15],
+  courier_capacity_boxes: [25, 25],
 };
 
 export const DEFAULT_WEIGHTS = {
