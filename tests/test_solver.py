@@ -20,7 +20,7 @@ class TestSolver:
     def test_tc_001_basic_sanity(self) -> None:
         """TC-001 Базовый sanity: один заказ, пропуск невыгоден.
 
-        Expected: status=OPTIMAL, route [0,1,0], T1=10, s1=0, skip1=0, objective=10.
+        Expected: status=OPTIMAL, route [0,1,0], t_delivery1=10, cert1=0, skip1=0, objective=10.
         Notes: Пропуск дороже, потому что W_skip высокое.
         """
         result = self._solve(
@@ -40,15 +40,15 @@ class TestSolver:
 
         assert result["status"] == "OPTIMAL"
         assert result["routes"] == [[0, 1, 0]]
-        assert result["T"][1] == 10
-        assert result["s"][1] == 0
+        assert result["t_delivery"][1] == 10
+        assert result["cert"][1] == 0
         assert result["skip"][1] == 0
         assert result["objective"] == 10
 
     def test_tc_002_route_order_minimizes_sum_t_minus_c(self) -> None:
-        """TC-002 Минимизируем сумму T−c выбором порядка 1→2.
+        """TC-002 Минимизируем сумму t_delivery−c выбором порядка 1→2.
 
-        Expected: route [0,1,2,0], T1=10, T2=15, s=0, skip=0, objective=25.
+        Expected: route [0,1,2,0], t_delivery1=10, t_delivery2=15, cert=0, skip=0, objective=25.
         Notes: Порядок 1→2 лучше, чем 2→1 (35).
         """
         result = self._solve(
@@ -67,16 +67,16 @@ class TestSolver:
         )
 
         assert result["routes"] == [[0, 1, 2, 0]]
-        assert result["T"][1] == 10
-        assert result["T"][2] == 15
-        assert result["s"] == {1: 0, 2: 0}
+        assert result["t_delivery"][1] == 10
+        assert result["t_delivery"][2] == 15
+        assert result["cert"] == {1: 0, 2: 0}
         assert result["skip"] == {1: 0, 2: 0}
         assert result["objective"] == 25
 
     def test_tc_003_reordering_avoids_certificates(self) -> None:
         """TC-003 Перестановкой 2→1 избегаем сертификата.
 
-        Expected: route [0,2,1,0], T2=20, T1=70, s=0, skip=0, objective=60.
+        Expected: route [0,2,1,0], t_delivery2=20, t_delivery1=70, cert=0, skip=0, objective=60.
         Notes: Если ехать 1→2, второй заказ попадает под сертификат.
         """
         result = self._solve(
@@ -95,9 +95,9 @@ class TestSolver:
         )
 
         assert result["routes"] == [[0, 2, 1, 0]]
-        assert result["T"][2] == 20
-        assert result["T"][1] == 70
-        assert result["s"] == {1: 0, 2: 0}
+        assert result["t_delivery"][2] == 20
+        assert result["t_delivery"][1] == 70
+        assert result["cert"] == {1: 0, 2: 0}
         assert result["skip"] == {1: 0, 2: 0}
         assert result["objective"] == 60
 
@@ -126,7 +126,7 @@ class TestSolver:
         assigned = [i for i, skipped in result["skip"].items() if skipped == 0]
         assert assigned == [result["routes"][0][1]]
         assert result["routes"][0] in ([0, 1, 0], [0, 2, 0])
-        assert all(result["s"][i] == 0 for i in (1, 2))
+        assert all(result["cert"][i] == 0 for i in (1, 2))
         assert result["objective"] == 15
 
     def test_tc_005_skip_cheaper_than_certificate(self) -> None:
@@ -152,8 +152,8 @@ class TestSolver:
 
         assert result["routes"] == [[0, 2, 0]]
         assert result["skip"] == {1: 1, 2: 0}
-        assert result["s"] == {1: 0, 2: 0}
-        assert result["T"][2] == 5
+        assert result["cert"] == {1: 0, 2: 0}
+        assert result["t_delivery"][2] == 5
         assert result["objective"] == 105
 
     def test_tc_006_certificate_preferred_over_expensive_skip(self) -> None:
@@ -179,16 +179,16 @@ class TestSolver:
 
         assert result["routes"] == [[0, 2, 1, 0]]
         assert result["skip"] == {1: 0, 2: 0}
-        assert result["s"] == {1: 1, 2: 0}
-        assert result["T"][2] == 5
-        assert result["T"][1] == 75
+        assert result["cert"] == {1: 1, 2: 0}
+        assert result["t_delivery"][2] == 5
+        assert result["t_delivery"][1] == 75
         assert result["objective"] == 1080
 
     def test_tc_007_readiness_delays_departure(self) -> None:
-        """TC-007 Готовность заказов задаёт выезд t_dep ≥ 30.
+        """TC-007 Готовность заказов задаёт выезд t_departure ≥ 30.
 
-        Expected: t_dep=30, оба заказа в маршруте, T≈40 и 50, s=skip=0.
-        Notes: Проверяем ограничение t_dep_k ≥ max(r_i назначенных).
+        Expected: t_departure=30, оба заказа в маршруте, t_delivery≈40 и 50, cert=skip=0.
+        Notes: Проверяем ограничение t_departure_k ≥ max(r_i назначенных).
         """
         result = self._solve(
             {
@@ -205,11 +205,11 @@ class TestSolver:
             }
         )
 
-        assert result["t_dep"][0] == 30
-        assert sorted(result["T"].values()) == [40, 50]
+        assert result["t_departure"][0] == 30
+        assert sorted(result["t_delivery"].values()) == [40, 50]
         assert result["objective"] == 90
         assert result["skip"] == {1: 0, 2: 0}
-        assert result["s"] == {1: 0, 2: 0}
+        assert result["cert"] == {1: 0, 2: 0}
         assert set(result["routes"][0][1:-1]) == {1, 2}
 
     def test_tc_008_assign_to_earliest_available_courier(self) -> None:
@@ -236,15 +236,15 @@ class TestSolver:
         assert set(result["routes"][0][1:-1]) == {1, 2}
         assert result["routes"][1] == [0, 0]
         assert result["skip"] == {1: 0, 2: 0}
-        assert all(result["z"][(i, 0)] == 1 for i in (1, 2))
-        assert all(result["z"][(i, 1)] == 0 for i in (1, 2))
+        assert all(result["assigned_to_courier"][(i, 0)] == 1 for i in (1, 2))
+        assert all(result["assigned_to_courier"][(i, 1)] == 0 for i in (1, 2))
         assert result["objective"] == 30
-        assert result["t_dep"] == [0, 100]
+        assert result["t_departure"] == [0, 100]
 
     def test_tc_009_zero_certificate_weight_prioritizes_travel_time(self) -> None:
-        """TC-009 При W_cert=0 опт. порядок минимизирует Σ(T−c).
+        """TC-009 При W_cert=0 оптимальный порядок минимизирует Σ(t_delivery−c).
 
-        Expected: маршрут [0,3,2,1,0], T3=10, T2=15, T1=20, s=0, skip=0.
+        Expected: маршрут [0,3,2,1,0], t_delivery3=10, t_delivery2=15, t_delivery1=20, cert=0, skip=0.
         Notes: Очень низкий вес сертификата оставляет только travel-компонент
         (ставить вес сертификата в 0 нельзя, поскольку иначе решателю будет безразлично есть сертификат или нет
         и значения сертификата по заказам будут всегда разные).
@@ -271,10 +271,10 @@ class TestSolver:
 
         assert result["routes"] == [[0, 3, 2, 1, 0]]
         assert result["skip"] == {1: 0, 2: 0, 3: 0}
-        assert result["s"] == {1: 0, 2: 0, 3: 0}
-        assert result["T"][3] == 10
-        assert result["T"][2] == 15
-        assert result["T"][1] == 20
+        assert result["cert"] == {1: 0, 2: 0, 3: 0}
+        assert result["t_delivery"][3] == 10
+        assert result["t_delivery"][2] == 15
+        assert result["t_delivery"][1] == 20
         assert result["objective"] == 450
 
     def test_tc_010_zero_capacity_skips_everything(self) -> None:
@@ -300,9 +300,9 @@ class TestSolver:
 
         assert result["routes"] == [[0, 0]]
         assert result["skip"] == {1: 1, 2: 1}
-        assert result["z"] == {(1, 0): 0, (2, 0): 0}
+        assert result["assigned_to_courier"] == {(1, 0): 0, (2, 0): 0}
         assert result["objective"] == 2
-        assert result["T"] == {1: 0, 2: 0}
+        assert result["t_delivery"] == {1: 0, 2: 0}
 
     def test_tc_011_skip_distant_order_with_moderate_penalty(self) -> None:
         """TC-011 Пропуск «дальнего» заказа выгоднее сертификации.
@@ -327,14 +327,14 @@ class TestSolver:
 
         assert result["routes"] == [[0, 1, 0]]
         assert result["skip"] == {1: 0, 2: 1}
-        assert result["s"] == {1: 0, 2: 0}
-        assert result["T"][1] == 5
+        assert result["cert"] == {1: 0, 2: 0}
+        assert result["t_delivery"][1] == 5
         assert result["objective"] == 55
 
     def test_tc_012_high_certificate_weight_reinforces_reordering(self) -> None:
         """TC-012 Высокий W_cert удерживает порядок без сертификатов.
 
-        Expected: маршрут [0,2,1,0], s=0, skip=0, objective=60.
+        Expected: маршрут [0,2,1,0], cert=0, skip=0, objective=60.
         Notes: Усиленный вес сертификата защищает решение TC-003 от регрессии.
         """
         result = self._solve(
@@ -354,14 +354,14 @@ class TestSolver:
 
         assert result["routes"] == [[0, 2, 1, 0]]
         assert result["skip"] == {1: 0, 2: 0}
-        assert result["s"] == {1: 0, 2: 0}
+        assert result["cert"] == {1: 0, 2: 0}
         assert result["objective"] == 60
 
     def test_tc_013_old_order_vs_cheap_skip(self) -> None:
         """TC-013 Очень старый заказ выгоднее отложить при дешёвом skip.
 
-        Expected: skip1=1, сертификат возможен, objective≈W_skip+|T-c|.
-        Notes: Большое T-c делает пропуск предпочтительным.
+        Expected: skip1=1, сертификат возможен, objective≈W_skip+|t_delivery-c|.
+        Notes: Большое t_delivery-c делает пропуск предпочтительным.
         """
         result = self._solve(
             {
@@ -380,8 +380,8 @@ class TestSolver:
 
         assert result["routes"] == [[0, 0]]
         assert result["skip"] == {1: 1}
-        assert result["s"] == {1: 1}
-        assert result["T"][1] == 0
+        assert result["cert"] == {1: 1}
+        assert result["t_delivery"][1] == 0
         assert result["objective"] == 221
 
     def test_tc_014_invalid_tau_raises(self) -> None:

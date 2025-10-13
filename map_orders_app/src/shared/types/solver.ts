@@ -41,11 +41,12 @@ export type SolverVector = number[] | Record<number, number>;
 
 export interface SolverResult {
   routes: number[][];
-  T?: SolverVector;
+  t_delivery?: SolverVector;
   t?: SolverVector;
-  t_dep?: SolverVector;
+  t_departure?: SolverVector;
   skip?: SolverVector;
-  s?: SolverVector;
+  cert?: SolverVector;
+  assigned_to_courier?: Record<string, number>;
   meta?: unknown;
 }
 

@@ -23,7 +23,7 @@ class Solver:
       - "a":   List[int] длины K — время доступности курьера k (в минутах).
       - "W_cert": int, вес штрафа за «сертификат» (>60 минут click-to-eat).
       - "W_c2e": int, вес компоненты click-to-eat в целевой функции.
-      - "W_skip": int — штраф за временный пропуск заказа.
+      - "W_skip": int — штраф за пропуск заказа.
 
     Необязательные поля:
       - "time_limit": float (секунды) — лимит времени решателя (по умолчанию 15.0).
@@ -34,13 +34,13 @@ class Solver:
     -----------------------
     {
       "status": str,              # "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN"
-      "objective": int,           # значение целевой функции (в минутах, с учётом W_cert)
+      "objective": int,           # значение целевой функции (в минутах, с учётом штрафов)
       "routes": List[List[int]],  # для каждого курьера k: [0, i1, i2, ..., 0]
-      "t_dep": List[int],         # время выезда каждого курьера k (мин)
-      "T": Dict[int, int],        # время доставки заказа i (мин), i in 1..N
-      "s": Dict[int, int],        # 0/1: индикатор сертификата для i
+      "t_departure": List[int],   # время выезда каждого курьера k (мин)
+      "t_delivery": Dict[int, int],  # время доставки заказа i (мин), i in 1..N
+      "cert": Dict[int, int],     # 0/1: индикатор сертификата для i
       "skip": Dict[int, int],     # 0/1: заказ отложен (1) или обслужен (0)
-      "z": Dict[Tuple[int,int], int],  # назначение z[i,k] (0/1)
+      "assigned_to_courier": Dict[Tuple[int,int], int],  # назначение заказа i курьеру k
     }
 
     Примечание:
@@ -64,7 +64,7 @@ class Solver:
         a = list(problem["a"])
         W_cert = int(problem["W_cert"])
         W_c2e = int(problem["W_c2e"])
-        W_skip = int(problem["W_skip"])
+        W_skip = int(problem.get("W_skip", W_cert))
 
         assert len(C) == K, "len(C) must equal K"
         N = len(box)
@@ -95,8 +95,10 @@ class Solver:
         # --------
         # ПЕРЕМЕННЫЕ
         # --------
-        # z[i,k] ∈ {0,1} — заказ i назначен курьеру k
-        z = {(i, k): model.NewBoolVar(f"z_{i}_{k}") for i in orders for k in range(K)}
+        # assigned_to_courier[i,k] ∈ {0,1} — заказ i назначен курьеру k
+        assigned_to_courier = {
+            (i, k): model.NewBoolVar(f"assigned_{i}_{k}") for i in orders for k in range(K)
+        }
 
         # y[i,j,k] ∈ {0,1} — на маршруте курьера k сразу после i идёт j
         # i,j ∈ nodes (включая depot), i != j
@@ -107,15 +109,15 @@ class Solver:
                     if i != j:
                         y[(i, j, k)] = model.NewBoolVar(f"y_{i}_{j}_k{k}")
 
-        # Время выезда t_dep[k] (целые минуты)
+        # Время выезда t_departure[k] (целые минуты)
         # Нижнюю границу можно положить min(a_k), но это не обязательно
-        t_dep = [model.NewIntVar(0, M, f"t_dep_{k}") for k in range(K)]
+        t_departure = [model.NewIntVar(0, M, f"t_departure_{k}") for k in range(K)]
 
-        # Время доставки T[i] (целые минуты), определено для всех i, но «включается» через z/y и big-M
-        T = {i: model.NewIntVar(0, M, f"T_{i}") for i in orders}
+        # Время доставки t_delivery[i] (целые минуты), определено для всех i, но «включается» через назначения
+        t_delivery = {i: model.NewIntVar(0, M, f"t_delivery_{i}") for i in orders}
 
-        # s[i] ∈ {0,1} — сертификат (click-to-eat > 60)
-        s = {i: model.NewBoolVar(f"s_{i}") for i in orders}
+        # cert[i] ∈ {0,1} — сертификат (click-to-eat > 60)
+        cert = {i: model.NewBoolVar(f"cert_{i}") for i in orders}
 
         # skip[i] ∈ {0,1} — заказ i отложен на последующее планирование
         skip = {i: model.NewBoolVar(f"skip_{i}") for i in orders}
@@ -129,30 +131,30 @@ class Solver:
 
         # (1) Каждый заказ либо назначен курьеру, либо помечен на пропуск
         for i in orders:
-            model.Add(sum(z[(i, k)] for k in range(K)) + skip[i] == 1)
+            model.Add(sum(assigned_to_courier[(i, k)] for k in range(K)) + skip[i] == 1)
 
         # (2) Вместимость по коробкам у каждого курьера
         for k in range(K):
-            model.Add(sum(box[i - 1] * z[(i, k)] for i in orders) <= C[k])
+            model.Add(sum(box[i - 1] * assigned_to_courier[(i, k)] for i in orders) <= C[k])
 
-        # Связь used_k с z: used_k == 1, если есть хотя бы один назначенный заказ
+        # Связь used_k с assigned_to_courier: used_k == 1, если есть хотя бы один назначенный заказ
         for k in range(K):
-            model.Add(sum(z[(i, k)] for i in orders) >= 1).OnlyEnforceIf(used[k])
-            model.Add(sum(z[(i, k)] for i in orders) == 0).OnlyEnforceIf(used[k].Not())
+            model.Add(sum(assigned_to_courier[(i, k)] for i in orders) >= 1).OnlyEnforceIf(used[k])
+            model.Add(sum(assigned_to_courier[(i, k)] for i in orders) == 0).OnlyEnforceIf(used[k].Not())
 
-        # (3) Доступность и готовность: t_dep_k >= a_k, и t_dep_k >= r_i если i назначен курьеру k
+        # (3) Доступность и готовность: t_departure_k >= a_k и t_departure_k >= r_i при назначении
         for k in range(K):
-            model.Add(t_dep[k] >= a[k])
+            model.Add(t_departure[k] >= a[k])
             for i in orders:
-                # t_dep_k ≥ r_i - M*(1 - z[i,k])
-                model.Add(t_dep[k] >= r[i - 1] - M * (1 - z[(i, k)]))
+                # t_departure_k ≥ r_i - M*(1 - assigned_to_courier[i,k])
+                model.Add(t_departure[k] >= r[i - 1] - M * (1 - assigned_to_courier[(i, k)]))
 
         # (4) Последовательности/степени для каждого курьера на y:
         for k in range(K):
             # Если заказ i назначен курьеру k, то у i ровно один «исход» и ровно один «вход» на маршруте k
             for i in orders:
-                model.Add(sum(y[(i, j, k)] for j in nodes if j != i) == z[(i, k)])
-                model.Add(sum(y[(j, i, k)] for j in nodes if j != i) == z[(i, k)])
+                model.Add(sum(y[(i, j, k)] for j in nodes if j != i) == assigned_to_courier[(i, k)])
+                model.Add(sum(y[(j, i, k)] for j in nodes if j != i) == assigned_to_courier[(i, k)])
 
             # Для депо: если курьер используется, ровно один выход из депо и ровно один вход в депо.
             model.Add(sum(y[(depot, j, k)] for j in orders) == used[k])
@@ -166,25 +168,25 @@ class Solver:
             # depot -> i
             for i in orders:
                 model.Add(
-                    T[i] >= t_dep[k] + tau[depot][i] - M * (1 - y[(depot, i, k)])
+                    t_delivery[i] >= t_departure[k] + tau[depot][i] - M * (1 - y[(depot, i, k)])
                 )
             # i -> j (оба — заказы)
             for i in orders:
                 for j in orders:
                     if i != j:
                         model.Add(
-                            T[j] >= T[i] + tau[i][j] - M * (1 - y[(i, j, k)])
+                            t_delivery[j] >= t_delivery[i] + tau[i][j] - M * (1 - y[(i, j, k)])
                         )
-            # Времени для j=depot не задаём — T[depot] не определено/не требуется.
+            # Времени для j=depot не задаём — t_delivery[depot] не определено/не требуется.
 
-        # (5) Сертификаты: T_i - c_i <= 60 + M*s_i
+        # (5) Сертификаты: t_delivery_i - c_i <= 60 + M*cert_i
         for i in orders:
-            model.Add(T[i] - c[i - 1] <= 60 + M * s[i])
-            # T[i] не может быть раньше created_at (опционально; можно убрать, если не нужно)
-            model.Add(T[i] >= c[i - 1])
+            model.Add(t_delivery[i] - c[i - 1] <= 60 + M * cert[i])
+            # t_delivery[i] не может быть раньше created_at (опционально; можно убрать, если не нужно)
+            model.Add(t_delivery[i] >= c[i - 1])
 
-        # Дополнительно: чтобы T[i] было «включено» только при назначении,
-        # можно связать с z суммами входящих дуг (эквивалентно уже сделанным степеням).
+        # Дополнительно: чтобы t_delivery[i] было «включено» только при назначении,
+        # можно связать с assigned_to_courier суммами входящих дуг (эквивалентно уже сделанным степеням).
         # Гарантия уже есть через y и big-M, поэтому лишние лайны не нужны.
 
         # --------
@@ -192,8 +194,8 @@ class Solver:
         # --------
         # minimize штрафы за сертификаты, click-to-eat и отложенные заказы
         model.Minimize(
-            W_cert * sum(s[i] for i in orders)
-            + W_c2e * sum(T[i] - c[i - 1] for i in orders)
+            W_cert * sum(cert[i] for i in orders)
+            + W_c2e * sum(t_delivery[i] - c[i - 1] for i in orders)
             + W_skip * sum(skip[i] for i in orders)
         )
 
@@ -230,22 +232,24 @@ class Solver:
                 "status": status_str,
                 "objective": None,
                 "routes": [[0, 0] for _ in range(K)],
-                "t_dep": [None for _ in range(K)],
-                "T": {},
-                "s": {},
-                "z": {},
+                "t_departure": [None for _ in range(K)],
+                "t_delivery": {},
+                "cert": {},
+                "assigned_to_courier": {},
             }
 
         # Время выезда
-        t_dep_val = [int(solver.Value(t_dep[k])) for k in range(K)]
+        t_departure_val = [int(solver.Value(t_departure[k])) for k in range(K)]
 
-        # T и s по заказам
-        T_val = {i: int(solver.Value(T[i])) for i in orders}
-        s_val = {i: int(solver.Value(s[i])) for i in orders}
+        # t_delivery и cert по заказам
+        t_delivery_val = {i: int(solver.Value(t_delivery[i])) for i in orders}
+        cert_val = {i: int(solver.Value(cert[i])) for i in orders}
         skip_val = {i: int(solver.Value(skip[i])) for i in orders}
 
-        # z по назначениям
-        z_val = {(i, k): int(solver.Value(z[(i, k)])) for i in orders for k in range(K)}
+        # Назначения заказов курьерам
+        assigned_val = {
+            (i, k): int(solver.Value(assigned_to_courier[(i, k)])) for i in orders for k in range(K)
+        }
 
         # Восстановление маршрутов из y:
         routes: List[List[int]] = []
@@ -303,9 +307,9 @@ class Solver:
             "status": status_str,
             "objective": objective_val,
             "routes": routes,
-            "t_dep": t_dep_val,
-            "T": T_val,
-            "s": s_val,
+            "t_departure": t_departure_val,
+            "t_delivery": t_delivery_val,
+            "cert": cert_val,
             "skip": skip_val,
-            "z": z_val,
+            "assigned_to_courier": assigned_val,
         }
