@@ -64,7 +64,7 @@ class Solver:
         a = list(problem["a"])
         W_cert = int(problem["W_cert"])
         W_c2e = int(problem["W_c2e"])
-        W_skip = int(problem.get("W_skip", W_cert))
+        W_skip = int(problem["W_skip"])
 
         assert len(C) == K, "len(C) must equal K"
         N = len(box)
