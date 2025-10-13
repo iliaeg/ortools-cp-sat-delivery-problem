@@ -9,38 +9,35 @@ class Solver:
     Текущее время принимается за 0 (точку отсчёта), created_at от него отсчитывается в прошлое.
 
     -----------------------
-    ОЖИДАЕМЫЙ ФОРМАТ ПРОБЛЕМЫ (problem: dict)
+    ОЖИДАЕМЫЙ ВХОД (problem: dict)
     -----------------------
     Обязательные поля:
-      - "tau": 2D список/матрица размера (N+1)x(N+1) времени пути в МИНУТАХ (int),
-               узел 0 — депо/пиццерия, узлы 1..N — заказы.
-      - "order_created_offset": List[int] длины N — created_at (в минутах, целые) для заказов i (1..N).
-      - "order_ready_offset": List[int] длины N — время готовности (в минутах) для заказов i (1..N),
-               например r_i = tau0 + forecast_i.
-      - "boxes_per_order": List[int] длины N — число коробок для каждого заказа i (1..N).
-      - "courier_available_offset": List[int] — время доступности курьера k (в минутах);
-                число курьеров — длина этого массива (и оно должно совпадать с длиной `courier_capacity_boxes`).
-      - "courier_capacity_boxes": List[int] той же длины — вместимость в коробках для каждого курьера k.
+      - "tau": List[List[int]] - матрица (N+1)x(N+1) времени пути в минутах; 0 — депо, 1..N — заказы.
+      - "order_created_offset": List[int] - длина N, минуты от текущего времени до создания заказа.
+      - "order_ready_offset": List[int] - длина N, минуты до готовности заказа.
+      - "boxes_per_order": List[int] - длина N, количество коробок на заказ.
+      - "courier_available_offset": List[int] - длина K, минуты до доступности курьера k.
+      - "courier_capacity_boxes": List[int] - длина K, вместимость курьера k в коробках.
       - "W_cert": int, вес штрафа за «сертификат» (>60 минут click-to-eat).
       - "W_c2e": int, вес компоненты click-to-eat в целевой функции.
-      - "W_skip": int — штраф за пропуск заказа.
+      - "W_skip": int - вес штрафа за пропуск заказа.
 
     Необязательные поля:
-      - "time_limit": float (секунды) — лимит времени решателя (по умолчанию 15.0).
-      - "workers": int — число потоков (по умолчанию 8).
+      - "time_limit": float (секунды) - лимит времени решателя (по умолчанию 15.0).
+      - "workers": int - количество потоков CP-SAT (по умолчанию 8).
 
     -----------------------
     ВОЗВРАТ (dict)
     -----------------------
     {
-      "status": str,              # "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN"
-      "objective": int,           # значение целевой функции (в минутах, с учётом штрафов)
-      "routes": List[List[int]],  # для каждого курьера k: [0, i1, i2, ..., 0]
-      "t_departure": List[int],   # время выезда каждого курьера k (мин)
-      "t_delivery": Dict[int, int],  # время доставки заказа i (мин), i in 1..N
-      "cert": Dict[int, int],     # 0/1: индикатор сертификата для i
-      "skip": Dict[int, int],     # 0/1: заказ отложен (1) или обслужен (0)
-      "assigned_to_courier": Dict[Tuple[int,int], int],  # назначение заказа i курьеру k
+      "status": str — "OPTIMAL" | "FEASIBLE" | "INFEASIBLE" | "UNKNOWN".
+      "objective": int — значение целевой функции.
+      "routes": List[List[int]] — маршрут каждого курьера в индексах узлов.
+      "t_departure": List[int] — минуты выезда для курьеров.
+      "t_delivery": Dict[int, int] — минуты доставки для заказов (ключи 1..N).
+      "cert": Dict[int, int] — индикатор сертификата (1 если click-to-eat > 60).
+      "skip": Dict[int, int] — 1 если заказ отложен.
+      "assigned_to_courier": Dict[Tuple[int, int], int] — матрица назначений заказ–курьер.
     }
 
     Примечание:
