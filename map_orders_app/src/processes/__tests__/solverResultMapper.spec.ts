@@ -10,7 +10,6 @@ const buildSolverInput = (): SolverInputPayload => ({
     [5, 0, 3],
     [7, 3, 0],
   ],
-  K: 1,
   C: [10],
   box: [2, 1],
   c: [4, 6],
@@ -46,9 +45,9 @@ const buildSolverInput = (): SolverInputPayload => ({
 
 const buildSolverResult = (): SolverResult => ({
   routes: [[0, 1, 2, 0]],
-  T: { 1: 24, 2: 31 },
+  t_delivery: { 1: 24, 2: 31 },
   skip: { 1: 0, 2: 0 },
-  s: { 1: 0, 2: 1 },
+  cert: { 1: 0, 2: 1 },
 });
 
 describe("mapSolverResult", () => {
@@ -117,9 +116,9 @@ describe("mapSolverResult", () => {
       routes: [],
       result: {
         routes: [[0, 1, 0]],
-        T: { 1: 18, 2: 42 },
+        t_delivery: { 1: 18, 2: 42 },
         skip: { 1: 0, 2: 1 },
-        s: { 1: 0, 2: 0 },
+        cert: { 1: 0, 2: 0 },
       },
     };
 

@@ -14,13 +14,14 @@ class Solver:
     Обязательные поля:
       - "tau": 2D список/матрица размера (N+1)x(N+1) времени пути в МИНУТАХ (int),
                узел 0 — депо/пиццерия, узлы 1..N — заказы.
-      - "K":   int, число курьеров.
-      - "C":   List[int] длины K — вместимость (в коробках) для каждого курьера k.
+      - "C":   List[int] длины числа курьеров (длина массива `a`) —
+                вместимость в коробках для каждого курьера k.
       - "box": List[int] длины N — число коробок для каждого заказа i (1..N).
       - "c":   List[int] длины N — created_at (в минутах, целые) для заказов i (1..N).
       - "r":   List[int] длины N — время готовности (в минутах) для заказов i (1..N),
                например r_i = tau0 + forecast_i.
-      - "a":   List[int] длины K — время доступности курьера k (в минутах).
+      - "a":   List[int] — время доступности курьера k (в минутах);
+                число курьеров — длина этого массива (и оно должно совпадать с длиной `C`).
       - "W_cert": int, вес штрафа за «сертификат» (>60 минут click-to-eat).
       - "W_c2e": int, вес компоненты click-to-eat в целевой функции.
       - "W_skip": int — штраф за пропуск заказа.
@@ -56,7 +57,6 @@ class Solver:
         # Чтение входа
         # --------
         tau = problem["tau"]  # (N+1)x(N+1)
-        K = int(problem["K"])
         C = list(problem["C"])
         box = list(problem["box"])
         c = list(problem["c"])
@@ -66,10 +66,10 @@ class Solver:
         W_c2e = int(problem["W_c2e"])
         W_skip = int(problem.get("W_skip", W_cert))
 
-        assert len(C) == K, "len(C) must equal K"
         N = len(box)
+        K = len(a)
+        assert len(C) == K, "len(C) must equal number of couriers"
         assert len(c) == N and len(r) == N, "c and r must have length N"
-        assert len(a) == K, "len(a) must equal K"
         assert len(tau) == N + 1 and all(len(row) == N + 1 for row in tau), "tau must be (N+1)x(N+1)"
 
         time_limit = float(problem.get("time_limit", 15.0))

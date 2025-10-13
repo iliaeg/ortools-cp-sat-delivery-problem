@@ -26,7 +26,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 10], [10, 0]],
-                "K": 1,
                 "C": [10],
                 "box": [1],
                 "c": [0],
@@ -54,7 +53,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 10, 20], [10, 0, 5], [20, 5, 0]],
-                "K": 1,
                 "C": [10],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -82,7 +80,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 50, 20], [50, 0, 20], [20, 50, 0]],
-                "K": 1,
                 "C": [10],
                 "box": [1, 1],
                 "c": [30, 0],
@@ -110,7 +107,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 5, 5], [5, 0, 5], [5, 5, 0]],
-                "K": 1,
                 "C": [1],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -138,7 +134,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 70, 5], [70, 0, 70], [5, 70, 0]],
-                "K": 1,
                 "C": [10],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -165,7 +160,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 70, 5], [70, 0, 70], [5, 70, 0]],
-                "K": 1,
                 "C": [10],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -193,7 +187,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 10, 10], [10, 0, 10], [10, 10, 0]],
-                "K": 1,
                 "C": [3],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -221,7 +214,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 10, 10], [10, 0, 10], [10, 10, 0]],
-                "K": 2,
                 "C": [10, 10],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -257,7 +249,6 @@ class TestSolver:
                     [10, 5, 0, 5],
                     [10, 50, 5, 0],
                 ],
-                "K": 1,
                 "C": [10],
                 "box": [1, 1, 1],
                 "c": [0, 0, 0],
@@ -286,7 +277,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 5, 5], [5, 0, 5], [5, 5, 0]],
-                "K": 1,
                 "C": [0],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -313,7 +303,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 5, 60], [5, 0, 60], [60, 60, 0]],
-                "K": 1,
                 "C": [1],
                 "box": [1, 1],
                 "c": [0, 0],
@@ -340,7 +329,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 50, 20], [50, 0, 20], [20, 50, 0]],
-                "K": 1,
                 "C": [10],
                 "box": [1, 1],
                 "c": [30, 0],
@@ -366,7 +354,6 @@ class TestSolver:
         result = self._solve(
             {
                 "tau": [[0, 5], [5, 0]],
-                "K": 1,
                 "C": [1],
                 "box": [1],
                 "c": [-120],
@@ -391,7 +378,6 @@ class TestSolver:
             self._solve(
                 {
                     "tau": [[0, 1], [1, 0], [1, 1]],
-                    "K": 1,
                     "C": [10],
                     "box": [1],
                     "c": [0],

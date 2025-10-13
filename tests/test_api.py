@@ -50,7 +50,7 @@ def test_domain_payload_mapping(sample_payload: dict) -> None:
     mapped = map_domain_request(request_model)
 
     assert mapped["tau"] == sample_payload["travel_time_matrix_minutes"]
-    assert mapped["K"] == 1
+    assert "K" not in mapped
     assert mapped["C"] == [3]
     assert mapped["box"] == [1, 2]
     assert mapped["c"] == [-15, -10]

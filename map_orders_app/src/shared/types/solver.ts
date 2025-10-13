@@ -20,7 +20,6 @@ export interface SolverInputMeta {
 
 export interface SolverInputPayload {
   tau: number[][];
-  K: number;
   C: number[];
   box: number[];
   c: number[];

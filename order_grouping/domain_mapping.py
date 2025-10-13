@@ -132,7 +132,6 @@ class DomainToSolverMapper:
 
         solver_problem: Dict[str, Any] = {
             "tau": self._payload.travel_time_matrix_minutes,
-            "K": len(couriers),
             "C": [courier.box_capacity for courier in couriers],
             "box": [order.boxes_count for order in orders],
             "c": [_minutes_between(ref, order.created_at_utc) for order in orders],
