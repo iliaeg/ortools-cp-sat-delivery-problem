@@ -69,8 +69,8 @@ def test_mapping_allows_ready_before_created(sample_payload: dict) -> None:
     request_model = DomainSolveRequest(**payload)
     mapped = map_domain_request(request_model)
 
-    assert mapped["r"][0] == -20
-    assert mapped["c"][0] == -10
+    assert mapped["order_ready_offset"][0] == -20
+    assert mapped["order_created_offset"][0] == -10
 
 
 def test_solve_domain_endpoint(sample_payload: dict) -> None:
