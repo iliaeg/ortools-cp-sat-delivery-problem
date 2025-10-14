@@ -81,13 +81,42 @@ def test_solve_domain_endpoint(sample_payload: dict) -> None:
     assert response.status_code == 200
     body = response.json()
 
-    assert body["meta"]["order_ids"] == ["o-1", "o-2"]
-    assert body["meta"]["courier_ids"] == ["c-1"]
-    assert body["meta"]["order_index_by_id"] == {"o-1": 1, "o-2": 2}
+    assert body["status"] == "OPTIMAL"
+    assert body["current_timestamp_utc"] == sample_payload["current_timestamp_utc"]
 
-    routes = body["result"]["routes"]
-    assert len(routes) == 1
-    assert routes[0][0] == 0
-    assert routes[0][-1] == 0
-    delivered_orders = [node for node in routes[0] if node != 0]
-    assert sorted(delivered_orders) == [1, 2]
+    couriers = {plan["courier_id"]: plan for plan in body["couriers"]}
+    assert set(couriers.keys()) == {"c-1"}
+
+    courier_plan = couriers["c-1"]
+    assert courier_plan["planned_departure_at_utc"] == "2024-01-01T12:10:00Z"
+    assert courier_plan["planned_return_at_utc"] == "2024-01-01T12:36:00Z"
+    assert courier_plan["delivery_sequence"] == [
+        {"position": 1, "order_id": "o-1"},
+        {"position": 2, "order_id": "o-2"},
+    ]
+
+    orders = {order["order_id"]: order for order in body["orders"]}
+    assert set(orders.keys()) == {"o-1", "o-2"}
+
+    assert orders["o-1"] == {
+        "order_id": "o-1",
+        "assigned_courier_id": "c-1",
+        "planned_delivery_at_utc": "2024-01-01T12:20:00Z",
+        "is_cert": False,
+        "is_skipped": False,
+    }
+    assert orders["o-2"] == {
+        "order_id": "o-2",
+        "assigned_courier_id": "c-1",
+        "planned_delivery_at_utc": "2024-01-01T12:24:00Z",
+        "is_cert": False,
+        "is_skipped": False,
+    }
+
+    assert body["metrics"] == {
+        "total_orders": 2,
+        "assigned_orders": 2,
+        "total_couriers": 1,
+        "assigned_couriers": 1,
+        "objective_value": 69,
+    }
