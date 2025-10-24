@@ -27,6 +27,7 @@ import {
   Tooltip as MuiTooltip,
   Typography,
 } from "@mui/material";
+import { saveAs } from "file-saver";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
@@ -112,6 +113,7 @@ const MapOrdersMapClient = ({
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const [isFullScreen, setFullScreen] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const screenshoterRef = useRef<any>(null);
 
@@ -142,6 +144,7 @@ const MapOrdersMapClient = ({
     if (!mapInstance || !(L as any).simpleMapScreenshoter) {
       return;
     }
+
     if (!screenshoterRef.current) {
       const screenshoter = (L as any)
         .simpleMapScreenshoter({
@@ -166,7 +169,7 @@ const MapOrdersMapClient = ({
       }
       screenshoterRef.current = null;
     };
-  }, [isFullScreen]);
+  }, [mapReady]);
 
   const handleMapMove = useCallback(
     (event: LeafletEvent) => {
@@ -451,25 +454,6 @@ const MapOrdersMapClient = ({
               zIndex: 1200,
             }}
           >
-            <MuiTooltip title={viewportLocked ? "Разблокировать карту" : "Заблокировать карту"} placement="left">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={toggleViewportLock}
-                  sx={{
-                    bgcolor: "background.paper",
-                    color: viewportLocked ? "primary.main" : "text.primary",
-                    boxShadow: 2,
-                    '&:hover': {
-                      bgcolor: "background.paper",
-                      boxShadow: 4,
-                    },
-                  }}
-                >
-                  {viewportLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
-                </IconButton>
-              </span>
-            </MuiTooltip>
             <MuiTooltip title="Скопировать карту" placement="left">
               <span>
                 <IconButton
@@ -501,18 +485,44 @@ const MapOrdersMapClient = ({
                       if (!screenshoter || typeof screenshoter.takeScreen !== "function") {
                         throw new Error("Screenshoter недоступен");
                       }
-                      const result = await screenshoter.takeScreen("blob", {
+                      const result = await screenshoter.takeScreen("canvas", {
                         mimeType: "image/png",
                         quality: 1,
                       });
-                      const blob = result instanceof Blob ? result : null;
+                      const canvas =
+                        result instanceof HTMLCanvasElement
+                          ? result
+                          : (result && result.canvas) || null;
+                      if (!canvas) {
+                        throw new Error("Не удалось сформировать изображение");
+                      }
+
+                      drawOverlay(canvas, {
+                        statusLabel,
+                        metrics,
+                        currentTime,
+                        isFullScreen,
+                      });
+
+                      const blob = await new Promise<Blob | null>((resolve) =>
+                        canvas.toBlob((value) => resolve(value), "image/png"),
+                      );
                       if (!blob) {
                         throw new Error("Не удалось сформировать изображение");
                       }
+                      let copied = false;
                       if (navigator.clipboard && typeof (navigator.clipboard as any).write === "function") {
-                        await (navigator.clipboard as any).write([
-                          new ClipboardItem({ "image/png": blob }),
-                        ]);
+                        try {
+                          await (navigator.clipboard as any).write([
+                            new ClipboardItem({ "image/png": blob }),
+                          ]);
+                          copied = true;
+                        } catch (clipboardError) {
+                          console.warn("Clipboard write failed, fallback to download", clipboardError);
+                        }
+                      }
+                      if (!copied) {
+                        saveAs(blob, `map-${new Date().toISOString()}.png`);
                       }
                     } catch (error) {
                       console.error("Clipboard copy failed", error);
@@ -532,6 +542,25 @@ const MapOrdersMapClient = ({
                   }}
                 >
                   {isCopying ? <CircularProgress size={14} /> : <ContentCopyIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </MuiTooltip>
+            <MuiTooltip title={viewportLocked ? "Разблокировать карту" : "Заблокировать карту"} placement="left">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={toggleViewportLock}
+                  sx={{
+                    bgcolor: "background.paper",
+                    color: viewportLocked ? "primary.main" : "text.primary",
+                    boxShadow: 2,
+                    '&:hover': {
+                      bgcolor: "background.paper",
+                      boxShadow: 4,
+                    },
+                  }}
+                >
+                  {viewportLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
                 </IconButton>
               </span>
             </MuiTooltip>
@@ -665,6 +694,10 @@ const MapOrdersMapClient = ({
           ) : null}
           <MapContainer
             ref={mapRef}
+            whenCreated={(instance) => {
+              mapRef.current = instance;
+              setMapReady(true);
+            }}
             center={center}
             zoom={zoom}
             style={{ height: "100%", width: "100%" }}
@@ -686,18 +719,8 @@ const MapOrdersMapClient = ({
             </FeatureGroup>
           </MapContainer>
         </Box>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
           <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
-            {isFullScreen && onImportLogClick ? (
-              <Button
-                variant="contained"
-                onClick={onImportLogClick}
-                disabled={importLogDisabled}
-                startIcon={importLogLoading ? <CircularProgress size={16} /> : undefined}
-              >
-                {importLogLoading ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
-              </Button>
-            ) : null}
             <FormControlLabel
               control={
                 <Switch
@@ -718,9 +741,20 @@ const MapOrdersMapClient = ({
             />
             <FormControlLabel
               control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
-            label="Показывать позиции в маршруте"
-          />
+              label="Показывать позиции в маршруте"
+            />
           </Stack>
+          {isFullScreen && onImportLogClick ? (
+            <Button
+              variant="contained"
+              onClick={onImportLogClick}
+              disabled={importLogDisabled}
+              startIcon={importLogLoading ? <CircularProgress size={16} /> : undefined}
+              sx={{ order: -1 }}
+            >
+              {importLogLoading ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
+            </Button>
+          ) : null}
         </Stack>
       </Stack>
     </>
@@ -728,6 +762,98 @@ const MapOrdersMapClient = ({
 };
 
 export default memo(MapOrdersMapClient);
+
+interface OverlayProps {
+  statusLabel?: string;
+  metrics?: Array<{ label: string; value: string }>;
+  currentTime?: string;
+  isFullScreen: boolean;
+}
+
+const drawOverlay = (
+  canvas: HTMLCanvasElement,
+  { statusLabel, metrics, currentTime, isFullScreen }: OverlayProps,
+) => {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+
+  const background = "rgba(245, 245, 245, 0.85)";
+  const textColor = "rgb(33, 33, 33)";
+  const labelColor = "rgba(33, 33, 33, 0.7)";
+  const paddingX = 14;
+  const paddingY = 8;
+  const gap = 8;
+  const margin = 12;
+  const labelFont = "600 12px 'Roboto', sans-serif";
+  const valueFont = "700 14px 'Roboto', sans-serif";
+
+  const measureCard = (label: string, value: string) => {
+    ctx.font = labelFont;
+    const labelWidth = ctx.measureText(label).width;
+    ctx.font = valueFont;
+    const valueWidth = ctx.measureText(value).width;
+    const width = Math.max(labelWidth, valueWidth) + paddingX * 2;
+    const labelHeight = 12;
+    const valueHeight = 14;
+    const height = paddingY * 2 + labelHeight + valueHeight + 6;
+    return { width, height, labelHeight, valueHeight };
+  };
+
+  const drawCard = (x: number, y: number, label: string, value: string) => {
+    const { width, height } = measureCard(label, value);
+    ctx.save();
+    ctx.fillStyle = background;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.08)";
+    ctx.lineWidth = 1;
+    const radius = 8;
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = labelColor;
+    ctx.font = labelFont;
+    ctx.fillText(label, x + paddingX, y + paddingY + 12);
+    ctx.fillStyle = textColor;
+    ctx.font = valueFont;
+    ctx.fillText(value, x + paddingX, y + paddingY + 12 + 6 + 14);
+    ctx.restore();
+    return { width, height };
+  };
+
+  if (currentTime) {
+    drawCard(margin, canvas.height - margin - measureCard("Текущее время", `${currentTime} UTC`).height, "Текущее время", `${currentTime} UTC`);
+  }
+
+  if (statusLabel) {
+    const { width, height } = measureCard("Статус", statusLabel);
+    const x = canvas.width - width - margin;
+    const y = margin;
+    drawCard(x, y, "Статус", statusLabel);
+  }
+
+  if (metrics && metrics.length > 0) {
+    const cards = metrics.map(({ label, value }) => ({ label, value, ...measureCard(label, value) }));
+    const totalWidth = cards.reduce((sum, item) => sum + item.width, 0) + gap * (cards.length - 1);
+    const rowX = isFullScreen ? (canvas.width - totalWidth) / 2 : canvas.width - totalWidth - margin;
+    const rowY = margin;
+    let offsetX = rowX;
+    cards.forEach(({ label, value, width }) => {
+      drawCard(offsetX, rowY, label, value);
+      offsetX += width + gap;
+    });
+  }
+};
 
 interface RouteSegmentProps {
   segment: RoutesSegmentDto;
