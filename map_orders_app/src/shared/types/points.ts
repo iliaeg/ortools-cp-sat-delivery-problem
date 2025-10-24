@@ -76,6 +76,7 @@ export interface MapOrdersPersistedState {
     assignedCouriers?: number;
     objectiveValue?: number;
   } | null;
+  viewportLocked: boolean;
 }
 
 export interface MapOrdersUiState {

@@ -66,6 +66,11 @@ export const selectCpSatMetrics = createSelector(
   (state) => state.data.cpSatMetrics,
 );
 
+export const selectViewportLocked = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.viewportLocked,
+);
+
 export const selectUiFlags = createSelector(selectMapOrdersState, (state) => ({
   isLoading: state.ui.isLoading,
   isSaving: state.ui.isSaving,

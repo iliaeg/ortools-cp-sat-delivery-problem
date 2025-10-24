@@ -42,6 +42,7 @@ export const initialPersistedState: MapOrdersPersistedState = {
   lastSavedAtIso: undefined,
   cpSatStatus: undefined,
   cpSatMetrics: null,
+  viewportLocked: false,
 };
 
 const initialUiState: MapOrdersUiState = {
@@ -164,6 +165,10 @@ const mapOrdersSlice = createSlice({
             ? action.payload.cpSatStatus.trim()
             : undefined,
         cpSatMetrics: action.payload.cpSatMetrics ?? null,
+        viewportLocked:
+          typeof action.payload.viewportLocked === "boolean"
+            ? action.payload.viewportLocked
+            : state.data.viewportLocked,
         couriersText: ensureDefaultText(
           action.payload.couriersText ?? state.data.couriersText,
           DEFAULT_COURIERS_TEXT,
@@ -312,6 +317,9 @@ const mapOrdersSlice = createSlice({
         point.depotDirectMin = undefined;
       });
     },
+    setViewportLocked: (state, action: PayloadAction<boolean>) => {
+      state.data.viewportLocked = action.payload;
+    },
   },
 });
 
@@ -340,6 +348,7 @@ export const {
   applyComputedFields,
   setLastSavedAt,
   resetSolverResult,
+  setViewportLocked,
 } = mapOrdersSlice.actions;
 
 export default mapOrdersSlice.reducer;

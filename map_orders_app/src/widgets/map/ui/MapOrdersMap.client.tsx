@@ -460,57 +460,70 @@ const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
             </IconButton>
           </Stack>
           {isFullScreen && (statusLabel || (metrics && metrics.length > 0)) ? (
-            <Stack
-              direction="row"
-              spacing={1}
-              sx={{
-                position: "absolute",
-                top: 12,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 1200,
-                alignItems: "center",
-                flexWrap: "wrap",
-                rowGap: 0.5,
-              }}
-            >
+            <>
               {statusLabel ? (
                 <Paper
                   elevation={1}
                   sx={{
+                    position: "absolute",
+                    top: 12,
+                    right: 12,
                     px: 1.5,
                     py: 0.75,
                     display: "flex",
                     alignItems: "center",
-                    bgcolor: "rgba(230, 230, 230, 0.9)",
+                    bgcolor: "rgba(245, 245, 245, 0.85)",
+                    color: "rgb(33, 33, 33)",
+                    zIndex: 1200,
+                    borderRadius: 1,
+                    minWidth: 140,
+                    justifyContent: "center",
                   }}
                 >
-                  <Typography variant="body2" fontWeight={700} color="text.primary">
+                  <Typography variant="body2" fontWeight={700} color="inherit">
                     CP-SAT: {statusLabel}
                   </Typography>
                 </Paper>
               ) : null}
-              {metrics?.map(({ label, value }) => (
-                <Paper
-                  key={`fs-${label}`}
-                  elevation={1}
+              {metrics && metrics.length > 0 ? (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{
+                    position: "absolute",
+                    top: 12,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 1200,
+                    flexWrap: "wrap",
+                    rowGap: 0.5,
+                    justifyContent: "center",
+                  }}
+                >
+                  {metrics.map(({ label, value }) => (
+                    <Paper
+                      key={`fs-${label}`}
+                      elevation={1}
                   sx={{
                     px: 1.5,
                     py: 0.75,
                     display: "flex",
                     flexDirection: "column",
-                    bgcolor: "rgba(230, 230, 230, 0.9)",
+                    bgcolor: "rgba(245, 245, 245, 0.85)",
+                    color: "rgb(33, 33, 33)",
                   }}
                 >
-                  <Typography variant="caption" color="text.secondary">
-                    {label}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={700} color="text.primary">
-                    {value}
-                  </Typography>
-                </Paper>
-              ))}
-            </Stack>
+                      <Typography variant="caption" color="rgba(33, 33, 33, 0.7)" fontWeight={600}>
+                        {label}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={700} color="inherit">
+                        {value}
+                      </Typography>
+                    </Paper>
+                  ))}
+                </Stack>
+              ) : null}
+            </>
           ) : null}
           <MapContainer
             ref={mapRef}

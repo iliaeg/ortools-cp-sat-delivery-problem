@@ -17,6 +17,7 @@ export const StateAutoSaver = () => {
     ...mapOrdersState.data,
     cpSatStatus: mapOrdersState.data.cpSatStatus ?? null,
     cpSatMetrics: mapOrdersState.data.cpSatMetrics ?? null,
+    viewportLocked: mapOrdersState.data.viewportLocked,
   };
 
   const serialised = JSON.stringify({
