@@ -249,8 +249,8 @@ const MapOrdersWidget = () => {
         </Typography>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end", rowGap: 0.5 }}>
           {cpSatStatusLabel ? (
-            <Typography variant="body2" color="text.secondary">
-              CP-SAT: {cpSatStatusLabel}
+            <Typography variant="body2" fontWeight={700} color="text.primary">
+              Статус: {cpSatStatusLabel}
             </Typography>
           ) : null}
           {metricsCards.length > 0 ? (
@@ -264,7 +264,7 @@ const MapOrdersWidget = () => {
                   <Typography variant="caption" color="text.secondary">
                     {label}
                   </Typography>
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={700}>
                     {value}
                   </Typography>
                 </Paper>

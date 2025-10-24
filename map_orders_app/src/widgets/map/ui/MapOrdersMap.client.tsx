@@ -471,17 +471,19 @@ const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
                     px: 1.5,
                     py: 0.75,
                     display: "flex",
-                    alignItems: "center",
+                    flexDirection: "column",
                     bgcolor: "rgba(245, 245, 245, 0.85)",
                     color: "rgb(33, 33, 33)",
                     zIndex: 1200,
                     borderRadius: 1,
-                    minWidth: 140,
-                    justifyContent: "center",
+                    minWidth: 150,
                   }}
                 >
+                  <Typography variant="caption" color="rgba(33, 33, 33, 0.7)" fontWeight={600}>
+                    Статус
+                  </Typography>
                   <Typography variant="body2" fontWeight={700} color="inherit">
-                    CP-SAT: {statusLabel}
+                    {statusLabel}
                   </Typography>
                 </Paper>
               ) : null}
