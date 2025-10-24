@@ -13,7 +13,17 @@ import {
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
-import { Box, Checkbox, FormControlLabel, IconButton, Stack, Switch } from "@mui/material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  Paper,
+  Stack,
+  Switch,
+  Tooltip as MuiTooltip,
+  Typography,
+} from "@mui/material";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
 import { useAppSelector } from "@/shared/hooks/useAppSelector";
 import {
@@ -24,6 +34,7 @@ import {
   setShowRoutePositions,
   setShowSolverRoutes,
   updatePoint,
+  setViewportLocked,
 } from "@/features/map-orders/model/mapOrdersSlice";
 import {
   selectMapView,
@@ -32,6 +43,7 @@ import {
   selectShowDepotSegments,
   selectShowRoutePositions,
   selectShowSolverRoutes,
+  selectViewportLocked,
 } from "@/features/map-orders/model/selectors";
 import {
   ensureDefaultMarkerIcons,
@@ -41,6 +53,8 @@ import {
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
+import LockIcon from "@mui/icons-material/Lock";
+import LockOpenIcon from "@mui/icons-material/LockOpen";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -66,13 +80,19 @@ const labelForPoint = (point: DeliveryPoint) =>
 
 type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
 
-const MapOrdersMapClient = () => {
+export interface MapOrdersMapProps {
+  statusLabel?: string;
+  metrics?: Array<{ label: string; value: string }>;
+}
+
+const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
   const { center, zoom } = useAppSelector(selectMapView);
   const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
   const showDepotSegments = useAppSelector(selectShowDepotSegments);
   const showRoutePositions = useAppSelector(selectShowRoutePositions);
+  const viewportLocked = useAppSelector(selectViewportLocked);
   const routeSegments = useAppSelector(selectRouteSegments);
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const [isFullScreen, setFullScreen] = useState(false);
@@ -271,6 +291,10 @@ const MapOrdersMapClient = () => {
     setFullScreen((prev) => !prev);
   }, []);
 
+  const toggleViewportLock = useCallback(() => {
+    dispatch(setViewportLocked(!viewportLocked));
+  }, [dispatch, viewportLocked]);
+
   const handleFitToView = useCallback(() => {
     const map = mapRef.current;
     if (!map) {
@@ -317,6 +341,48 @@ const MapOrdersMapClient = () => {
     ? { flexGrow: 1, position: "relative", borderRadius: 2, overflow: "hidden", boxShadow: 2 }
     : { height: 480, width: "100%", borderRadius: 2, overflow: "hidden", boxShadow: 2, position: "relative" };
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) {
+      return;
+    }
+    const anyMap = map as unknown as {
+      dragging: L.Handler;
+      scrollWheelZoom: L.Handler;
+      doubleClickZoom: L.Handler;
+      boxZoom: L.Handler;
+      keyboard: L.Handler;
+      touchZoom?: L.Handler & { disable?: () => void; enable?: () => void };
+      tap?: { disable?: () => void; enable?: () => void };
+    };
+
+    const toggleInteraction = (enabled: boolean) => {
+      if (enabled) {
+        anyMap.dragging.enable();
+        anyMap.scrollWheelZoom.enable();
+        anyMap.doubleClickZoom.enable();
+        anyMap.boxZoom.enable();
+        anyMap.keyboard.enable();
+        anyMap.touchZoom?.enable?.();
+        anyMap.tap?.enable?.();
+      } else {
+        anyMap.dragging.disable();
+        anyMap.scrollWheelZoom.disable();
+        anyMap.doubleClickZoom.disable();
+        anyMap.boxZoom.disable();
+        anyMap.keyboard.disable();
+        anyMap.touchZoom?.disable?.();
+        anyMap.tap?.disable?.();
+      }
+    };
+
+    toggleInteraction(!viewportLocked);
+
+    return () => {
+      toggleInteraction(true);
+    };
+  }, [viewportLocked]);
+
   return (
     <>
       {isFullScreen ? (
@@ -337,17 +403,37 @@ const MapOrdersMapClient = () => {
               zIndex: 1200,
             }}
           >
+            <MuiTooltip title={viewportLocked ? "Разблокировать карту" : "Заблокировать карту"} placement="left">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={toggleViewportLock}
+                  sx={{
+                    bgcolor: "background.paper",
+                    color: viewportLocked ? "primary.main" : "text.primary",
+                    boxShadow: 2,
+                    '&:hover': {
+                      bgcolor: "background.paper",
+                      boxShadow: 4,
+                    },
+                  }}
+                >
+                  {viewportLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </MuiTooltip>
             <IconButton
               size="small"
               onClick={handleFitToView}
-              disabled={points.length === 0}
+              disabled={points.length === 0 || viewportLocked}
               sx={{
                 bgcolor: "background.paper",
-                color: "text.primary",
+                color: viewportLocked ? "text.disabled" : "text.primary",
                 boxShadow: 2,
+                cursor: viewportLocked ? "default" : "pointer",
                 '&:hover': {
                   bgcolor: "background.paper",
-                  boxShadow: 4,
+                  boxShadow: viewportLocked ? 2 : 4,
                 },
               }}
             >
@@ -373,6 +459,61 @@ const MapOrdersMapClient = () => {
               )}
             </IconButton>
           </Stack>
+          {isFullScreen && (statusLabel || (metrics && metrics.length > 0)) ? (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                position: "absolute",
+                top: 12,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 1200,
+                alignItems: "center",
+                flexWrap: "wrap",
+                rowGap: 0.5,
+              }}
+            >
+              {statusLabel ? (
+                <Paper
+                  elevation={1}
+                  sx={{
+                    px: 1.5,
+                    py: 0.75,
+                    display: "flex",
+                    alignItems: "center",
+                    bgcolor: (theme) => theme.palette.background.paper,
+                    opacity: 0.9,
+                  }}
+                >
+                  <Typography variant="body2" fontWeight={600}>
+                    CP-SAT: {statusLabel}
+                  </Typography>
+                </Paper>
+              ) : null}
+              {metrics?.map(({ label, value }) => (
+                <Paper
+                  key={`fs-${label}`}
+                  elevation={1}
+                  sx={{
+                    px: 1.5,
+                    py: 0.75,
+                    display: "flex",
+                    flexDirection: "column",
+                    bgcolor: (theme) => theme.palette.background.paper,
+                    opacity: 0.9,
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {value}
+                  </Typography>
+                </Paper>
+              ))}
+            </Stack>
+          ) : null}
           <MapContainer
             ref={mapRef}
             center={center}

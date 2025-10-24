@@ -155,11 +155,14 @@ const MapOrdersWidget = () => {
         kind === "case"
           ? await importCaseMutation(payload).unwrap()
           : await importSolverInputMutation(payload).unwrap();
-      const patchedState: MapOrdersPersistedState = {
+      const patchedState: Partial<MapOrdersPersistedState> = {
         ...nextState,
         cpSatStatus: nextState.cpSatStatus ?? undefined,
         cpSatMetrics: nextState.cpSatMetrics ?? null,
-      };
+        ...(typeof nextState.viewportLocked === "boolean"
+          ? { viewportLocked: nextState.viewportLocked }
+          : {}),
+      } as MapOrdersPersistedState;
       dispatch(setPersistedState(patchedState));
       dispatch(setUiState({ warnings: [] }));
     },
@@ -270,7 +273,7 @@ const MapOrdersWidget = () => {
           ) : null}
         </Stack>
       </Stack>
-      <MapOrdersMap />
+      <MapOrdersMap statusLabel={cpSatStatusLabel} metrics={metricsCards} />
       <Divider />
       <Stack direction="row" spacing={2} flexWrap="wrap">
         <Button variant="contained" onClick={handleReimportFromMap}>
@@ -289,8 +292,13 @@ const MapOrdersWidget = () => {
           Загрузить JSON
           <input type="file" hidden accept="application/json" onChange={handleFileSelect} />
         </Button>
-        <Button variant="contained" onClick={handleImportCpSatLog} disabled={isBusy}>
-          {isImportingCpSat ? <CircularProgress size={20} /> : "Загрузить Enriched CP-SAT Log"}
+        <Button
+          variant="contained"
+          onClick={handleImportCpSatLog}
+          disabled={isBusy}
+          startIcon={isImportingCpSat ? <CircularProgress size={16} /> : undefined}
+        >
+          {isImportingCpSat ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
         </Button>
       </Stack>
       <Box
