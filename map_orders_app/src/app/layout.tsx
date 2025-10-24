@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   title: "map_orders",
   description:
     "Инструмент подготовки входных данных для CP-SAT и визуализации маршрутов курьеров",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
