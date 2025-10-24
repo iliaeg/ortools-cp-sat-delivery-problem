@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Service for grouping pizzeria orders"
 authors = ["Rinat <r.sharafetdinov@dodobrands.io>"]
 readme = "README.md"
+packages = [{ include = "order_grouping", from = "src" }]
 
 [tool.poetry.dependencies]
 numpy = "^1.21"

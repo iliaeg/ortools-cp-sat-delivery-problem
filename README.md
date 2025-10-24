@@ -2,38 +2,15 @@
 
 Проект для экспериментов с CP-SAT из библиотеки OR-Tools и локального интерфейса подготовки входных данных.
 
-## Требования
-- Python 3.11
-- [Poetry](https://python-poetry.org/)
+## Python оптимизатор (`order_grouping/`)
 
-## Подготовка окружения
-1. Установите Poetry, если он ещё не установлен (см. инструкцию по ссылке выше).
-2. Убедитесь, что локально доступен Python 3.11. При необходимости выберите его для виртуального окружения:
-   ```bash
-   poetry env use 3.11
-   ```
-3. Установите зависимости проекта:
-   ```bash
-   poetry install
-   ```
+Весь Python-код (FastAPI, CP-SAT решатель, тесты, артефакты Poetry) живёт в каталоге `order_grouping/`, чтобы не мешаться рядом с фронтендом. Подробная инструкция находится в `order_grouping/README.md`.
 
-## Работа с проектом
-- Активируйте окружение, если нужен интерактивный сеанс:
-  ```bash
-  poetry shell
-  ```
-- Запустите FastAPI-приложение c обёрткой над CP-SAT:
-  ```bash
-  poetry run uvicorn order_grouping.api:app --reload
-  ```
-- Запускайте скрипты или модули через Poetry без активации shell:
-  ```bash
-  poetry run python path/to_script.py
-  ```
-- Для запуска тестов:
-  ```bash
-  poetry run pytest
-  ```
+Кратко основные команды (выполняются внутри `order_grouping/`):
+- `poetry env use 3.11`
+- `poetry install`
+- `poetry run uvicorn order_grouping.api:app --reload`
+- `poetry run pytest`
 
 ## map_orders — Next.js интерфейс подготовки входных данных
 
