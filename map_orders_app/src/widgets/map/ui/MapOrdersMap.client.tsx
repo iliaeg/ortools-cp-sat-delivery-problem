@@ -15,7 +15,9 @@ import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
 import {
   Box,
+  Button,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   IconButton,
   Paper,
@@ -83,9 +85,18 @@ type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId
 export interface MapOrdersMapProps {
   statusLabel?: string;
   metrics?: Array<{ label: string; value: string }>;
+  onImportLogClick?: () => void;
+  importLogDisabled?: boolean;
+  importLogLoading?: boolean;
 }
 
-const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
+const MapOrdersMapClient = ({
+  statusLabel,
+  metrics,
+  onImportLogClick,
+  importLogDisabled,
+  importLogLoading,
+}: MapOrdersMapProps) => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
   const { center, zoom } = useAppSelector(selectMapView);
@@ -550,29 +561,41 @@ const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
             </FeatureGroup>
           </MapContainer>
         </Box>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={isEditingEnabled}
-                onChange={(_event, checked) => setEditingEnabled(checked)}
-                color="primary"
-              />
-            }
-            label="Режим редактирования точек"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
-            label="Показывать маршруты решателя"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={showDepotSegments} onChange={toggleDepotSegments} />}
-            label="Показывать стрелки из депо"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
+          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1.5}>
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+            {isFullScreen && onImportLogClick ? (
+              <Button
+                variant="contained"
+                onClick={onImportLogClick}
+                disabled={importLogDisabled}
+                startIcon={importLogLoading ? <CircularProgress size={16} /> : undefined}
+              >
+                {importLogLoading ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
+              </Button>
+            ) : null}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isEditingEnabled}
+                  onChange={(_event, checked) => setEditingEnabled(checked)}
+                  color="primary"
+                />
+              }
+              label="Режим редактирования точек"
+            />
+            <FormControlLabel
+              control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
+              label="Показывать маршруты решателя"
+            />
+            <FormControlLabel
+              control={<Checkbox checked={showDepotSegments} onChange={toggleDepotSegments} />}
+              label="Показывать стрелки из депо"
+            />
+            <FormControlLabel
+              control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
             label="Показывать позиции в маршруте"
           />
+          </Stack>
         </Stack>
       </Stack>
     </>

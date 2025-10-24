@@ -273,7 +273,13 @@ const MapOrdersWidget = () => {
           ) : null}
         </Stack>
       </Stack>
-      <MapOrdersMap statusLabel={cpSatStatusLabel} metrics={metricsCards} />
+      <MapOrdersMap
+        statusLabel={cpSatStatusLabel}
+        metrics={metricsCards}
+        onImportLogClick={handleImportCpSatLog}
+        importLogDisabled={isBusy}
+        importLogLoading={isImportingCpSat}
+      />
       <Divider />
       <Stack direction="row" spacing={2} flexWrap="wrap">
         <Button variant="contained" onClick={handleReimportFromMap}>
