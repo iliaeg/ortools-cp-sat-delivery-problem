@@ -13,8 +13,13 @@ export const StateAutoSaver = () => {
   const [saveState] = useSaveStateMutation();
   const lastSavedSnapshot = useRef<string>("");
 
-  const serialised = JSON.stringify({
+  const payload = {
     ...mapOrdersState.data,
+    cpSatStatus: mapOrdersState.data.cpSatStatus ?? null,
+  };
+
+  const serialised = JSON.stringify({
+    ...payload,
     lastSavedAtIso: undefined,
   });
 
@@ -25,7 +30,7 @@ export const StateAutoSaver = () => {
     dispatch(setUiState({ isSaving: true }));
     const timer = setTimeout(async () => {
       try {
-        const response = await saveState(mapOrdersState.data).unwrap();
+        const response = await saveState(payload).unwrap();
         lastSavedSnapshot.current = serialised;
         dispatch(setLastSavedAt(response.lastSavedAtIso));
         dispatch(setUiState({ isSaving: false }));

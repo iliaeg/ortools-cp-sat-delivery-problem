@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { LinearProgress, Box } from "@mui/material";
 import type { FetchBaseQueryError } from "@reduxjs/toolkit/query";
 import type { SerializedError } from "@reduxjs/toolkit";
 import { useLoadStateQuery } from "@/shared/api/mapOrdersApi";
 import { useAppDispatch } from "@/shared/hooks/useAppDispatch";
-import { setPersistedState, setUiState } from "@/features/map-orders/model/mapOrdersSlice";
+import {
+  initialPersistedState,
+  setPersistedState,
+  setUiState,
+} from "@/features/map-orders/model/mapOrdersSlice";
+import type { MapOrdersPersistedState } from "@/shared/types/points";
 import { StateAutoSaver } from "./StateAutoSaver";
 
 interface Props {
@@ -50,16 +55,28 @@ const parseErrorMessage = (
 export const StateBootstrapper = ({ children }: Props) => {
   const dispatch = useAppDispatch();
   const { data, isFetching, isError, error } = useLoadStateQuery();
+  const lastAppliedSignature = useRef<string | null>(null);
 
   useEffect(() => {
     dispatch(setUiState({ isLoading: isFetching }));
   }, [dispatch, isFetching]);
 
   useEffect(() => {
+    const applyState = (payload: MapOrdersPersistedState) => {
+      const signature = JSON.stringify(payload);
+      if (signature === lastAppliedSignature.current) {
+        return;
+      }
+      lastAppliedSignature.current = signature;
+      dispatch(setPersistedState(payload));
+    };
+
     if (data) {
-      dispatch(setPersistedState(data));
+      applyState(data);
+    } else if (!isFetching) {
+      applyState(initialPersistedState);
     }
-  }, [data, dispatch]);
+  }, [data, dispatch, isFetching]);
 
   if (isFetching && !data) {
     return (

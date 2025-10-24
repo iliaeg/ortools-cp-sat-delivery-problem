@@ -20,6 +20,7 @@ export interface BasePoint {
 }
 
 export interface DeliveryPoint extends BasePoint {
+  orderNumber?: string | number;
   groupId?: number;
   routePos?: number;
   etaRelMin?: number;
@@ -67,6 +68,7 @@ export interface MapOrdersPersistedState {
   solverInput: SolverInputPayload | null;
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;
+  cpSatStatus?: string | null;
 }
 
 export interface MapOrdersUiState {

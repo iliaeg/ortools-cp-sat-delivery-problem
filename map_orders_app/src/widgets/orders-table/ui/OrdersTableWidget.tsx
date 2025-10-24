@@ -33,13 +33,79 @@ import {
 import { selectPoints } from "@/features/map-orders/model/selectors";
 import type { DeliveryPoint } from "@/shared/types/points";
 
+const resolveOrderNumber = (
+  point: DeliveryPoint,
+): { numeric?: number; label: string } => {
+  const raw = point.orderNumber;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return { numeric: raw, label: raw.toString() };
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed) {
+      const numeric = Number(trimmed);
+      return {
+        numeric: Number.isFinite(numeric) ? numeric : undefined,
+        label: trimmed,
+      };
+    }
+  }
+
+  const fallback = Number.isFinite(point.seq) ? point.seq : 0;
+  return { numeric: fallback, label: fallback.toString() };
+};
+
+const comparePointsByOrderNumber = (a: DeliveryPoint, b: DeliveryPoint): number => {
+  if (a.kind === "depot" && b.kind !== "depot") {
+    return -1;
+  }
+  if (b.kind === "depot" && a.kind !== "depot") {
+    return 1;
+  }
+
+  const left = resolveOrderNumber(a);
+  const right = resolveOrderNumber(b);
+
+  if (left.numeric !== undefined && right.numeric !== undefined && left.numeric !== right.numeric) {
+    return left.numeric - right.numeric;
+  }
+  if (left.numeric !== undefined && right.numeric === undefined) {
+    return -1;
+  }
+  if (left.numeric === undefined && right.numeric !== undefined) {
+    return 1;
+  }
+
+  const labelCompare = left.label.localeCompare(right.label, undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (labelCompare !== 0) {
+    return labelCompare;
+  }
+
+  return a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: "base" });
+};
+
 const columnsBase: GridColDef<DeliveryPoint>[] = [
   {
-    field: "seq",
+    field: "orderNumber",
     headerName: "#",
     width: 60,
     editable: false,
-    description: "Порядковый номер точки в таблице",
+    description: "Номер заказа из CP-SAT либо порядковый номер",
+    sortable: false,
+    valueGetter: (params) => {
+      const point = params?.row as DeliveryPoint | undefined;
+      if (!point) {
+        return "";
+      }
+      return resolveOrderNumber(point).label;
+    },
+    renderCell: (params) => {
+      const point = params.row as DeliveryPoint;
+      return resolveOrderNumber(point).label;
+    },
   },
   {
     field: "id",
@@ -292,6 +358,12 @@ const OrdersTableWidget = () => {
     dispatch(addPoint(createEmptyPoint("depot")));
   }, [dispatch]);
 
+  const sortedPoints = useMemo(
+    () =>
+      [...points].sort((a, b) => comparePointsByOrderNumber(a, b)),
+    [points],
+  );
+
   return (
     <Paper
       elevation={3}
@@ -329,7 +401,7 @@ const OrdersTableWidget = () => {
       </Typography>
       <Box sx={{ flexGrow: 1 }}>
         <DataGrid
-          rows={points}
+          rows={sortedPoints}
           columns={columns}
           getRowId={(row) => row.internalId}
           getRowClassName={({ row }) => (row.kind === "depot" ? "orders-table__row--depot" : "")}

@@ -23,7 +23,7 @@ import {
 
 const env = getClientEnv();
 
-const initialPersistedState: MapOrdersPersistedState = {
+export const initialPersistedState: MapOrdersPersistedState = {
   points: [],
   mapCenter: OREL_CENTER,
   mapZoom: DEFAULT_ZOOM,
@@ -40,6 +40,7 @@ const initialPersistedState: MapOrdersPersistedState = {
   solverInput: null,
   solverResult: null,
   lastSavedAtIso: undefined,
+  cpSatStatus: undefined,
 };
 
 const initialUiState: MapOrdersUiState = {
@@ -53,7 +54,7 @@ const initialUiState: MapOrdersUiState = {
   lastSolverResultSignature: undefined,
 };
 
-const initialState: MapOrdersState = {
+export const initialState: MapOrdersState = {
   data: initialPersistedState,
   ui: initialUiState,
 };
@@ -131,6 +132,7 @@ const createPoint = (partial: Partial<DeliveryPoint>): DeliveryPoint => ({
   boxes: partial.boxes ?? 0,
   createdAt: partial.createdAt ?? "00:00:00",
   readyAt: partial.readyAt ?? "00:00:00",
+  orderNumber: partial.orderNumber,
   groupId: partial.groupId,
   routePos: partial.routePos,
   etaRelMin: partial.etaRelMin,
@@ -155,6 +157,11 @@ const mapOrdersSlice = createSlice({
         points: action.payload.points
           ? ensureDepotConstraints(action.payload.points as DeliveryPoint[])
           : state.data.points,
+        cpSatStatus:
+          typeof action.payload.cpSatStatus === "string"
+            && action.payload.cpSatStatus.trim().length
+            ? action.payload.cpSatStatus.trim()
+            : undefined,
         couriersText: ensureDefaultText(
           action.payload.couriersText ?? state.data.couriersText,
           DEFAULT_COURIERS_TEXT,
@@ -212,6 +219,7 @@ const mapOrdersSlice = createSlice({
       state.data.points = [];
       state.data.solverResult = null;
       state.data.solverInput = null;
+      state.data.cpSatStatus = undefined;
     },
     setMapView: (
       state,
@@ -280,8 +288,7 @@ const mapOrdersSlice = createSlice({
           return point;
         }
 
-        const rest = { ...patch };
-        delete rest.internalId;
+        const { internalId: _omit, ...rest } = patch;
         return { ...point, ...rest };
       });
     },
@@ -290,6 +297,7 @@ const mapOrdersSlice = createSlice({
     },
     resetSolverResult: (state) => {
       state.data.solverResult = null;
+      state.data.cpSatStatus = undefined;
       state.data.points.forEach((point) => {
         point.groupId = undefined;
         point.routePos = undefined;

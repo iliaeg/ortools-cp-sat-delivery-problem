@@ -204,7 +204,7 @@ const MapOrdersMapClient = () => {
           eventHandlers={{
             dragend: handleMarkerDragEnd(point.internalId),
           }}
-          icon={createNumberedPinIcon(point.seq, point.kind)}
+          icon={createNumberedPinIcon(point.orderNumber ?? point.seq, point.kind)}
           ref={(instance) => {
             if (instance) {
               (instance as MarkerWithInternalId).options.internalId = point.internalId;

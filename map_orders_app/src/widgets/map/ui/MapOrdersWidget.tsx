@@ -21,7 +21,7 @@ import {
   setUiState,
   setPersistedState,
 } from "@/features/map-orders/model/mapOrdersSlice";
-import { selectPoints } from "@/features/map-orders/model/selectors";
+import { selectPoints, selectCpSatStatus } from "@/features/map-orders/model/selectors";
 import {
   useExportCaseMutation,
   useExportGeoJsonMutation,
@@ -29,6 +29,12 @@ import {
   useImportSolverInputMutation,
 } from "@/shared/api/mapOrdersApi";
 import { saveBlobToFile, readFileAsText } from "@/shared/files/utils";
+import {
+  buildStateFromCpSatLog,
+  CpSatLogParseError,
+  parseCpSatLogPayload,
+} from "@/features/map-orders/parsers/parseCpSatLog";
+import type { MapOrdersPersistedState } from "@/shared/types/points";
 import type { DeliveryPoint } from "@/shared/types/points";
 
 const detectImportKind = (content: unknown): "case" | "solver_input" => {
@@ -53,6 +59,7 @@ const preparePointsFromImport = (points: DeliveryPoint[]): DeliveryPoint[] =>
 const MapOrdersWidget = () => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
+  const cpSatStatus = useAppSelector(selectCpSatStatus);
   const [exportGeoJson, { isLoading: isExportingGeo }]
     = useExportGeoJsonMutation();
   const [exportCase, { isLoading: isExportingCase }] = useExportCaseMutation();
@@ -61,20 +68,31 @@ const MapOrdersWidget = () => {
   const [importSolverInputMutation, { isLoading: isImportingSolverInput }] =
     useImportSolverInputMutation();
   const [importError, setImportError] = useState<string | null>(null);
+  const [isImportingCpSat, setIsImportingCpSat] = useState(false);
 
   const isBusy = useMemo(
     () =>
       isExportingGeo ||
       isExportingCase ||
       isImportingCase ||
-      isImportingSolverInput,
+      isImportingSolverInput ||
+      isImportingCpSat,
     [
       isExportingGeo,
       isExportingCase,
       isImportingCase,
       isImportingSolverInput,
+      isImportingCpSat,
     ],
   );
+
+  const cpSatStatusLabel = useMemo(() => {
+    if (typeof cpSatStatus !== "string") {
+      return "";
+    }
+    const trimmed = cpSatStatus.trim();
+    return trimmed.length ? trimmed : "";
+  }, [cpSatStatus]);
 
   const handleReimportFromMap = useCallback(() => {
     const normalized = preparePointsFromImport(points);
@@ -107,7 +125,11 @@ const MapOrdersWidget = () => {
         kind === "case"
           ? await importCaseMutation(payload).unwrap()
           : await importSolverInputMutation(payload).unwrap();
-      dispatch(setPersistedState(nextState));
+      const patchedState: MapOrdersPersistedState = {
+        ...nextState,
+        cpSatStatus: nextState.cpSatStatus ?? undefined,
+      };
+      dispatch(setPersistedState(patchedState));
       dispatch(setUiState({ warnings: [] }));
     },
     [dispatch, importCaseMutation, importSolverInputMutation],
@@ -150,6 +172,36 @@ const MapOrdersWidget = () => {
     [runImport],
   );
 
+  const handleImportCpSatLog = useCallback(async () => {
+    setImportError(null);
+    setIsImportingCpSat(true);
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") {
+        throw new Error("Копирование из буфера обмена недоступно");
+      }
+      const clipboardText = await navigator.clipboard.readText();
+      if (!clipboardText.trim()) {
+        throw new Error("Буфер обмена пуст");
+      }
+      const parsedPayload = parseCpSatLogPayload(clipboardText);
+      const nextState = buildStateFromCpSatLog(parsedPayload);
+      dispatch(setPersistedState(nextState));
+      dispatch(setUiState({ warnings: [], error: undefined }));
+    } catch (error) {
+      let message: string;
+      if (error instanceof CpSatLogParseError) {
+        message = error.message;
+      } else if (error instanceof SyntaxError) {
+        message = "Невалидный JSON";
+      } else {
+        message = (error as Error).message;
+      }
+      setImportError(`Ошибка импорта CP-SAT: ${message}`);
+    } finally {
+      setIsImportingCpSat(false);
+    }
+  }, [dispatch]);
+
   const preventDefaults = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -157,9 +209,16 @@ const MapOrdersWidget = () => {
 
   return (
     <Paper elevation={3} sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography variant="h6" fontWeight={700}>
-        Карта заказов
-      </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between">
+        <Typography variant="h6" fontWeight={700}>
+          Карта заказов
+        </Typography>
+        {cpSatStatusLabel ? (
+          <Typography variant="body2" color="text.secondary">
+            CP-SAT: {cpSatStatusLabel}
+          </Typography>
+        ) : null}
+      </Stack>
       <MapOrdersMap />
       <Divider />
       <Stack direction="row" spacing={2} flexWrap="wrap">
@@ -178,6 +237,9 @@ const MapOrdersWidget = () => {
         <Button variant="contained" component="label" disabled={isBusy}>
           Загрузить JSON
           <input type="file" hidden accept="application/json" onChange={handleFileSelect} />
+        </Button>
+        <Button variant="contained" onClick={handleImportCpSatLog} disabled={isBusy}>
+          {isImportingCpSat ? <CircularProgress size={20} /> : "Загрузить Enriched CP-SAT Log"}
         </Button>
       </Stack>
       <Box
