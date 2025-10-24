@@ -13,6 +13,7 @@ import {
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
 import L, { LeafletEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
+import "leaflet-simple-map-screenshoter";
 import {
   Box,
   Button,
@@ -57,6 +58,7 @@ import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -109,7 +111,9 @@ const MapOrdersMapClient = ({
   const routeSegments = useAppSelector(selectRouteSegments);
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const [isFullScreen, setFullScreen] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
+  const screenshoterRef = useRef<any>(null);
 
   useEffect(() => {
     ensureDefaultMarkerIcons();
@@ -130,6 +134,37 @@ const MapOrdersMapClient = ({
 
     return () => {
       document.body.style.overflow = previousOverflow;
+    };
+  }, [isFullScreen]);
+
+  useEffect(() => {
+    const mapInstance = mapRef.current;
+    if (!mapInstance || !(L as any).simpleMapScreenshoter) {
+      return;
+    }
+    if (!screenshoterRef.current) {
+      const screenshoter = (L as any)
+        .simpleMapScreenshoter({
+          mimeType: "image/png",
+          quality: 1,
+          position: "topright",
+        })
+        .addTo(mapInstance);
+
+      const controlContainer = (screenshoter as any)?._container as HTMLElement | undefined;
+      if (controlContainer) {
+        controlContainer.style.display = "none";
+      }
+
+      screenshoterRef.current = screenshoter;
+    }
+
+    return () => {
+      const current = screenshoterRef.current;
+      if (current && typeof mapInstance.removeControl === "function") {
+        mapInstance.removeControl(current);
+      }
+      screenshoterRef.current = null;
     };
   }, [isFullScreen]);
 
@@ -435,6 +470,71 @@ const MapOrdersMapClient = ({
                 </IconButton>
               </span>
             </MuiTooltip>
+            <MuiTooltip title="Скопировать карту" placement="left">
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={async () => {
+                    if (isCopying) {
+                      return;
+                    }
+                    try {
+                      setIsCopying(true);
+                      let screenshoter = screenshoterRef.current;
+                      if (!screenshoter || typeof screenshoter.takeScreen !== "function") {
+                        const mapInstance = mapRef.current;
+                        if (mapInstance && (L as any).simpleMapScreenshoter) {
+                          screenshoter = (L as any)
+                            .simpleMapScreenshoter({
+                              mimeType: "image/png",
+                              quality: 1,
+                              position: "topright",
+                            })
+                            .addTo(mapInstance);
+                          const controlContainer = (screenshoter as any)?._container as HTMLElement | undefined;
+                          if (controlContainer) {
+                            controlContainer.style.display = "none";
+                          }
+                          screenshoterRef.current = screenshoter;
+                        }
+                      }
+                      if (!screenshoter || typeof screenshoter.takeScreen !== "function") {
+                        throw new Error("Screenshoter недоступен");
+                      }
+                      const result = await screenshoter.takeScreen("blob", {
+                        mimeType: "image/png",
+                        quality: 1,
+                      });
+                      const blob = result instanceof Blob ? result : null;
+                      if (!blob) {
+                        throw new Error("Не удалось сформировать изображение");
+                      }
+                      if (navigator.clipboard && typeof (navigator.clipboard as any).write === "function") {
+                        await (navigator.clipboard as any).write([
+                          new ClipboardItem({ "image/png": blob }),
+                        ]);
+                      }
+                    } catch (error) {
+                      console.error("Clipboard copy failed", error);
+                    } finally {
+                      setIsCopying(false);
+                    }
+                  }}
+                  disabled={isCopying}
+                  sx={{
+                    bgcolor: "background.paper",
+                    color: "text.primary",
+                    boxShadow: 2,
+                    '&:hover': {
+                      bgcolor: "background.paper",
+                      boxShadow: 4,
+                    },
+                  }}
+                >
+                  {isCopying ? <CircularProgress size={14} /> : <ContentCopyIcon fontSize="small" />}
+                </IconButton>
+              </span>
+            </MuiTooltip>
             <IconButton
               size="small"
               onClick={handleFitToView}
@@ -569,7 +669,7 @@ const MapOrdersMapClient = ({
             zoom={zoom}
             style={{ height: "100%", width: "100%" }}
           >
-            <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" />
+            <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" crossOrigin={true} />
             <FeatureGroup>
               {isEditingEnabled ? (
                 <EditControl
