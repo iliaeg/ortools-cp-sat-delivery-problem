@@ -416,8 +416,29 @@ export const buildStateFromCpSatLog = (
 
   const orderPoints: DeliveryPoint[] = sortedOrders.map((entry, index) => {
     const { request: requestOrder } = entry;
-    const boxes = toFiniteNumber(requestOrder.boxes_count ?? requestOrder.boxes ?? 0) ?? 0;
+    const boxes =
+      toFiniteNumber(
+        pickProperty(
+          requestOrder,
+          "boxes_count",
+          "BoxesCount",
+          "boxes",
+          "Boxes",
+        ),
+      ) ?? 0;
     const coords = entry.coordinates ?? { lat: 0, lon: 0 };
+    const createdAtCandidate = pickProperty(
+      requestOrder,
+      "created_at_utc",
+      "CreatedAtUtc",
+      "createdAtUtc",
+    );
+    const readyAtCandidate = pickProperty(
+      requestOrder,
+      "expected_ready_at_utc",
+      "ExpectedReadyAtUtc",
+      "readyAtUtc",
+    );
 
     const point: DeliveryPoint = {
       internalId: uuidv4(),
@@ -427,8 +448,8 @@ export const buildStateFromCpSatLog = (
       lat: coords.lat,
       lon: coords.lon,
       boxes,
-      createdAt: extractTimeString(requestOrder.created_at_utc ?? requestOrder.createdAtUtc),
-      readyAt: extractTimeString(requestOrder.expected_ready_at_utc ?? requestOrder.expectedReadyAtUtc),
+      createdAt: extractTimeString(createdAtCandidate),
+      readyAt: extractTimeString(readyAtCandidate),
       orderNumber: entry.orderNumber,
     };
 
@@ -511,6 +532,7 @@ export const buildStateFromCpSatLog = (
 
       const responseOrder = responseOrdersById.get(orderId);
       const combinedOrder = combinedOrderById.get(orderId);
+      const requestOrderRaw = combinedOrder?.request;
       const etaRelMin = minutesBetween(
         currentTimestamp,
         parseDate(
@@ -523,7 +545,7 @@ export const buildStateFromCpSatLog = (
       );
       const plannedC2eMin = minutesBetween(
         combinedOrder?.createdAtUtc
-          ?? parseDate(pickProperty(combinedOrder?.request, "created_at_utc", "CreatedAtUtc")),
+          ?? parseDate(pickProperty(requestOrderRaw, "created_at_utc", "CreatedAtUtc")),
         parseDate(
           pickProperty(responseOrder, "planned_delivery_at_utc", "PlannedDeliveryAtUtc"),
         ),
