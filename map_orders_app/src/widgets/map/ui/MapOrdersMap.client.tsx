@@ -559,7 +559,7 @@ const MapOrdersMapClient = ({
                 Текущее время
               </Typography>
               <Typography variant="body2" fontWeight={700} color="inherit">
-                {currentTime}
+                {currentTime} UTC
               </Typography>
             </Paper>
           ) : null}
