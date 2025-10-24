@@ -482,11 +482,10 @@ const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
                     py: 0.75,
                     display: "flex",
                     alignItems: "center",
-                    bgcolor: (theme) => theme.palette.background.paper,
-                    opacity: 0.9,
+                    bgcolor: "rgba(230, 230, 230, 0.9)",
                   }}
                 >
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={700} color="text.primary">
                     CP-SAT: {statusLabel}
                   </Typography>
                 </Paper>
@@ -500,14 +499,13 @@ const MapOrdersMapClient = ({ statusLabel, metrics }: MapOrdersMapProps) => {
                     py: 0.75,
                     display: "flex",
                     flexDirection: "column",
-                    bgcolor: (theme) => theme.palette.background.paper,
-                    opacity: 0.9,
+                    bgcolor: "rgba(230, 230, 230, 0.9)",
                   }}
                 >
                   <Typography variant="caption" color="text.secondary">
                     {label}
                   </Typography>
-                  <Typography variant="body2" fontWeight={600}>
+                  <Typography variant="body2" fontWeight={700} color="text.primary">
                     {value}
                   </Typography>
                 </Paper>
