@@ -85,6 +85,7 @@ type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId
 export interface MapOrdersMapProps {
   statusLabel?: string;
   metrics?: Array<{ label: string; value: string }>;
+  currentTime?: string;
   onImportLogClick?: () => void;
   importLogDisabled?: boolean;
   importLogLoading?: boolean;
@@ -93,6 +94,7 @@ export interface MapOrdersMapProps {
 const MapOrdersMapClient = ({
   statusLabel,
   metrics,
+  currentTime,
   onImportLogClick,
   importLogDisabled,
   importLogLoading,
@@ -537,6 +539,29 @@ const MapOrdersMapClient = ({
                 </Stack>
               ) : null}
             </>
+          ) : null}
+          {currentTime ? (
+            <Paper
+              elevation={1}
+              sx={{
+                position: "absolute",
+                bottom: 12,
+                left: 12,
+                zIndex: 1200,
+                px: 1.5,
+                py: 0.75,
+                bgcolor: "rgba(245, 245, 245, 0.85)",
+                color: "rgb(33, 33, 33)",
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="caption" color="rgba(33, 33, 33, 0.7)" fontWeight={600}>
+                Текущее время
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="inherit">
+                {currentTime}
+              </Typography>
+            </Paper>
           ) : null}
           <MapContainer
             ref={mapRef}

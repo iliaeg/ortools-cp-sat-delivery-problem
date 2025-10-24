@@ -71,6 +71,11 @@ export const selectViewportLocked = createSelector(
   (state) => state.data.viewportLocked,
 );
 
+export const selectCurrentTime = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.t0Time,
+);
+
 export const selectUiFlags = createSelector(selectMapOrdersState, (state) => ({
   isLoading: state.ui.isLoading,
   isSaving: state.ui.isSaving,

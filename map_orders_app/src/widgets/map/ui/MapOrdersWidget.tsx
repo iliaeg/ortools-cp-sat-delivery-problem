@@ -25,6 +25,7 @@ import {
   selectPoints,
   selectCpSatStatus,
   selectCpSatMetrics,
+  selectCurrentTime,
 } from "@/features/map-orders/model/selectors";
 import {
   useExportCaseMutation,
@@ -65,6 +66,7 @@ const MapOrdersWidget = () => {
   const points = useAppSelector(selectPoints);
   const cpSatStatus = useAppSelector(selectCpSatStatus);
   const cpSatMetrics = useAppSelector(selectCpSatMetrics);
+  const currentTime = useAppSelector(selectCurrentTime);
   const [exportGeoJson, { isLoading: isExportingGeo }]
     = useExportGeoJsonMutation();
   const [exportCase, { isLoading: isExportingCase }] = useExportCaseMutation();
@@ -276,6 +278,7 @@ const MapOrdersWidget = () => {
       <MapOrdersMap
         statusLabel={cpSatStatusLabel}
         metrics={metricsCards}
+        currentTime={currentTime}
         onImportLogClick={handleImportCpSatLog}
         importLogDisabled={isBusy}
         importLogLoading={isImportingCpSat}
