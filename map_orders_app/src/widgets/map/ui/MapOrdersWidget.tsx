@@ -21,7 +21,11 @@ import {
   setUiState,
   setPersistedState,
 } from "@/features/map-orders/model/mapOrdersSlice";
-import { selectPoints, selectCpSatStatus } from "@/features/map-orders/model/selectors";
+import {
+  selectPoints,
+  selectCpSatStatus,
+  selectCpSatMetrics,
+} from "@/features/map-orders/model/selectors";
 import {
   useExportCaseMutation,
   useExportGeoJsonMutation,
@@ -60,6 +64,7 @@ const MapOrdersWidget = () => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
   const cpSatStatus = useAppSelector(selectCpSatStatus);
+  const cpSatMetrics = useAppSelector(selectCpSatMetrics);
   const [exportGeoJson, { isLoading: isExportingGeo }]
     = useExportGeoJsonMutation();
   const [exportCase, { isLoading: isExportingCase }] = useExportCaseMutation();
@@ -93,6 +98,31 @@ const MapOrdersWidget = () => {
     const trimmed = cpSatStatus.trim();
     return trimmed.length ? trimmed : "";
   }, [cpSatStatus]);
+
+  const metricsCards = useMemo(() => {
+    if (!cpSatMetrics) {
+      return [] as Array<{ label: string; value: string }>;
+    }
+    const items: Array<{ label: string; value: string }> = [];
+    const { totalOrders, assignedOrders, totalCouriers, assignedCouriers, objectiveValue }
+      = cpSatMetrics;
+    if (totalOrders !== undefined || assignedOrders !== undefined) {
+      const value = assignedOrders !== undefined && totalOrders !== undefined
+        ? `${assignedOrders} / ${totalOrders}`
+        : `${assignedOrders ?? totalOrders ?? "-"}`;
+      items.push({ label: "Заказы", value });
+    }
+    if (totalCouriers !== undefined || assignedCouriers !== undefined) {
+      const value = assignedCouriers !== undefined && totalCouriers !== undefined
+        ? `${assignedCouriers} / ${totalCouriers}`
+        : `${assignedCouriers ?? totalCouriers ?? "-"}`;
+      items.push({ label: "Курьеры", value });
+    }
+    if (objectiveValue !== undefined) {
+      items.push({ label: "Целевая функция", value: String(objectiveValue) });
+    }
+    return items;
+  }, [cpSatMetrics]);
 
   const handleReimportFromMap = useCallback(() => {
     const normalized = preparePointsFromImport(points);
@@ -128,6 +158,7 @@ const MapOrdersWidget = () => {
       const patchedState: MapOrdersPersistedState = {
         ...nextState,
         cpSatStatus: nextState.cpSatStatus ?? undefined,
+        cpSatMetrics: nextState.cpSatMetrics ?? null,
       };
       dispatch(setPersistedState(patchedState));
       dispatch(setUiState({ warnings: [] }));
@@ -213,11 +244,31 @@ const MapOrdersWidget = () => {
         <Typography variant="h6" fontWeight={700}>
           Карта заказов
         </Typography>
-        {cpSatStatusLabel ? (
-          <Typography variant="body2" color="text.secondary">
-            CP-SAT: {cpSatStatusLabel}
-          </Typography>
-        ) : null}
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end", rowGap: 0.5 }}>
+          {cpSatStatusLabel ? (
+            <Typography variant="body2" color="text.secondary">
+              CP-SAT: {cpSatStatusLabel}
+            </Typography>
+          ) : null}
+          {metricsCards.length > 0 ? (
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
+              {metricsCards.map(({ label, value }) => (
+                <Paper
+                  key={label}
+                  variant="outlined"
+                  sx={{ px: 1.5, py: 0.75, display: "flex", flexDirection: "column" }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    {label}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    {value}
+                  </Typography>
+                </Paper>
+              ))}
+            </Stack>
+          ) : null}
+        </Stack>
       </Stack>
       <MapOrdersMap />
       <Divider />

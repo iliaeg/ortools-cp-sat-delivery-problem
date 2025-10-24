@@ -61,6 +61,11 @@ export const selectCpSatStatus = createSelector(
   (state) => state.data.cpSatStatus,
 );
 
+export const selectCpSatMetrics = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.cpSatMetrics,
+);
+
 export const selectUiFlags = createSelector(selectMapOrdersState, (state) => ({
   isLoading: state.ui.isLoading,
   isSaving: state.ui.isSaving,

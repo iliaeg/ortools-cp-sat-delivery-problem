@@ -41,6 +41,7 @@ export const initialPersistedState: MapOrdersPersistedState = {
   solverResult: null,
   lastSavedAtIso: undefined,
   cpSatStatus: undefined,
+  cpSatMetrics: null,
 };
 
 const initialUiState: MapOrdersUiState = {
@@ -162,6 +163,7 @@ const mapOrdersSlice = createSlice({
             && action.payload.cpSatStatus.trim().length
             ? action.payload.cpSatStatus.trim()
             : undefined,
+        cpSatMetrics: action.payload.cpSatMetrics ?? null,
         couriersText: ensureDefaultText(
           action.payload.couriersText ?? state.data.couriersText,
           DEFAULT_COURIERS_TEXT,
@@ -220,6 +222,7 @@ const mapOrdersSlice = createSlice({
       state.data.solverResult = null;
       state.data.solverInput = null;
       state.data.cpSatStatus = undefined;
+      state.data.cpSatMetrics = null;
     },
     setMapView: (
       state,
@@ -298,6 +301,7 @@ const mapOrdersSlice = createSlice({
     resetSolverResult: (state) => {
       state.data.solverResult = null;
       state.data.cpSatStatus = undefined;
+      state.data.cpSatMetrics = null;
       state.data.points.forEach((point) => {
         point.groupId = undefined;
         point.routePos = undefined;

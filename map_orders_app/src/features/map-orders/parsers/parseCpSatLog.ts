@@ -312,6 +312,27 @@ export const buildStateFromCpSatLog = (
   const responseCouriersRaw = asArray<UnknownRecord>(
     pickProperty(response, "couriers", "Couriers"),
   );
+  const metricsRaw = pickProperty(response, "metrics", "Metrics");
+  const metrics =
+    typeof metricsRaw === "object" && metricsRaw !== null
+      ? {
+          totalOrders: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "total_orders", "TotalOrders"),
+          ),
+          assignedOrders: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "assigned_orders", "AssignedOrders"),
+          ),
+          totalCouriers: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "total_couriers", "TotalCouriers"),
+          ),
+          assignedCouriers: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "assigned_couriers", "AssignedCouriers"),
+          ),
+          objectiveValue: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "objective_value", "ObjectiveValue"),
+          ),
+        }
+      : null;
 
   if (requestOrdersRaw.length === 0) {
     throw new CpSatLogParseError("Request.orders пуст");
@@ -845,6 +866,10 @@ export const buildStateFromCpSatLog = (
     ? stringifyWithInlineArrays(travelMatrix)
     : "";
 
+  const normalizedMetrics = metrics && Object.values(metrics).some((value) => value !== undefined)
+    ? metrics
+    : null;
+
   return {
     points,
     t0Time: formatTimePart(currentTimestamp),
@@ -863,5 +888,6 @@ export const buildStateFromCpSatLog = (
         && (pickProperty(response, "status", "Status") as string).trim().length
         ? String(pickProperty(response, "status", "Status"))
         : undefined,
+    cpSatMetrics: normalizedMetrics,
   };
 };

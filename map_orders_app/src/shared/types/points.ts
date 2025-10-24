@@ -69,6 +69,13 @@ export interface MapOrdersPersistedState {
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;
   cpSatStatus?: string | null;
+  cpSatMetrics?: {
+    totalOrders?: number;
+    assignedOrders?: number;
+    totalCouriers?: number;
+    assignedCouriers?: number;
+    objectiveValue?: number;
+  } | null;
 }
 
 export interface MapOrdersUiState {

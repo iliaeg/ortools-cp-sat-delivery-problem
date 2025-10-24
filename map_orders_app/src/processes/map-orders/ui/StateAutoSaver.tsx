@@ -16,6 +16,7 @@ export const StateAutoSaver = () => {
   const payload = {
     ...mapOrdersState.data,
     cpSatStatus: mapOrdersState.data.cpSatStatus ?? null,
+    cpSatMetrics: mapOrdersState.data.cpSatMetrics ?? null,
   };
 
   const serialised = JSON.stringify({
