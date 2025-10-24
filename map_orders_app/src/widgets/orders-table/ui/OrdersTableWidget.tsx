@@ -89,7 +89,7 @@ const comparePointsByOrderNumber = (a: DeliveryPoint, b: DeliveryPoint): number 
 
 const columnsBase: GridColDef<DeliveryPoint>[] = [
   {
-    field: "orderNumber",
+    field: "orderNumberLeft",
     headerName: "#",
     width: 60,
     editable: false,
@@ -163,6 +163,25 @@ const columnsBase: GridColDef<DeliveryPoint>[] = [
     width: 140,
     editable: true,
     description: "Время готовности заказа (HH:MM:SS)",
+  },
+  {
+    field: "orderNumber",
+    headerName: "#",
+    width: 60,
+    editable: false,
+    description: "Номер заказа из CP-SAT либо порядковый номер",
+    sortable: false,
+    valueGetter: (params) => {
+      const point = params?.row as DeliveryPoint | undefined;
+      if (!point) {
+        return "";
+      }
+      return resolveOrderNumber(point).label;
+    },
+    renderCell: (params) => {
+      const point = params.row as DeliveryPoint;
+      return resolveOrderNumber(point).label;
+    },
   },
   {
     field: "depotDirectMin",
