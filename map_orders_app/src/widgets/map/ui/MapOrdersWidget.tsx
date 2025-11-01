@@ -106,22 +106,43 @@ const MapOrdersWidget = () => {
       return [] as Array<{ label: string; value: string }>;
     }
     const items: Array<{ label: string; value: string }> = [];
-    const { totalOrders, assignedOrders, totalCouriers, assignedCouriers, objectiveValue }
-      = cpSatMetrics;
+    const {
+      totalOrders,
+      assignedOrders,
+      totalCouriers,
+      assignedCouriers,
+      objectiveValue,
+      certCount,
+      skipCount,
+    } = cpSatMetrics;
+
+    const formatRatio = (
+      count: number | undefined,
+      total: number | undefined,
+    ): string => {
+      if (total !== undefined) {
+        return `${count ?? 0} / ${total}`;
+      }
+      if (count !== undefined) {
+        return String(count);
+      }
+      return "-";
+    };
+
     if (totalOrders !== undefined || assignedOrders !== undefined) {
-      const value = assignedOrders !== undefined && totalOrders !== undefined
-        ? `${assignedOrders} / ${totalOrders}`
-        : `${assignedOrders ?? totalOrders ?? "-"}`;
-      items.push({ label: "Заказы", value });
+      items.push({ label: "Заказы", value: formatRatio(assignedOrders, totalOrders) });
     }
     if (totalCouriers !== undefined || assignedCouriers !== undefined) {
-      const value = assignedCouriers !== undefined && totalCouriers !== undefined
-        ? `${assignedCouriers} / ${totalCouriers}`
-        : `${assignedCouriers ?? totalCouriers ?? "-"}`;
-      items.push({ label: "Курьеры", value });
+      items.push({ label: "Курьеры", value: formatRatio(assignedCouriers, totalCouriers) });
     }
     if (objectiveValue !== undefined) {
       items.push({ label: "Целевая функция", value: String(objectiveValue) });
+    }
+    if (certCount !== undefined || totalOrders !== undefined) {
+      items.push({ label: "Серты", value: formatRatio(certCount, totalOrders) });
+    }
+    if (skipCount !== undefined || totalOrders !== undefined) {
+      items.push({ label: "Пропуски", value: formatRatio(skipCount, totalOrders) });
     }
     return items;
   }, [cpSatMetrics]);

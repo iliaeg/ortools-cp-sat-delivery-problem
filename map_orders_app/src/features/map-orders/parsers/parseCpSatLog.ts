@@ -331,8 +331,31 @@ export const buildStateFromCpSatLog = (
           objectiveValue: toFiniteNumber(
             pickProperty(metricsRaw as UnknownRecord, "objective_value", "ObjectiveValue"),
           ),
+          certCount: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "cert_orders", "CertOrders"),
+          ),
+          skipCount: toFiniteNumber(
+            pickProperty(metricsRaw as UnknownRecord, "skip_orders", "SkippedOrders", "Skipped"),
+          ),
         }
       : null;
+
+  if (metrics) {
+    const computedCerts = responseOrdersRaw.reduce((acc, order) => {
+      const isCert = pickProperty(order, "is_cert", "IsCert");
+      return acc + (isCert ? 1 : 0);
+    }, 0);
+    const computedSkips = responseOrdersRaw.reduce((acc, order) => {
+      const isSkipped = pickProperty(order, "is_skipped", "IsSkipped");
+      return acc + (isSkipped ? 1 : 0);
+    }, 0);
+    if (metrics.certCount === undefined) {
+      metrics.certCount = computedCerts;
+    }
+    if (metrics.skipCount === undefined) {
+      metrics.skipCount = computedSkips;
+    }
+  }
 
   if (requestOrdersRaw.length === 0) {
     throw new CpSatLogParseError("Request.orders пуст");

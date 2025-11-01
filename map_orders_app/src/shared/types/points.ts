@@ -75,6 +75,8 @@ export interface MapOrdersPersistedState {
     totalCouriers?: number;
     assignedCouriers?: number;
     objectiveValue?: number;
+    certCount?: number;
+    skipCount?: number;
   } | null;
   viewportLocked: boolean;
 }
