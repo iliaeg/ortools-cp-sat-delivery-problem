@@ -310,13 +310,13 @@ const MapOrdersMapClient = ({
               {typeof point.skip === "number" ? (
                 <>
                   <br />
-                  <span style={{ color: "#5b2c93" }}>Пропуск: {point.skip}</span>
+                  <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
                 </>
               ) : null}
               {typeof point.cert === "number" ? (
                 <>
                   <br />
-                  <span style={{ color: "#b71c1c" }}>Сертификат: {point.cert}</span>
+                  <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
                 </>
               ) : null}
               {typeof point.plannedC2eMin === "number" ? (
