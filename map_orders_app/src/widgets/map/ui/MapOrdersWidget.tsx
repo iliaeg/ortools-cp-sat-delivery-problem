@@ -319,6 +319,33 @@ const MapOrdersWidget = () => {
     event.stopPropagation();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const tagName = (event.target as HTMLElement | null)?.tagName;
+      if (tagName && ["INPUT", "TEXTAREA"].includes(tagName)) {
+        return;
+      }
+      if (event.key === "ArrowLeft") {
+        if (canHistoryBack) {
+          event.preventDefault();
+          handleHistoryBack();
+        }
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        if (canHistoryForward) {
+          event.preventDefault();
+          handleHistoryForward();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canHistoryBack, canHistoryForward, handleHistoryBack, handleHistoryForward]);
+
   return (
     <Paper elevation={3} sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column", gap: 1.5 }}>
       <Stack spacing={0.75} sx={{ mb: 0.5 }}>
