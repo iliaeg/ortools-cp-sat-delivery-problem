@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ChangeEvent, type DragEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent } from "react";
 import {
   Alert,
   Box,
@@ -21,11 +21,13 @@ import {
   setUiState,
   setPersistedState,
 } from "@/features/map-orders/model/mapOrdersSlice";
+import { pushLog, goBack, goForward } from "@/features/map-orders/model/logsHistorySlice";
 import {
   selectPoints,
   selectCpSatStatus,
   selectCpSatMetrics,
   selectCurrentTime,
+  selectMapOrdersState,
 } from "@/features/map-orders/model/selectors";
 import {
   useExportCaseMutation,
@@ -67,6 +69,9 @@ const MapOrdersWidget = () => {
   const cpSatStatus = useAppSelector(selectCpSatStatus);
   const cpSatMetrics = useAppSelector(selectCpSatMetrics);
   const currentTime = useAppSelector(selectCurrentTime);
+  const mapOrdersState = useAppSelector(selectMapOrdersState);
+  const historyEntries = useAppSelector((state) => state.logsHistory.entries);
+  const historyIndex = useAppSelector((state) => state.logsHistory.index);
   const [exportGeoJson, { isLoading: isExportingGeo }]
     = useExportGeoJsonMutation();
   const [exportCase, { isLoading: isExportingCase }] = useExportCaseMutation();
@@ -100,6 +105,9 @@ const MapOrdersWidget = () => {
     const trimmed = cpSatStatus.trim();
     return trimmed.length ? trimmed : "";
   }, [cpSatStatus]);
+
+  const canHistoryBack = historyIndex > 0;
+  const canHistoryForward = historyIndex >= 0 && historyIndex < historyEntries.length - 1;
 
   const metricsCards = useMemo(() => {
     if (!cpSatMetrics) {
@@ -147,6 +155,27 @@ const MapOrdersWidget = () => {
     return items;
   }, [cpSatMetrics]);
 
+  const historyInitialized = useRef(false);
+
+  const buildSnapshot = useCallback(
+    (patch?: Partial<MapOrdersPersistedState>) => {
+      const base = {
+        ...mapOrdersState.data,
+        ...patch,
+      } as MapOrdersPersistedState;
+      const { lastSavedAtIso, ...rest } = base;
+      return JSON.stringify({ ...rest, lastSavedAtIso: undefined });
+    },
+    [mapOrdersState.data],
+  );
+
+  useEffect(() => {
+    if (!historyInitialized.current && historyEntries.length === 0) {
+      dispatch(pushLog({ state: buildSnapshot(), timestamp: Date.now() }));
+      historyInitialized.current = true;
+    }
+  }, [dispatch, historyEntries.length, buildSnapshot]);
+
   const handleReimportFromMap = useCallback(() => {
     const normalized = preparePointsFromImport(points);
     dispatch(replacePoints(normalized));
@@ -185,11 +214,12 @@ const MapOrdersWidget = () => {
         ...(typeof nextState.viewportLocked === "boolean"
           ? { viewportLocked: nextState.viewportLocked }
           : {}),
-      } as MapOrdersPersistedState;
+      };
+      dispatch(pushLog({ state: buildSnapshot(patchedState), timestamp: Date.now() }));
       dispatch(setPersistedState(patchedState));
       dispatch(setUiState({ warnings: [] }));
     },
-    [dispatch, importCaseMutation, importSolverInputMutation],
+    [dispatch, importCaseMutation, importSolverInputMutation, buildSnapshot],
   );
 
   const handleFileSelect = useCallback(
@@ -244,6 +274,7 @@ const MapOrdersWidget = () => {
       const nextState = buildStateFromCpSatLog(parsedPayload);
       dispatch(setPersistedState(nextState));
       dispatch(setUiState({ warnings: [], error: undefined }));
+      dispatch(pushLog({ state: buildSnapshot(nextState), timestamp: Date.now() }));
     } catch (error) {
       let message: string;
       if (error instanceof CpSatLogParseError) {
@@ -257,7 +288,31 @@ const MapOrdersWidget = () => {
     } finally {
       setIsImportingCpSat(false);
     }
-  }, [dispatch]);
+  }, [dispatch, buildSnapshot]);
+
+  const handleHistoryBack = useCallback(() => {
+    if (!canHistoryBack) {
+      return;
+    }
+    const target = historyEntries[historyIndex - 1];
+    if (!target) {
+      return;
+    }
+    dispatch(setPersistedState(JSON.parse(target.state) as Partial<MapOrdersPersistedState>));
+    dispatch(goBack());
+  }, [canHistoryBack, historyEntries, historyIndex, dispatch]);
+
+  const handleHistoryForward = useCallback(() => {
+    if (!canHistoryForward) {
+      return;
+    }
+    const target = historyEntries[historyIndex + 1];
+    if (!target) {
+      return;
+    }
+    dispatch(setPersistedState(JSON.parse(target.state) as Partial<MapOrdersPersistedState>));
+    dispatch(goForward());
+  }, [canHistoryForward, historyEntries, historyIndex, dispatch]);
 
   const preventDefaults = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -265,35 +320,36 @@ const MapOrdersWidget = () => {
   }, []);
 
   return (
-    <Paper elevation={3} sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column", gap: 2 }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
+    <Paper elevation={3} sx={{ p: 2, height: "100%", display: "flex", flexDirection: "column", gap: 1.5 }}>
+      <Stack spacing={0.75} sx={{ mb: 0.5 }}>
         <Typography variant="h6" fontWeight={700}>
           Карта заказов
         </Typography>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", justifyContent: "flex-end", rowGap: 0.5 }}>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ flexWrap: "nowrap", overflowX: "auto", rowGap: 0.5 }}
+        >
           {cpSatStatusLabel ? (
-            <Typography variant="body2" fontWeight={700} color="text.primary">
+            <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ flexShrink: 0 }}>
               Статус: {cpSatStatusLabel}
             </Typography>
           ) : null}
-          {metricsCards.length > 0 ? (
-            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
-              {metricsCards.map(({ label, value }) => (
-                <Paper
-                  key={label}
-                  variant="outlined"
-                  sx={{ px: 1.5, py: 0.75, display: "flex", flexDirection: "column" }}
-                >
-                  <Typography variant="caption" color="text.secondary">
-                    {label}
-                  </Typography>
-                  <Typography variant="body2" fontWeight={700}>
-                    {value}
-                  </Typography>
-                </Paper>
-              ))}
-            </Stack>
-          ) : null}
+          {metricsCards.map(({ label, value }) => (
+            <Paper
+              key={label}
+              variant="outlined"
+              sx={{ px: 1.25, py: 0.6, display: "flex", flexDirection: "column", minWidth: 128, flexShrink: 0 }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {label}
+              </Typography>
+              <Typography variant="body2" fontWeight={700}>
+                {value}
+              </Typography>
+            </Paper>
+          ))}
         </Stack>
       </Stack>
       <MapOrdersMap
@@ -303,6 +359,10 @@ const MapOrdersWidget = () => {
         onImportLogClick={handleImportCpSatLog}
         importLogDisabled={isBusy}
         importLogLoading={isImportingCpSat}
+        onHistoryBack={handleHistoryBack}
+        onHistoryForward={handleHistoryForward}
+        canHistoryBack={canHistoryBack}
+        canHistoryForward={canHistoryForward}
       />
       <Divider />
       <Stack direction="row" spacing={2} flexWrap="wrap">

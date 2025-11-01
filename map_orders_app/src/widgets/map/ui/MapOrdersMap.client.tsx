@@ -60,6 +60,8 @@ import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -100,6 +102,10 @@ export interface MapOrdersMapProps {
   onImportLogClick?: () => void;
   importLogDisabled?: boolean;
   importLogLoading?: boolean;
+  onHistoryBack?: () => void;
+  onHistoryForward?: () => void;
+  canHistoryBack?: boolean;
+  canHistoryForward?: boolean;
 }
 
 const MapOrdersMapClient = ({
@@ -109,6 +115,10 @@ const MapOrdersMapClient = ({
   onImportLogClick,
   importLogDisabled,
   importLogLoading,
+  onHistoryBack,
+  onHistoryForward,
+  canHistoryBack,
+  canHistoryForward,
 }: MapOrdersMapProps) => {
   const dispatch = useAppDispatch();
   const points = useAppSelector(selectPoints);
@@ -124,6 +134,8 @@ const MapOrdersMapClient = ({
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const screenshoterRef = useRef<any>(null);
+  const historyBackEnabled = Boolean(canHistoryBack);
+  const historyForwardEnabled = Boolean(canHistoryForward);
 
   useEffect(() => {
     ensureDefaultMarkerIcons();
@@ -774,16 +786,55 @@ const MapOrdersMapClient = ({
               label="Показывать позиции в маршруте"
             />
           </Stack>
-          {isFullScreen && onImportLogClick ? (
-            <Button
-              variant="contained"
-              onClick={onImportLogClick}
-              disabled={importLogDisabled}
-              startIcon={importLogLoading ? <CircularProgress size={16} /> : undefined}
-              sx={{ order: -1 }}
-            >
-              {importLogLoading ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
-            </Button>
+          {isFullScreen && (onImportLogClick || onHistoryBack || onHistoryForward) ? (
+            <Stack direction="row" spacing={1} alignItems="center">
+              {onImportLogClick ? (
+                <Button
+                  variant="contained"
+                  onClick={onImportLogClick}
+                  disabled={importLogDisabled}
+                  startIcon={importLogLoading ? <CircularProgress size={16} /> : undefined}
+                >
+                  {importLogLoading ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
+                </Button>
+              ) : null}
+              {onHistoryBack ? (
+                <IconButton
+                  size="small"
+                  onClick={onHistoryBack}
+                  disabled={!historyBackEnabled}
+                  sx={{
+                    bgcolor: "background.paper",
+                    color: historyBackEnabled ? "text.primary" : "text.disabled",
+                    boxShadow: 2,
+                    '&:hover': {
+                      bgcolor: "background.paper",
+                      boxShadow: historyBackEnabled ? 4 : 2,
+                    },
+                  }}
+                >
+                  <ArrowBackIosNewIcon fontSize="small" />
+                </IconButton>
+              ) : null}
+              {onHistoryForward ? (
+                <IconButton
+                  size="small"
+                  onClick={onHistoryForward}
+                  disabled={!historyForwardEnabled}
+                  sx={{
+                    bgcolor: "background.paper",
+                    color: historyForwardEnabled ? "text.primary" : "text.disabled",
+                    boxShadow: 2,
+                    '&:hover': {
+                      bgcolor: "background.paper",
+                      boxShadow: historyForwardEnabled ? 4 : 2,
+                    },
+                  }}
+                >
+                  <ArrowForwardIosIcon fontSize="small" />
+                </IconButton>
+              ) : null}
+            </Stack>
           ) : null}
         </Stack>
       </Stack>

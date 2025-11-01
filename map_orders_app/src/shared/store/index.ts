@@ -1,12 +1,14 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { setupListeners } from "@reduxjs/toolkit/query";
 import mapOrdersReducer from "@/features/map-orders/model/mapOrdersSlice";
+import logsHistoryReducer from "@/features/map-orders/model/logsHistorySlice";
 import { mapOrdersApi } from "@/shared/api/mapOrdersApi";
 
 export const makeStore = () =>
   configureStore({
     reducer: {
       mapOrders: mapOrdersReducer,
+      logsHistory: logsHistoryReducer,
       [mapOrdersApi.reducerPath]: mapOrdersApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
