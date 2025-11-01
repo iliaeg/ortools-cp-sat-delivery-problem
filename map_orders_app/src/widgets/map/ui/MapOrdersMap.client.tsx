@@ -80,8 +80,16 @@ const EDIT_OPTIONS = {
   remove: true,
 } as unknown as EditControlProps["edit"];
 
-const labelForPoint = (point: DeliveryPoint) =>
-  `${point.kind === "depot" ? "Депо" : "Заказ"} ${point.id || point.internalId.slice(0, 6)}`;
+const labelForPoint = (point: DeliveryPoint) => {
+  if (point.kind === "depot") {
+    return "Депо";
+  }
+  const numberLabel =
+    point.orderNumber !== undefined && point.orderNumber !== null
+      ? String(point.orderNumber)
+      : point.id || point.internalId.slice(0, 6);
+  return `Заказ ${numberLabel}`;
+};
 
 type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
 
@@ -289,12 +297,34 @@ const MapOrdersMapClient = ({
               </strong>
               <br />
               {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
-              <br />
-              Коробки: {point.boxes}
-              <br />
-              Создан: {point.createdAt}
-              <br />
-              Готов: {point.readyAt}
+              {point.kind === "order" ? (
+                <>
+                  <br />
+                  Коробки: {point.boxes}
+                  <br />
+                  Создан: {point.createdAt}
+                  <br />
+                  Готов: {point.readyAt}
+                </>
+              ) : null}
+              {typeof point.skip === "number" ? (
+                <>
+                  <br />
+                  <span style={{ color: "#5b2c93" }}>Пропуск: {point.skip}</span>
+                </>
+              ) : null}
+              {typeof point.cert === "number" ? (
+                <>
+                  <br />
+                  <span style={{ color: "#b71c1c" }}>Сертификат: {point.cert}</span>
+                </>
+              ) : null}
+              {typeof point.plannedC2eMin === "number" ? (
+                <>
+                  <br />
+                  C2E: <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
+                </>
+              ) : null}
             </div>
           </Tooltip>
         </Marker>
