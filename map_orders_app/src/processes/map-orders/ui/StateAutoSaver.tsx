@@ -10,6 +10,7 @@ import { setLastSavedAt, setUiState } from "@/features/map-orders/model/mapOrder
 export const StateAutoSaver = () => {
   const dispatch = useAppDispatch();
   const mapOrdersState = useAppSelector(selectMapOrdersState);
+  const { index: historyIndex, entries: historyEntries } = useAppSelector((state) => state.logsHistory);
   const [saveState] = useSaveStateMutation();
   const lastSavedSnapshot = useRef<string>("");
 
@@ -26,6 +27,11 @@ export const StateAutoSaver = () => {
   });
 
   useEffect(() => {
+    const isAtLatestHistory = historyEntries.length === 0 || historyIndex === historyEntries.length - 1;
+    if (!isAtLatestHistory) {
+      dispatch(setUiState({ isSaving: false }));
+      return;
+    }
     if (serialised === lastSavedSnapshot.current) {
       return;
     }
@@ -46,7 +52,7 @@ export const StateAutoSaver = () => {
       clearTimeout(timer);
       dispatch(setUiState({ isSaving: false }));
     };
-  }, [dispatch, mapOrdersState.data, saveState, serialised]);
+  }, [dispatch, historyEntries.length, historyIndex, saveState, serialised]);
 
   return null;
 };
