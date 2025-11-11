@@ -277,6 +277,15 @@ const mapOrdersSlice = createSlice({
       action: PayloadAction<SolverSolveResponse | null>,
     ) => {
       state.data.solverResult = action.payload;
+      if (action.payload) {
+        const status = action.payload.cpSatStatus;
+        state.data.cpSatStatus =
+          typeof status === "string" && status.trim().length ? status.trim() : undefined;
+        state.data.cpSatMetrics = action.payload.cpSatMetrics ?? null;
+      } else {
+        state.data.cpSatStatus = undefined;
+        state.data.cpSatMetrics = null;
+      }
     },
     applyComputedFields: (
       state,

@@ -319,13 +319,13 @@ const MapOrdersMapClient = ({
                   Готов: {point.readyAt}
                 </>
               ) : null}
-              {typeof point.skip === "number" ? (
+              {typeof point.skip === "number" && point.skip > 0 ? (
                 <>
                   <br />
                   <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
                 </>
               ) : null}
-              {typeof point.cert === "number" ? (
+              {typeof point.cert === "number" && point.cert > 0 ? (
                 <>
                   <br />
                   <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>

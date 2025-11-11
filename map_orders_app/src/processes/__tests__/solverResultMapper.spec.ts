@@ -5,19 +5,54 @@ import { getStableColorFromSeed } from "@/shared/lib/color";
 import type { SolverInputPayload, SolverResult } from "@/shared/types/solver";
 
 const buildSolverInput = (): SolverInputPayload => ({
+  request: {
+    inputs: [
+      {
+        data: {
+          current_timestamp_utc: "2024-01-01T00:00:00Z",
+          travel_time_matrix_minutes: [
+            [0, 5, 7],
+            [5, 0, 3],
+            [7, 3, 0],
+          ],
+          orders: [
+            {
+              order_id: "order-1",
+              boxes_count: 2,
+              created_at_utc: "2024-01-01T00:04:00Z",
+              expected_ready_at_utc: "2024-01-01T00:10:00Z",
+            },
+            {
+              order_id: "order-2",
+              boxes_count: 1,
+              created_at_utc: "2024-01-01T00:06:00Z",
+              expected_ready_at_utc: "2024-01-01T00:12:00Z",
+            },
+          ],
+          couriers: [
+            {
+              courier_id: "courier-1",
+              box_capacity: 10,
+              expected_courier_return_at_utc: "2024-01-01T00:00:00Z",
+            },
+          ],
+          optimization_weights: {
+            certificate_penalty_weight: 1_000,
+            click_to_eat_penalty_weight: 1,
+            skip_order_penalty_weight: 10_000,
+          },
+        },
+      },
+    ],
+  },
   tau: [
     [0, 5, 7],
     [5, 0, 3],
     [7, 3, 0],
   ],
-  courier_capacity_boxes: [10],
-  boxes_per_order: [2, 1],
   order_created_offset: [4, 6],
   order_ready_offset: [10, 12],
   courier_available_offset: [0],
-  W_cert: 1_000,
-  W_c2e: 1,
-  W_skip: 10_000,
   meta: {
     pointsLatLon: [
       [0, 0],
@@ -64,8 +99,8 @@ describe("mapSolverResult", () => {
         routePos: 1,
         etaRelMin: 24,
         plannedC2eMin: 20,
-        skip: 0,
-        cert: 0,
+        skip: undefined,
+        cert: undefined,
         depotDirectMin: 5,
       },
       {
@@ -74,7 +109,7 @@ describe("mapSolverResult", () => {
         routePos: 2,
         etaRelMin: 31,
         plannedC2eMin: 25,
-        skip: 0,
+        skip: undefined,
         cert: 1,
         depotDirectMin: 7,
       },
@@ -134,7 +169,8 @@ describe("mapSolverResult", () => {
         routePos: 1,
         etaRelMin: 18,
         plannedC2eMin: 14,
-        skip: 0,
+        skip: undefined,
+        cert: undefined,
       }),
       expect.objectContaining({
         internalId: "order-2",
@@ -143,6 +179,7 @@ describe("mapSolverResult", () => {
         etaRelMin: 42,
         plannedC2eMin: 36,
         skip: 1,
+        cert: undefined,
       }),
     ]);
 

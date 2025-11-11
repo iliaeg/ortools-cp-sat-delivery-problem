@@ -86,6 +86,33 @@ describe("mapOrdersSlice", () => {
     expect(point?.depotDirectMin).toBeUndefined();
   });
 
+  it("setSolverResult synchronizes cpSat status and metrics", () => {
+    const solverResponse: SolverSolveResponse = {
+      result: { routes: [] },
+      ordersComputed: [],
+      routesSegments: [],
+      cpSatStatus: "  OPTIMAL ",
+      cpSatMetrics: {
+        totalOrders: 5,
+        assignedOrders: 4,
+        totalCouriers: 2,
+        assignedCouriers: 2,
+        objectiveValue: 123,
+        certCount: 1,
+        skipCount: 0,
+      },
+    };
+
+    let state = createInitialState();
+    state = reducer(state, setSolverResult(solverResponse));
+    expect(state.data.cpSatStatus).toBe("OPTIMAL");
+    expect(state.data.cpSatMetrics).toEqual(solverResponse.cpSatMetrics);
+
+    state = reducer(state, setSolverResult(null));
+    expect(state.data.cpSatStatus).toBeUndefined();
+    expect(state.data.cpSatMetrics).toBeNull();
+  });
+
   it("setShowRoutePositions toggles persisted flag", () => {
     let state = createInitialState();
     expect(state.data.showRoutePositions).toBe(true);

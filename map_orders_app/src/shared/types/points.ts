@@ -1,5 +1,6 @@
 import type {
   SolverInputPayload,
+  SolverMetricsSummary,
   SolverSolveResponse,
 } from "@/shared/types/solver";
 
@@ -69,15 +70,7 @@ export interface MapOrdersPersistedState {
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;
   cpSatStatus?: string | null;
-  cpSatMetrics?: {
-    totalOrders?: number;
-    assignedOrders?: number;
-    totalCouriers?: number;
-    assignedCouriers?: number;
-    objectiveValue?: number;
-    certCount?: number;
-    skipCount?: number;
-  } | null;
+  cpSatMetrics?: SolverMetricsSummary | null;
   viewportLocked: boolean;
 }
 

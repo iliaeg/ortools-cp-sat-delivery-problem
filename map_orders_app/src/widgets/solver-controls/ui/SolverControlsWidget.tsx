@@ -203,8 +203,13 @@ const SolverControlsWidget = () => {
   );
 
   const solverInputPreview = useMemo(
-    () => (solverInput ? stringifyWithInlineArrays(solverInput) : ""),
+    () => (solverInput ? stringifyWithInlineArrays(solverInput.request) : ""),
     [solverInput],
+  );
+
+  const domainResponsePreview = useMemo(
+    () => (solverResult?.domainResponse ? stringifyWithInlineArrays(solverResult.domainResponse) : ""),
+    [solverResult?.domainResponse],
   );
 
   const solverResultPreview = useMemo(
@@ -296,7 +301,7 @@ const SolverControlsWidget = () => {
               <Button
                 size="small"
                 startIcon={<ContentCopyIcon fontSize="small" />}
-                onClick={() => handleCopyJson(solverInput)}
+                onClick={() => handleCopyJson(solverInput.request)}
               >
                 Копировать
               </Button>
@@ -317,11 +322,47 @@ const SolverControlsWidget = () => {
           </AccordionDetails>
         </Accordion>
       ) : null}
+      {solverResult?.domainResponse ? (
+        <Accordion disableGutters sx={{ bgcolor: "background.paper" }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle1" fontWeight={600}>
+              Ответ solver&apos;а (сырой)
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                solver_response.json
+              </Typography>
+              <Button
+                size="small"
+                startIcon={<ContentCopyIcon fontSize="small" />}
+                onClick={() => handleCopyJson(solverResult.domainResponse)}
+              >
+                Копировать
+              </Button>
+            </Stack>
+            <pre
+              style={{
+                margin: 0,
+                padding: "16px",
+                backgroundColor: "#0f0f0f",
+                color: "#e0e0e0",
+                borderRadius: 8,
+                overflowX: "auto",
+                fontSize: "0.85rem",
+              }}
+            >
+              {domainResponsePreview}
+            </pre>
+          </AccordionDetails>
+        </Accordion>
+      ) : null}
       {solverResult ? (
         <Accordion disableGutters sx={{ bgcolor: "background.paper" }}>
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
             <Typography variant="subtitle1" fontWeight={600}>
-              Ответ solver&apos;а
+              Постобработанный ответ (routes, computed)
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
