@@ -38,6 +38,7 @@ export const initialPersistedState: MapOrdersPersistedState = {
   showDepotSegments: false,
   showRoutePositions: true,
   showDepartingNowRoutes: false,
+  showReadyNowOrders: false,
   solverInput: null,
   solverResult: null,
   lastSavedAtIso: undefined,
@@ -192,6 +193,8 @@ const mapOrdersSlice = createSlice({
           action.payload.showRoutePositions ?? state.data.showRoutePositions,
         showDepartingNowRoutes:
           action.payload.showDepartingNowRoutes ?? state.data.showDepartingNowRoutes,
+        showReadyNowOrders:
+          action.payload.showReadyNowOrders ?? state.data.showReadyNowOrders,
       };
     },
     setUiState: (state, action: PayloadAction<Partial<MapOrdersUiState>>) => {
@@ -271,6 +274,9 @@ const mapOrdersSlice = createSlice({
     },
     setShowDepartingNowRoutes: (state, action: PayloadAction<boolean>) => {
       state.data.showDepartingNowRoutes = action.payload;
+    },
+    setShowReadyNowOrders: (state, action: PayloadAction<boolean>) => {
+      state.data.showReadyNowOrders = action.payload;
     },
     setSolverInput: (
       state,
@@ -359,6 +365,7 @@ export const {
   setShowDepotSegments,
   setShowRoutePositions,
   setShowDepartingNowRoutes,
+  setShowReadyNowOrders,
   setSolverInput,
   setSolverResult,
   applyComputedFields,

@@ -69,6 +69,7 @@ export interface MapOrdersPersistedState {
   showDepotSegments: boolean;
   showRoutePositions: boolean;
   showDepartingNowRoutes: boolean;
+  showReadyNowOrders: boolean;
   solverInput: SolverInputPayload | null;
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;

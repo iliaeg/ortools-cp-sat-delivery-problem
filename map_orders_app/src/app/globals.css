@@ -71,6 +71,14 @@ body {
   background: #e53935;
 }
 
+.numbered-marker__wrapper--ready {
+  color: #43a047;
+}
+
+.numbered-marker__wrapper--ready .numbered-marker__body {
+  background: #43a047;
+}
+
 .route-arrow {
   pointer-events: none;
 }

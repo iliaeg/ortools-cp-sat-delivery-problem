@@ -170,6 +170,7 @@ const MapOrdersWidget = () => {
         showDepotSegments: _omitShowDepotSegments,
         showRoutePositions: _omitShowRoutePositions,
         showDepartingNowRoutes: _omitShowDepartingNowRoutes,
+        showReadyNowOrders: _omitShowReadyNowOrders,
         ...rest
       } = base;
       return JSON.stringify({ ...rest, lastSavedAtIso: undefined });

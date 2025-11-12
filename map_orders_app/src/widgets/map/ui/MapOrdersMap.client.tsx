@@ -36,6 +36,7 @@ import {
   setMapView,
   setShowDepotSegments,
   setShowDepartingNowRoutes,
+  setShowReadyNowOrders,
   setShowRoutePositions,
   setShowSolverRoutes,
   updatePoint,
@@ -47,6 +48,7 @@ import {
   selectRouteSegments,
   selectShowDepotSegments,
   selectShowDepartingNowRoutes,
+  selectShowReadyNowOrders,
   selectShowRoutePositions,
   selectShowSolverRoutes,
   selectSolverInput,
@@ -131,6 +133,7 @@ const MapOrdersMapClient = ({
   const showDepotSegments = useAppSelector(selectShowDepotSegments);
   const showRoutePositions = useAppSelector(selectShowRoutePositions);
   const showDepartingNowRoutes = useAppSelector(selectShowDepartingNowRoutes);
+  const showReadyNowOrders = useAppSelector(selectShowReadyNowOrders);
   const solverInput = useAppSelector(selectSolverInput);
   const solverResult = useAppSelector(selectSolverResult);
   const viewportLocked = useAppSelector(selectViewportLocked);
@@ -157,8 +160,8 @@ const MapOrdersMapClient = ({
     if (!showDepartingNowRoutes) {
       return routeSegments;
     }
-    const REL_WINDOW_MIN = 1;
-    const ABS_WINDOW_MS = 60_000;
+    const REL_WINDOW_MIN = 0.25;
+    const ABS_WINDOW_MS = 15_000;
     return routeSegments.filter((segment) => {
       const rel = segment.plannedDepartureRelMin;
       if (typeof rel === "number" && Number.isFinite(rel)) {
@@ -174,6 +177,33 @@ const MapOrdersMapClient = ({
       return Math.abs(departureTime - baseTimestamp) <= ABS_WINDOW_MS;
     });
   }, [routeSegments, showDepartingNowRoutes, showSolverRoutes, baseTimestamp]);
+  const readyNowOrderIds = useMemo(() => {
+    if (!showReadyNowOrders || !baseTimestamp) {
+      return new Set<string>();
+    }
+    const windowMs = 15_000;
+    const result = new Set<string>();
+    points.forEach((point) => {
+      if (point.kind !== "order") {
+        return;
+      }
+      if (!point.readyAt || !/^\d{2}:\d{2}:\d{2}$/.test(point.readyAt)) {
+        return;
+      }
+      const [hh, mm, ss] = point.readyAt.split(":").map((value) => Number.parseInt(value, 10) || 0);
+      const aligned = new Date(baseTimestamp);
+      aligned.setUTCHours(hh, mm, ss, 0);
+      const readyTimestamp = aligned.getTime();
+      if (Number.isNaN(readyTimestamp)) {
+        return;
+      }
+      if (Math.abs(readyTimestamp - baseTimestamp) <= windowMs) {
+        result.add(point.internalId);
+      }
+    });
+    return result;
+  }, [showReadyNowOrders, baseTimestamp, points]);
+
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const [isFullScreen, setFullScreen] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
@@ -333,61 +363,68 @@ const MapOrdersMapClient = ({
 
   const markers = useMemo(
     () =>
-      points.map((point) => (
-        <Marker
-          key={point.internalId}
-          position={[point.lat, point.lon]}
-            draggable={isEditingEnabled}
-          eventHandlers={{
-            dragend: handleMarkerDragEnd(point.internalId),
-          }}
-          icon={createNumberedPinIcon(point.orderNumber ?? point.seq, point.kind)}
-          ref={(instance) => {
-            if (instance) {
-              (instance as MarkerWithInternalId).options.internalId = point.internalId;
-            }
-          }}
-        >
+      points.map((point) => {
+        const isReadyNow = showReadyNowOrders && readyNowOrderIds.has(point.internalId);
+        return (
+          <Marker
+            key={point.internalId}
+            position={[point.lat, point.lon]}
+            draggable={isEditingEnabled && point.kind !== "depot"}
+            eventHandlers={{
+              dragend: handleMarkerDragEnd(point.internalId),
+            }}
+            icon={createNumberedPinIcon(
+              point.orderNumber ?? point.seq,
+              point.kind,
+              isReadyNow ? { variant: "ready" } : undefined,
+            )}
+            ref={(instance) => {
+              if (instance) {
+                (instance as MarkerWithInternalId).options.internalId = point.internalId;
+              }
+            }}
+          >
             <Tooltip direction="top" offset={[0, -32]}>
-            <div style={{ minWidth: 160 }}>
-              <strong>
-                {labelForPoint(point)}
-              </strong>
-              <br />
-              {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
-              {point.kind === "order" ? (
-                <>
-                  <br />
-                  Коробки: {point.boxes}
-                  <br />
-                  Создан: {point.createdAt}
-                  <br />
-                  Готов: {point.readyAt}
-                </>
-              ) : null}
-              {typeof point.skip === "number" && point.skip > 0 ? (
-                <>
-                  <br />
-                  <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
-                </>
-              ) : null}
-              {typeof point.cert === "number" && point.cert > 0 ? (
-                <>
-                  <br />
-                  <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
-                </>
-              ) : null}
-              {typeof point.plannedC2eMin === "number" ? (
-                <>
-                  <br />
-                  C2E: <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
-                </>
-              ) : null}
-            </div>
-          </Tooltip>
-        </Marker>
-      )),
-    [points, handleMarkerDragEnd, isEditingEnabled],
+              <div style={{ minWidth: 160 }}>
+                <strong>
+                  {labelForPoint(point)}
+                </strong>
+                <br />
+                {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
+                {point.kind === "order" ? (
+                  <>
+                    <br />
+                    Коробки: {point.boxes}
+                    <br />
+                    Создан: {point.createdAt}
+                    <br />
+                    Готов: {point.readyAt}
+                  </>
+                ) : null}
+                {typeof point.skip === "number" && point.skip > 0 ? (
+                  <>
+                    <br />
+                    <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
+                  </>
+                ) : null}
+                {typeof point.cert === "number" && point.cert > 0 ? (
+                  <>
+                    <br />
+                    <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
+                  </>
+                ) : null}
+                {typeof point.plannedC2eMin === "number" ? (
+                  <>
+                    <br />
+                    C2E: <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
+                  </>
+                ) : null}
+              </div>
+            </Tooltip>
+          </Marker>
+        );
+      }),
+    [points, handleMarkerDragEnd, isEditingEnabled, readyNowOrderIds, showReadyNowOrders],
   );
 
   const polylines = useMemo(
@@ -429,6 +466,13 @@ const MapOrdersMapClient = ({
   const toggleDepartingNow = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       dispatch(setShowDepartingNowRoutes(checked));
+    },
+    [dispatch],
+  );
+
+  const toggleReadyNow = useCallback(
+    (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+      dispatch(setShowReadyNowOrders(checked));
     },
     [dispatch],
   );
@@ -841,6 +885,10 @@ const MapOrdersMapClient = ({
             <FormControlLabel
               control={<Checkbox checked={showDepartingNowRoutes} onChange={toggleDepartingNow} />}
               label="Выезжают сейчас"
+            />
+            <FormControlLabel
+              control={<Checkbox checked={showReadyNowOrders} onChange={toggleReadyNow} />}
+              label="Готовы сейчас"
             />
           </Stack>
           {isFullScreen && (onImportLogClick || onHistoryBack || onHistoryForward) ? (
