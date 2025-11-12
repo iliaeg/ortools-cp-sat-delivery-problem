@@ -55,7 +55,7 @@ export interface SolverInvocationData {
 
 export interface SolverInvocationRequest {
   inputs: Array<{
-    data: SolverInvocationData;
+    data: SolverInvocationData & Record<string, unknown>;
   }>;
 }
 
