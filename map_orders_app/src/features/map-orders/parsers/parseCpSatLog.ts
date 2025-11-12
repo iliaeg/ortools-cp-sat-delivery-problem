@@ -553,6 +553,12 @@ export const buildStateFromCpSatLog = (
       pickProperty(responseCourier, "delivery_sequence", "DeliverySequence"),
     );
 
+    const plannedDepartureDate = parseDate(
+      pickProperty(responseCourier, "planned_departure_at_utc", "PlannedDepartureAtUtc"),
+    );
+    const plannedDepartureRelMin = minutesBetween(currentTimestamp, plannedDepartureDate);
+    const plannedDepartureIso = plannedDepartureDate?.toISOString();
+
     const routeNodes: number[] = [0];
     const routePoints: Array<{ point: DeliveryPoint; routePos: number }>
       = [];
@@ -704,6 +710,8 @@ export const buildStateFromCpSatLog = (
         depotSegment,
         segments,
         tooltip: `Маршрут ${groupId + 1}: ${tooltipOrders}`,
+        plannedDepartureRelMin,
+        plannedDepartureIso,
       });
     }
   });
@@ -789,9 +797,15 @@ export const buildStateFromCpSatLog = (
       skip: skipVector,
       cert: certVector,
       assigned_to_courier: assignedToCourier,
+      meta: {
+        current_timestamp_utc: currentTimestamp?.toISOString(),
+      },
     },
     ordersComputed: computedPatches,
     routesSegments: routeSegments,
+    domainResponse: {
+      current_timestamp_utc: currentTimestamp?.toISOString(),
+    },
   };
 
   const courierCapacity = requestCouriersRaw.map((courier) =>

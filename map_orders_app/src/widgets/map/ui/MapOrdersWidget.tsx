@@ -163,7 +163,15 @@ const MapOrdersWidget = () => {
         ...mapOrdersState.data,
         ...patch,
       } as MapOrdersPersistedState;
-      const { lastSavedAtIso, ...rest } = base;
+      const {
+        lastSavedAtIso,
+        viewportLocked: _omitViewportLocked,
+        showSolverRoutes: _omitShowSolverRoutes,
+        showDepotSegments: _omitShowDepotSegments,
+        showRoutePositions: _omitShowRoutePositions,
+        showDepartingNowRoutes: _omitShowDepartingNowRoutes,
+        ...rest
+      } = base;
       return JSON.stringify({ ...rest, lastSavedAtIso: undefined });
     },
     [mapOrdersState.data],

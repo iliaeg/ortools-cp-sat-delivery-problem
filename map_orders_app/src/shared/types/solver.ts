@@ -158,6 +158,8 @@ export interface RoutesSegmentDto {
   color: string;
   polyline: [number, number][];
   tooltip: string;
+  plannedDepartureRelMin?: number;
+  plannedDepartureIso?: string;
   segments: Array<{
     from: [number, number];
     to: [number, number];

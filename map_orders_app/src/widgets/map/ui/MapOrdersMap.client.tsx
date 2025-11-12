@@ -35,6 +35,7 @@ import {
   removePoint,
   setMapView,
   setShowDepotSegments,
+  setShowDepartingNowRoutes,
   setShowRoutePositions,
   setShowSolverRoutes,
   updatePoint,
@@ -45,8 +46,11 @@ import {
   selectPoints,
   selectRouteSegments,
   selectShowDepotSegments,
+  selectShowDepartingNowRoutes,
   selectShowRoutePositions,
   selectShowSolverRoutes,
+  selectSolverInput,
+  selectSolverResult,
   selectViewportLocked,
 } from "@/features/map-orders/model/selectors";
 import {
@@ -126,8 +130,50 @@ const MapOrdersMapClient = ({
   const showSolverRoutes = useAppSelector(selectShowSolverRoutes);
   const showDepotSegments = useAppSelector(selectShowDepotSegments);
   const showRoutePositions = useAppSelector(selectShowRoutePositions);
+  const showDepartingNowRoutes = useAppSelector(selectShowDepartingNowRoutes);
+  const solverInput = useAppSelector(selectSolverInput);
+  const solverResult = useAppSelector(selectSolverResult);
   const viewportLocked = useAppSelector(selectViewportLocked);
   const routeSegments = useAppSelector(selectRouteSegments);
+  const solverBaseIso =
+    solverInput?.request?.inputs?.[0]?.data?.current_timestamp_utc
+    ?? solverInput?.meta?.T0_iso
+    ?? solverResult?.domainResponse?.current_timestamp_utc
+    ?? solverResult?.result?.meta?.current_timestamp_utc
+    ?? null;
+
+  const baseTimestamp = useMemo(() => {
+    if (!solverBaseIso) {
+      return null;
+    }
+    const parsed = Date.parse(solverBaseIso);
+    return Number.isNaN(parsed) ? null : parsed;
+  }, [solverBaseIso]);
+
+  const filteredRouteSegments = useMemo(() => {
+    if (!showSolverRoutes) {
+      return [];
+    }
+    if (!showDepartingNowRoutes) {
+      return routeSegments;
+    }
+    const REL_WINDOW_MIN = 1;
+    const ABS_WINDOW_MS = 60_000;
+    return routeSegments.filter((segment) => {
+      const rel = segment.plannedDepartureRelMin;
+      if (typeof rel === "number" && Number.isFinite(rel)) {
+        return Math.abs(rel) <= REL_WINDOW_MIN;
+      }
+      if (!segment.plannedDepartureIso || !baseTimestamp) {
+        return false;
+      }
+      const departureTime = Date.parse(segment.plannedDepartureIso);
+      if (Number.isNaN(departureTime)) {
+        return false;
+      }
+      return Math.abs(departureTime - baseTimestamp) <= ABS_WINDOW_MS;
+    });
+  }, [routeSegments, showDepartingNowRoutes, showSolverRoutes, baseTimestamp]);
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const [isFullScreen, setFullScreen] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
@@ -347,7 +393,7 @@ const MapOrdersMapClient = ({
   const polylines = useMemo(
     () =>
       showSolverRoutes
-        ? routeSegments.map((segment) => (
+        ? filteredRouteSegments.map((segment) => (
             <RouteSegment
               key={`${segment.groupId}`}
               segment={segment}
@@ -356,7 +402,7 @@ const MapOrdersMapClient = ({
             />
           ))
         : null,
-    [routeSegments, showDepotSegments, showSolverRoutes, showRoutePositions],
+    [filteredRouteSegments, showDepotSegments, showSolverRoutes, showRoutePositions],
   );
 
   const toggleRoutes = useCallback(
@@ -376,6 +422,13 @@ const MapOrdersMapClient = ({
   const togglePositions = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       dispatch(setShowRoutePositions(checked));
+    },
+    [dispatch],
+  );
+
+  const toggleDepartingNow = useCallback(
+    (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
+      dispatch(setShowDepartingNowRoutes(checked));
     },
     [dispatch],
   );
@@ -771,19 +824,23 @@ const MapOrdersMapClient = ({
                   color="primary"
                 />
               }
-              label="Режим редактирования точек"
+              label="Редактирование"
             />
             <FormControlLabel
               control={<Checkbox checked={showSolverRoutes} onChange={toggleRoutes} />}
-              label="Показывать маршруты решателя"
+              label="Маршруты"
             />
             <FormControlLabel
               control={<Checkbox checked={showDepotSegments} onChange={toggleDepotSegments} />}
-              label="Показывать стрелки из депо"
+              label="Стрелки из депо"
             />
             <FormControlLabel
               control={<Checkbox checked={showRoutePositions} onChange={togglePositions} />}
-              label="Показывать позиции в маршруте"
+              label="Нумерация в маршруте"
+            />
+            <FormControlLabel
+              control={<Checkbox checked={showDepartingNowRoutes} onChange={toggleDepartingNow} />}
+              label="Выезжают сейчас"
             />
           </Stack>
           {isFullScreen && (onImportLogClick || onHistoryBack || onHistoryForward) ? (

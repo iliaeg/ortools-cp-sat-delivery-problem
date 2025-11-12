@@ -36,6 +36,8 @@ export interface MapRouteSegment {
   color: string;
   polyline: [number, number][];
   tooltip: string;
+  plannedDepartureRelMin?: number;
+  plannedDepartureIso?: string;
   segments: Array<{
     from: [number, number];
     to: [number, number];
@@ -66,6 +68,7 @@ export interface MapOrdersPersistedState {
   showSolverRoutes: boolean;
   showDepotSegments: boolean;
   showRoutePositions: boolean;
+  showDepartingNowRoutes: boolean;
   solverInput: SolverInputPayload | null;
   solverResult: SolverSolveResponse | null;
   lastSavedAtIso?: string;

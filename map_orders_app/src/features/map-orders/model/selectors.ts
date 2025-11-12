@@ -51,6 +51,11 @@ export const selectShowRoutePositions = createSelector(
   (state) => state.data.showRoutePositions,
 );
 
+export const selectShowDepartingNowRoutes = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.showDepartingNowRoutes,
+);
+
 export const selectWarnings = createSelector(
   selectMapOrdersState,
   (state) => state.ui.warnings,
