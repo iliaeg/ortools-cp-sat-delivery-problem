@@ -36,12 +36,16 @@ import {
   setSolverResult,
   setUiState,
 } from "@/features/map-orders/model/mapOrdersSlice";
+import { pushLog } from "@/features/map-orders/model/logsHistorySlice";
 import {
   useBuildSolverInputMutation,
   useSolveMutation,
 } from "@/shared/api/mapOrdersApi";
 import { saveBlobToFile } from "@/shared/files/utils";
 import { stringifyWithInlineArrays } from "@/shared/lib/json";
+import { useStore } from "react-redux";
+import type { RootState } from "@/shared/store";
+import { buildHistorySnapshot } from "@/features/map-orders/lib/historySnapshot";
 
 const SolverControlsWidget = () => {
   const dispatch = useAppDispatch();
@@ -60,6 +64,7 @@ const SolverControlsWidget = () => {
   const warnings = useAppSelector(selectWarnings);
   const { lastSolverInputSignature, lastSolverResultSignature } =
     useAppSelector(selectSolverSignatures);
+  const store = useStore<RootState>();
   const [buildSolverInput, { isLoading: isBuilding }]
     = useBuildSolverInputMutation();
   const [solve, { isLoading: isSolving }]
@@ -164,12 +169,14 @@ const SolverControlsWidget = () => {
       dispatch(setSolverResult(response));
       dispatch(applyComputedFields(response.ordersComputed));
       dispatch(setUiState({ lastSolverResultSignature: currentSignature }));
+      const latestState = store.getState().mapOrders.data;
+      dispatch(pushLog({ state: buildHistorySnapshot(latestState), timestamp: Date.now() }));
     } catch (err) {
       setError((err as Error).message);
     } finally {
       dispatch(setUiState({ isSolving: false }));
     }
-  }, [currentSignature, dispatch, solve, solverInput]);
+  }, [currentSignature, dispatch, solve, solverInput, store]);
 
   const handleDownloadSolverInput = useCallback(() => {
     if (!solverInput) {

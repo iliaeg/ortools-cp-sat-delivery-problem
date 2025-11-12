@@ -42,6 +42,7 @@ import {
   parseCpSatLogPayload,
 } from "@/features/map-orders/parsers/parseCpSatLog";
 import type { MapOrdersPersistedState } from "@/shared/types/points";
+import { buildHistorySnapshot } from "@/features/map-orders/lib/historySnapshot";
 import type { DeliveryPoint } from "@/shared/types/points";
 
 const detectImportKind = (content: unknown): "case" | "solver_input" => {
@@ -158,23 +159,8 @@ const MapOrdersWidget = () => {
   const historyInitialized = useRef(false);
 
   const buildSnapshot = useCallback(
-    (patch?: Partial<MapOrdersPersistedState>) => {
-      const base = {
-        ...mapOrdersState.data,
-        ...patch,
-      } as MapOrdersPersistedState;
-      const {
-        lastSavedAtIso,
-        viewportLocked: _omitViewportLocked,
-        showSolverRoutes: _omitShowSolverRoutes,
-        showDepotSegments: _omitShowDepotSegments,
-        showRoutePositions: _omitShowRoutePositions,
-        showDepartingNowRoutes: _omitShowDepartingNowRoutes,
-        showReadyNowOrders: _omitShowReadyNowOrders,
-        ...rest
-      } = base;
-      return JSON.stringify({ ...rest, lastSavedAtIso: undefined });
-    },
+    (patch?: Partial<MapOrdersPersistedState>) =>
+      buildHistorySnapshot(mapOrdersState.data, patch),
     [mapOrdersState.data],
   );
 
