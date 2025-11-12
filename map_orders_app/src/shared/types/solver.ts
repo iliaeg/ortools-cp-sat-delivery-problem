@@ -144,6 +144,7 @@ export interface SolverInputResponse {
 
 export interface OrdersComputedPatch {
   internalId: string;
+  orderExternalId?: string;
   groupId?: number;
   routePos?: number;
   etaRelMin?: number;
@@ -158,6 +159,7 @@ export interface RoutesSegmentDto {
   color: string;
   polyline: [number, number][];
   tooltip: string;
+  courierId?: string;
   plannedDepartureRelMin?: number;
   plannedDepartureIso?: string;
   segments: Array<{

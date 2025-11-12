@@ -156,6 +156,23 @@ const toFiniteNumber = (value: unknown): number | undefined => {
   return undefined;
 };
 
+const toBooleanFlag = (value: unknown): boolean => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    return ["true", "1", "yes"].includes(normalized);
+  }
+  return false;
+};
+
 const parseDate = (value: unknown): Date | null => {
   if (typeof value !== "string") {
     return null;
@@ -342,11 +359,11 @@ export const buildStateFromCpSatLog = (
 
   if (metrics) {
     const computedCerts = responseOrdersRaw.reduce((acc, order) => {
-      const isCert = pickProperty(order, "is_cert", "IsCert");
+      const isCert = toBooleanFlag(pickProperty(order, "is_cert", "IsCert"));
       return acc + (isCert ? 1 : 0);
     }, 0);
     const computedSkips = responseOrdersRaw.reduce((acc, order) => {
-      const isSkipped = pickProperty(order, "is_skipped", "IsSkipped");
+      const isSkipped = toBooleanFlag(pickProperty(order, "is_skipped", "IsSkipped"));
       return acc + (isSkipped ? 1 : 0);
     }, 0);
     if (metrics.certCount === undefined) {
@@ -600,8 +617,8 @@ export const buildStateFromCpSatLog = (
           pickProperty(responseOrder, "planned_delivery_at_utc", "PlannedDeliveryAtUtc"),
         ),
       );
-      const skip = pickProperty(responseOrder, "is_skipped", "IsSkipped") ? 1 : 0;
-      const cert = pickProperty(responseOrder, "is_cert", "IsCert") ? 1 : 0;
+      const skip = toBooleanFlag(pickProperty(responseOrder, "is_skipped", "IsSkipped")) ? 1 : 0;
+      const cert = toBooleanFlag(pickProperty(responseOrder, "is_cert", "IsCert")) ? 1 : 0;
 
       const depotDirectMin = (() => {
         const matrixRow = travelMatrix?.[0];
@@ -732,8 +749,8 @@ export const buildStateFromCpSatLog = (
     }
 
     const orderIndex = orderIndexById.get(orderId);
-    const skip = pickProperty(order, "is_skipped", "IsSkipped") ? 1 : 0;
-    const cert = pickProperty(order, "is_cert", "IsCert") ? 1 : 0;
+    const skip = toBooleanFlag(pickProperty(order, "is_skipped", "IsSkipped")) ? 1 : 0;
+    const cert = toBooleanFlag(pickProperty(order, "is_cert", "IsCert")) ? 1 : 0;
     const etaRelMin = minutesBetween(
       currentTimestamp,
       parseDate(pickProperty(order, "planned_delivery_at_utc", "PlannedDeliveryAtUtc")),

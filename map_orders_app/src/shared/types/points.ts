@@ -36,6 +36,7 @@ export interface MapRouteSegment {
   color: string;
   polyline: [number, number][];
   tooltip: string;
+  courierId?: string;
   plannedDepartureRelMin?: number;
   plannedDepartureIso?: string;
   segments: Array<{

@@ -95,6 +95,7 @@ describe("mapSolverResult", () => {
     expect(response.ordersComputed).toEqual([
       {
         internalId: "order-1",
+        orderExternalId: undefined,
         groupId: 0,
         routePos: 1,
         etaRelMin: 24,
@@ -105,6 +106,7 @@ describe("mapSolverResult", () => {
       },
       {
         internalId: "order-2",
+        orderExternalId: undefined,
         groupId: 0,
         routePos: 2,
         etaRelMin: 31,
@@ -117,19 +119,20 @@ describe("mapSolverResult", () => {
 
     const expectedColor = getStableColorFromSeed("route-order-1|order-2");
 
-    expect(response.routesSegments).toEqual([
-      {
-        groupId: 0,
-        color: expectedColor,
-        polyline: [
-          [1, 1],
-          [2, 2],
-        ],
-        depotSegment: {
-          from: [0, 0],
-          to: [1, 1],
-          mid: [0.5, 0.5],
-          fromPos: 0,
+      expect(response.routesSegments).toEqual([
+        {
+          groupId: 0,
+          color: expectedColor,
+          polyline: [
+            [1, 1],
+            [2, 2],
+          ],
+          courierId: undefined,
+          depotSegment: {
+            from: [0, 0],
+            to: [1, 1],
+            mid: [0.5, 0.5],
+            fromPos: 0,
           toPos: 1,
         },
         segments: [
@@ -185,11 +188,12 @@ describe("mapSolverResult", () => {
 
     const expectedColor = getStableColorFromSeed("route-order-1");
 
-    expect(response.routesSegments).toEqual([
-      {
-        groupId: 0,
-        color: expectedColor,
-        polyline: [[1, 1]],
+      expect(response.routesSegments).toEqual([
+        {
+          groupId: 0,
+          color: expectedColor,
+          polyline: [[1, 1]],
+          courierId: undefined,
         depotSegment: {
           from: [0, 0],
           to: [1, 1],
