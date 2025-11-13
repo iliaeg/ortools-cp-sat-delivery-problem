@@ -6,7 +6,11 @@ import type {
   MapOrdersPersistedState,
   MapRouteSegment,
 } from "@/shared/types/points";
-import type { OrdersComputedPatch, SolverSolveResponse } from "@/shared/types/solver";
+import type {
+  OrdersComputedPatch,
+  SolverDomainResponse,
+  SolverSolveResponse,
+} from "@/shared/types/solver";
 
 export class CpSatLogParseError extends Error {}
 
@@ -820,9 +824,7 @@ export const buildStateFromCpSatLog = (
     },
     ordersComputed: computedPatches,
     routesSegments: routeSegments,
-    domainResponse: {
-      current_timestamp_utc: currentTimestamp?.toISOString(),
-    },
+    domainResponse: response as SolverDomainResponse,
   };
 
   const courierCapacity = requestCouriersRaw.map((courier) =>
