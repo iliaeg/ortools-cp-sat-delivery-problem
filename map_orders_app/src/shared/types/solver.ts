@@ -149,6 +149,8 @@ export interface OrdersComputedPatch {
   routePos?: number;
   etaRelMin?: number;
   plannedC2eMin?: number;
+  currentC2eMin?: number;
+  courierWaitMin?: number;
   skip?: number;
   cert?: number;
   depotDirectMin?: number;

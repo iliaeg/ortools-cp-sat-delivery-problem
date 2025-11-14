@@ -391,16 +391,23 @@ const MapOrdersMapClient = ({
                 </strong>
                 <br />
                 {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
-                {point.kind === "order" ? (
-                  <>
-                    <br />
-                    Коробки: {point.boxes}
-                    <br />
-                    Создан: {point.createdAt}
-                    <br />
-                    Готов: {point.readyAt}
-                  </>
-                ) : null}
+              {point.kind === "order" ? (
+                <>
+                  <br />
+                  Коробки: {point.boxes}
+                  <br />
+                  Создан: {point.createdAt}
+                  <br />
+                  Готов: {point.readyAt}
+                  {typeof point.courierWaitMin === "number" ? (
+                    <>
+                      <br />
+                      Время ожидания отправления:{" "}
+                      <span style={{ fontWeight: 600 }}>{Math.round(point.courierWaitMin)} мин</span>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
                 {typeof point.skip === "number" && point.skip > 0 ? (
                   <>
                     <br />
@@ -413,12 +420,20 @@ const MapOrdersMapClient = ({
                     <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
                   </>
                 ) : null}
-                {typeof point.plannedC2eMin === "number" ? (
-                  <>
-                    <br />
-                    C2E: <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
-                  </>
-                ) : null}
+              {typeof point.currentC2eMin === "number" ? (
+                <>
+                  <br />
+                  Текущий C2E:{" "}
+                  <span style={{ fontWeight: 600 }}>{Math.round(point.currentC2eMin)} мин</span>
+                </>
+              ) : null}
+              {typeof point.plannedC2eMin === "number" ? (
+                <>
+                  <br />
+                  Плановый C2E:{" "}
+                  <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
+                </>
+              ) : null}
               </div>
             </Tooltip>
           </Marker>

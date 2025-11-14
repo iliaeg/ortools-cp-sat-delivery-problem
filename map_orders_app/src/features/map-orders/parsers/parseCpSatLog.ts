@@ -614,13 +614,16 @@ export const buildStateFromCpSatLog = (
           ),
         ),
       );
-      const plannedC2eMin = minutesBetween(
+      const createdAtUtc =
         combinedOrder?.createdAtUtc
-          ?? parseDate(pickProperty(requestOrderRaw, "created_at_utc", "CreatedAtUtc")),
+          ?? parseDate(pickProperty(requestOrderRaw, "created_at_utc", "CreatedAtUtc"));
+      const plannedC2eMin = minutesBetween(
+        createdAtUtc,
         parseDate(
           pickProperty(responseOrder, "planned_delivery_at_utc", "PlannedDeliveryAtUtc"),
         ),
       );
+      const currentC2eMin = minutesBetween(createdAtUtc, currentTimestamp);
       const skip = toBooleanFlag(pickProperty(responseOrder, "is_skipped", "IsSkipped")) ? 1 : 0;
       const cert = toBooleanFlag(pickProperty(responseOrder, "is_cert", "IsCert")) ? 1 : 0;
 
@@ -645,6 +648,8 @@ export const buildStateFromCpSatLog = (
         routePos,
         etaRelMin,
         plannedC2eMin,
+        currentC2eMin,
+        courierWaitMin: plannedDepartureRelMin,
         skip,
         cert,
         depotDirectMin,
@@ -668,6 +673,8 @@ export const buildStateFromCpSatLog = (
       point.routePos = routePos;
       point.etaRelMin = etaRelMin;
       point.plannedC2eMin = plannedC2eMin;
+      point.currentC2eMin = currentC2eMin;
+      point.courierWaitMin = plannedDepartureRelMin ?? undefined;
       point.skip = skip || undefined;
       point.cert = cert || undefined;
       point.depotDirectMin = depotDirectMin;
@@ -761,10 +768,12 @@ export const buildStateFromCpSatLog = (
     );
 
     const combinedOrder = combinedOrderById.get(orderId);
+    const createdAtUtc = combinedOrder?.createdAtUtc ?? null;
     const plannedC2eMin = minutesBetween(
-      combinedOrder?.createdAtUtc ?? null,
+      createdAtUtc,
       parseDate(pickProperty(order, "planned_delivery_at_utc", "PlannedDeliveryAtUtc")),
     );
+    const currentC2eMin = minutesBetween(createdAtUtc, currentTimestamp);
 
     const depotDirectMin = (() => {
       const matrixRow = travelMatrix?.[0];
@@ -787,6 +796,7 @@ export const buildStateFromCpSatLog = (
       routePos: undefined,
       etaRelMin,
       plannedC2eMin,
+      currentC2eMin,
       skip,
       cert,
       depotDirectMin,
@@ -808,6 +818,7 @@ export const buildStateFromCpSatLog = (
     point.cert = cert || undefined;
     point.etaRelMin = etaRelMin;
     point.plannedC2eMin = plannedC2eMin;
+    point.currentC2eMin = currentC2eMin;
     point.depotDirectMin = depotDirectMin;
   });
 

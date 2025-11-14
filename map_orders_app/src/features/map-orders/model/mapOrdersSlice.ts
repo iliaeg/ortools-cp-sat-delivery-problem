@@ -333,6 +333,7 @@ const mapOrdersSlice = createSlice({
         point.routePos = undefined;
         point.etaRelMin = undefined;
         point.plannedC2eMin = undefined;
+        point.currentC2eMin = undefined;
         point.skip = undefined;
         point.cert = undefined;
         point.depotDirectMin = undefined;

@@ -100,6 +100,7 @@ describe("mapSolverResult", () => {
         routePos: 1,
         etaRelMin: 24,
         plannedC2eMin: 20,
+        currentC2eMin: 0,
         skip: undefined,
         cert: undefined,
         depotDirectMin: 5,
@@ -111,6 +112,7 @@ describe("mapSolverResult", () => {
         routePos: 2,
         etaRelMin: 31,
         plannedC2eMin: 25,
+        currentC2eMin: 0,
         skip: undefined,
         cert: 1,
         depotDirectMin: 7,
@@ -165,26 +167,28 @@ describe("mapSolverResult", () => {
       solverResult,
     });
 
-    expect(response.ordersComputed).toEqual([
-      expect.objectContaining({
-        internalId: "order-1",
-        groupId: 0,
-        routePos: 1,
-        etaRelMin: 18,
-        plannedC2eMin: 14,
-        skip: undefined,
-        cert: undefined,
-      }),
-      expect.objectContaining({
-        internalId: "order-2",
-        groupId: undefined,
-        routePos: undefined,
-        etaRelMin: 42,
-        plannedC2eMin: 36,
-        skip: 1,
-        cert: undefined,
-      }),
-    ]);
+      expect(response.ordersComputed).toEqual([
+        expect.objectContaining({
+          internalId: "order-1",
+          groupId: 0,
+          routePos: 1,
+          etaRelMin: 18,
+          plannedC2eMin: 14,
+          currentC2eMin: 0,
+          skip: undefined,
+          cert: undefined,
+        }),
+        expect.objectContaining({
+          internalId: "order-2",
+          groupId: undefined,
+          routePos: undefined,
+          etaRelMin: 42,
+          plannedC2eMin: 36,
+          currentC2eMin: 0,
+          skip: 1,
+          cert: undefined,
+        }),
+      ]);
 
     const expectedColor = getStableColorFromSeed("route-order-1");
 

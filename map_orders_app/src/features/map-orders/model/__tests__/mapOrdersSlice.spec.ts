@@ -22,6 +22,7 @@ describe("mapOrdersSlice", () => {
       routePos: 2,
       etaRelMin: 45,
       plannedC2eMin: 90,
+      currentC2eMin: 50,
       skip: 0,
       cert: 1,
       depotDirectMin: 12,
@@ -41,6 +42,7 @@ describe("mapOrdersSlice", () => {
       routePos: ordersComputed.routePos,
       etaRelMin: ordersComputed.etaRelMin,
       plannedC2eMin: ordersComputed.plannedC2eMin,
+      currentC2eMin: ordersComputed.currentC2eMin,
       skip: ordersComputed.skip,
       cert: ordersComputed.cert,
       depotDirectMin: ordersComputed.depotDirectMin,
@@ -54,6 +56,7 @@ describe("mapOrdersSlice", () => {
       routePos: 5,
       etaRelMin: 30,
       plannedC2eMin: 60,
+      currentC2eMin: 20,
       skip: 1,
       cert: 0,
       depotDirectMin: 18,
@@ -81,6 +84,7 @@ describe("mapOrdersSlice", () => {
     expect(point?.routePos).toBeUndefined();
     expect(point?.etaRelMin).toBeUndefined();
     expect(point?.plannedC2eMin).toBeUndefined();
+    expect(point?.currentC2eMin).toBeUndefined();
     expect(point?.skip).toBeUndefined();
     expect(point?.cert).toBeUndefined();
     expect(point?.depotDirectMin).toBeUndefined();
