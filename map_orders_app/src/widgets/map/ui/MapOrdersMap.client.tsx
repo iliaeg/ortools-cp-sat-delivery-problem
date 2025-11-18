@@ -7,11 +7,12 @@ import {
   Marker,
   FeatureGroup,
   Tooltip,
+  Polyline,
   useMap,
   useMapEvents,
 } from "react-leaflet";
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
-import L, { LeafletEvent } from "leaflet";
+import L, { LeafletEvent, LeafletMouseEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
 import "leaflet-simple-map-screenshoter";
 import {
@@ -71,6 +72,7 @@ import LockOpenIcon from "@mui/icons-material/LockOpen";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import StraightenIcon from "@mui/icons-material/Straighten";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -103,6 +105,12 @@ const labelForPoint = (point: DeliveryPoint) => {
 };
 
 type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
+
+type MeasureSelection = {
+  from: DeliveryPoint;
+  to?: DeliveryPoint | null;
+  durationMin?: number | null;
+};
 
 export interface MapOrdersMapProps {
   statusLabel?: string;
@@ -148,6 +156,41 @@ const MapOrdersMapClient = ({
     ?? solverResult?.domainResponse?.current_timestamp_utc
     ?? solverResult?.result?.meta?.current_timestamp_utc
     ?? null;
+  const [measureModeEnabled, setMeasureModeEnabled] = useState(false);
+  const [measureSelection, setMeasureSelection] = useState<MeasureSelection | null>(null);
+
+  const pointIndexByInternalId = useMemo(() => {
+    const ids = solverInput?.meta?.pointInternalIds;
+    if (!ids || !Array.isArray(ids)) {
+      return null;
+    }
+    const map = new Map<string, number>();
+    ids.forEach((id, index) => {
+      if (id) {
+        map.set(id, index);
+      }
+    });
+    return map;
+  }, [solverInput?.meta?.pointInternalIds]);
+
+  const getTravelTimeBetweenPoints = useCallback(
+    (fromId: string, toId: string): number | undefined => {
+      if (!pointIndexByInternalId || !solverInput?.tau) {
+        return undefined;
+      }
+      const fromIndex = pointIndexByInternalId.get(fromId);
+      const toIndex = pointIndexByInternalId.get(toId);
+      if (fromIndex === undefined || toIndex === undefined) {
+        return undefined;
+      }
+      const value = solverInput.tau[fromIndex]?.[toIndex];
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return Math.round(value);
+      }
+      return undefined;
+    },
+    [pointIndexByInternalId, solverInput?.tau],
+  );
 
   const baseTimestamp = useMemo(() => {
     if (!solverBaseIso) {
@@ -372,6 +415,49 @@ const MapOrdersMapClient = ({
     [dispatch],
   );
 
+  const handleMeasureToggle = useCallback(() => {
+    setMeasureModeEnabled((prev) => {
+      const next = !prev;
+      if (!next) {
+        setMeasureSelection(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleMeasureClear = useCallback(() => {
+    setMeasureSelection(null);
+  }, []);
+
+  const handleMarkerClick = useCallback(
+    (point: DeliveryPoint) => (event: LeafletMouseEvent) => {
+      if (!measureModeEnabled) {
+        return;
+      }
+      event.originalEvent?.preventDefault?.();
+      event.originalEvent?.stopPropagation?.();
+      setMeasureSelection((prev) => {
+        if (!prev || !prev.from) {
+          return { from: point };
+        }
+        const prevToId = prev.to?.internalId;
+        if (prev.from.internalId === point.internalId) {
+          return { from: point };
+        }
+        if (prevToId && prevToId === point.internalId) {
+          return { from: point };
+        }
+        const duration = getTravelTimeBetweenPoints(prev.from.internalId, point.internalId);
+        return {
+          from: prev.from,
+          to: point,
+          durationMin: duration ?? null,
+        };
+      });
+    },
+    [getTravelTimeBetweenPoints, measureModeEnabled],
+  );
+
   const markers = useMemo(
     () =>
       points.map((point) => {
@@ -383,6 +469,7 @@ const MapOrdersMapClient = ({
             draggable={isEditingEnabled && point.kind !== "depot"}
             eventHandlers={{
               dragend: handleMarkerDragEnd(point.internalId),
+              click: handleMarkerClick(point),
             }}
             icon={createNumberedPinIcon(
               point.orderNumber ?? point.seq,
@@ -450,7 +537,14 @@ const MapOrdersMapClient = ({
           </Marker>
         );
       }),
-    [points, handleMarkerDragEnd, isEditingEnabled, readyNowOrderIds, showReadyNowOrders],
+    [
+      points,
+      handleMarkerDragEnd,
+      handleMarkerClick,
+      isEditingEnabled,
+      readyNowOrderIds,
+      showReadyNowOrders,
+    ],
   );
 
   const polylines = useMemo(
@@ -467,6 +561,73 @@ const MapOrdersMapClient = ({
         : null,
     [filteredRouteSegments, showDepotSegments, showSolverRoutes, showRoutePositions],
   );
+
+  const measureLinePositions = useMemo(() => {
+    if (!measureModeEnabled || !measureSelection?.from || !measureSelection?.to) {
+      return null;
+    }
+    return [
+      [measureSelection.from.lat, measureSelection.from.lon],
+      [measureSelection.to.lat, measureSelection.to.lon],
+    ] as [number, number][];
+  }, [measureModeEnabled, measureSelection]);
+
+  const measureMidpoint = useMemo(() => {
+    if (!measureLinePositions) {
+      return null;
+    }
+    const [[fromLat, fromLon], [toLat, toLon]] = measureLinePositions;
+    return [(fromLat + toLat) / 2, (fromLon + toLon) / 2] as [number, number];
+  }, [measureLinePositions]);
+
+  const measureLabelIcon = useMemo(() => {
+    if (!measureLinePositions) {
+      return null;
+    }
+    const labelText =
+      typeof measureSelection?.durationMin === "number"
+        ? `${measureSelection.durationMin} мин`
+        : "нет данных";
+    return L.divIcon({
+      className: "measure-label",
+      html: `<div style="display:inline-flex;align-items:center;white-space:nowrap;padding:4px 10px;background:#f5f5f5;color:#1b1b1b;border-radius:999px;border:1px solid #9e9e9e;font-size:12px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.18);">${labelText}</div>`,
+    });
+  }, [measureLinePositions, measureSelection?.durationMin]);
+
+  const measureLayer = measureLinePositions ? (
+    <>
+      <Polyline
+        positions={measureLinePositions}
+        pathOptions={{ color: "#616161", weight: 3, dashArray: "6 6" }}
+        interactive={false}
+      />
+      {measureMidpoint && measureLabelIcon ? (
+        <Marker
+          position={measureMidpoint}
+          icon={measureLabelIcon}
+          interactive={false}
+          zIndexOffset={1_000}
+        />
+      ) : null}
+    </>
+  ) : null;
+
+  const measureStatusText = useMemo(() => {
+    if (!measureModeEnabled) {
+      return "";
+    }
+    if (!measureSelection?.from) {
+      return "Выберите две точки на карте";
+    }
+    if (!measureSelection.to) {
+      return `Начало: ${labelForPoint(measureSelection.from)}`;
+    }
+    const base = `${labelForPoint(measureSelection.from)} → ${labelForPoint(measureSelection.to)}`;
+    if (typeof measureSelection.durationMin === "number") {
+      return `${base} = ${measureSelection.durationMin} мин`;
+    }
+    return `${base} — нет данных`;
+  }, [measureModeEnabled, measureSelection]);
 
   const toggleRoutes = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
@@ -618,7 +779,8 @@ const MapOrdersMapClient = ({
       <Stack spacing={1.5} sx={mapWrapperSx}>
         <Box sx={mapBoxSx}>
           <Stack
-            direction="column"
+            direction="row"
+            alignItems="flex-end"
             spacing={1}
             sx={{
               position: "absolute",
@@ -627,6 +789,58 @@ const MapOrdersMapClient = ({
               zIndex: 1200,
             }}
           >
+            {measureModeEnabled ? (
+              <Paper
+                elevation={2}
+                sx={{
+                  px: 1.5,
+                  py: 0.75,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  minWidth: 220,
+                  bgcolor: "rgba(245, 245, 245, 0.9)",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ flexGrow: 1, fontWeight: 600, color: "#212121" }}
+                >
+                  {measureStatusText}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={handleMeasureClear}
+                  disabled={!measureSelection}
+                  sx={{ color: "#1f1f1f" }}
+                >
+                  Очистить
+                </Button>
+              </Paper>
+            ) : null}
+            <Stack direction="column" spacing={1}>
+              <MuiTooltip
+                title={measureModeEnabled ? "Выключить режим мерки" : "Включить режим мерки"}
+                placement="left"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleMeasureToggle}
+                    sx={{
+                      bgcolor: measureModeEnabled ? "primary.main" : "background.paper",
+                      color: measureModeEnabled ? "primary.contrastText" : "text.primary",
+                      boxShadow: measureModeEnabled ? 4 : 2,
+                      '&:hover': {
+                        bgcolor: measureModeEnabled ? "primary.dark" : "background.paper",
+                        boxShadow: measureModeEnabled ? 6 : 4,
+                      },
+                    }}
+                  >
+                    <StraightenIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </MuiTooltip>
             <MuiTooltip title="Скопировать карту" placement="left">
               <span>
                 <IconButton
@@ -773,6 +987,7 @@ const MapOrdersMapClient = ({
                 <FullscreenIcon fontSize="small" />
               )}
             </IconButton>
+            </Stack>
           </Stack>
           {isFullScreen && (statusLabel || (metrics && metrics.length > 0)) ? (
             <>
@@ -889,6 +1104,7 @@ const MapOrdersMapClient = ({
               ) : null}
               {markers}
               {polylines}
+              {measureLayer}
             </FeatureGroup>
           </MapContainer>
         </Box>
