@@ -161,6 +161,18 @@ const clampDepartingWindowMinutes = (value: number): number => {
   return normalized;
 };
 
+const SOLVER_DERIVED_KEYS: Array<keyof DeliveryPoint> = [
+  "groupId",
+  "routePos",
+  "etaRelMin",
+  "plannedC2eMin",
+  "currentC2eMin",
+  "courierWaitMin",
+  "skip",
+  "cert",
+  "depotDirectMin",
+];
+
 const mapOrdersSlice = createSlice({
   name: "mapOrders",
   initialState,
@@ -340,7 +352,13 @@ const mapOrdersSlice = createSlice({
         }
 
         const { internalId: _omit, ...rest } = patch;
-        return { ...point, ...rest };
+        const nextPoint = { ...point, ...rest };
+        SOLVER_DERIVED_KEYS.forEach((key) => {
+          if (!(key in rest)) {
+            nextPoint[key] = undefined;
+          }
+        });
+        return nextPoint;
       });
     },
     setLastSavedAt: (state, action: PayloadAction<string | undefined>) => {

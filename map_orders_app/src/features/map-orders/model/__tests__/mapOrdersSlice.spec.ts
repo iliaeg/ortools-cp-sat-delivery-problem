@@ -90,6 +90,47 @@ describe("mapOrdersSlice", () => {
     expect(point?.depotDirectMin).toBeUndefined();
   });
 
+  it("applyComputedFields clears stale solver flags when payload omits them", () => {
+    const internalId = "order-stale";
+    let state = createInitialState();
+    state = reducer(state, addPoint({ internalId }));
+
+    state = reducer(
+      state,
+      applyComputedFields([
+        {
+          internalId,
+          groupId: 2,
+          routePos: 1,
+          cert: 1,
+          skip: 1,
+          etaRelMin: 15,
+        },
+      ]),
+    );
+
+    let point = state.data.points.find(({ internalId: id }) => id === internalId);
+    expect(point?.cert).toBe(1);
+    expect(point?.skip).toBe(1);
+    expect(point?.groupId).toBe(2);
+
+    state = reducer(
+      state,
+      applyComputedFields([
+        {
+          internalId,
+          etaRelMin: 20,
+        },
+      ]),
+    );
+
+    point = state.data.points.find(({ internalId: id }) => id === internalId);
+    expect(point?.etaRelMin).toBe(20);
+    expect(point?.cert).toBeUndefined();
+    expect(point?.skip).toBeUndefined();
+    expect(point?.groupId).toBeUndefined();
+  });
+
   it("setSolverResult synchronizes cpSat status and metrics", () => {
     const solverResponse: SolverSolveResponse = {
       result: { routes: [] },
