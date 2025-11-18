@@ -39,6 +39,7 @@ export const initialPersistedState: MapOrdersPersistedState = {
   showRoutePositions: true,
   showDepartingNowRoutes: false,
   showReadyNowOrders: false,
+  departingWindowMinutes: 0,
   solverInput: null,
   solverResult: null,
   lastSavedAtIso: undefined,
@@ -146,6 +147,20 @@ const createPoint = (partial: Partial<DeliveryPoint>): DeliveryPoint => ({
   depotDirectMin: partial.depotDirectMin,
 });
 
+const clampDepartingWindowMinutes = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  const normalized = Math.round(value);
+  if (normalized < 0) {
+    return 0;
+  }
+  if (normalized > 15) {
+    return 15;
+  }
+  return normalized;
+};
+
 const mapOrdersSlice = createSlice({
   name: "mapOrders",
   initialState,
@@ -195,6 +210,10 @@ const mapOrdersSlice = createSlice({
           action.payload.showDepartingNowRoutes ?? state.data.showDepartingNowRoutes,
         showReadyNowOrders:
           action.payload.showReadyNowOrders ?? state.data.showReadyNowOrders,
+        departingWindowMinutes:
+          typeof action.payload.departingWindowMinutes === "number"
+            ? clampDepartingWindowMinutes(action.payload.departingWindowMinutes)
+            : state.data.departingWindowMinutes,
       };
     },
     setUiState: (state, action: PayloadAction<Partial<MapOrdersUiState>>) => {
@@ -274,6 +293,9 @@ const mapOrdersSlice = createSlice({
     },
     setShowDepartingNowRoutes: (state, action: PayloadAction<boolean>) => {
       state.data.showDepartingNowRoutes = action.payload;
+    },
+    setDepartingWindowMinutes: (state, action: PayloadAction<number>) => {
+      state.data.departingWindowMinutes = clampDepartingWindowMinutes(action.payload);
     },
     setShowReadyNowOrders: (state, action: PayloadAction<boolean>) => {
       state.data.showReadyNowOrders = action.payload;
@@ -366,6 +388,7 @@ export const {
   setShowDepotSegments,
   setShowRoutePositions,
   setShowDepartingNowRoutes,
+  setDepartingWindowMinutes,
   setShowReadyNowOrders,
   setSolverInput,
   setSolverResult,

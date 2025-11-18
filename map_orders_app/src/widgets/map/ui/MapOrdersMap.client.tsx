@@ -22,6 +22,7 @@ import {
   FormControlLabel,
   IconButton,
   Paper,
+  Slider,
   Stack,
   Switch,
   Tooltip as MuiTooltip,
@@ -36,6 +37,7 @@ import {
   setMapView,
   setShowDepotSegments,
   setShowDepartingNowRoutes,
+  setDepartingWindowMinutes,
   setShowReadyNowOrders,
   setShowRoutePositions,
   setShowSolverRoutes,
@@ -48,6 +50,7 @@ import {
   selectRouteSegments,
   selectShowDepotSegments,
   selectShowDepartingNowRoutes,
+  selectDepartingWindowMinutes,
   selectShowReadyNowOrders,
   selectShowRoutePositions,
   selectShowSolverRoutes,
@@ -133,6 +136,7 @@ const MapOrdersMapClient = ({
   const showDepotSegments = useAppSelector(selectShowDepotSegments);
   const showRoutePositions = useAppSelector(selectShowRoutePositions);
   const showDepartingNowRoutes = useAppSelector(selectShowDepartingNowRoutes);
+  const departingWindowMinutes = useAppSelector(selectDepartingWindowMinutes);
   const showReadyNowOrders = useAppSelector(selectShowReadyNowOrders);
   const solverInput = useAppSelector(selectSolverInput);
   const solverResult = useAppSelector(selectSolverResult);
@@ -160,12 +164,13 @@ const MapOrdersMapClient = ({
     if (!showDepartingNowRoutes) {
       return routeSegments;
     }
-    const REL_WINDOW_MIN = 0.25;
-    const ABS_WINDOW_MS = 15_000;
+    const windowMinutes = Math.max(0, departingWindowMinutes);
+    const relWindowMin = windowMinutes > 0 ? windowMinutes : 0.25;
+    const absWindowMs = windowMinutes > 0 ? windowMinutes * 60_000 : 15_000;
     return routeSegments.filter((segment) => {
       const rel = segment.plannedDepartureRelMin;
       if (typeof rel === "number" && Number.isFinite(rel)) {
-        return Math.abs(rel) <= REL_WINDOW_MIN;
+        return Math.abs(rel) <= relWindowMin;
       }
       if (!segment.plannedDepartureIso || !baseTimestamp) {
         return false;
@@ -174,9 +179,15 @@ const MapOrdersMapClient = ({
       if (Number.isNaN(departureTime)) {
         return false;
       }
-      return Math.abs(departureTime - baseTimestamp) <= ABS_WINDOW_MS;
+      return Math.abs(departureTime - baseTimestamp) <= absWindowMs;
     });
-  }, [routeSegments, showDepartingNowRoutes, showSolverRoutes, baseTimestamp]);
+  }, [
+    routeSegments,
+    showDepartingNowRoutes,
+    showSolverRoutes,
+    baseTimestamp,
+    departingWindowMinutes,
+  ]);
   const readyNowOrderIds = useMemo(() => {
     if (!showReadyNowOrders || !baseTimestamp) {
       return new Set<string>();
@@ -481,6 +492,14 @@ const MapOrdersMapClient = ({
   const toggleDepartingNow = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
       dispatch(setShowDepartingNowRoutes(checked));
+    },
+    [dispatch],
+  );
+
+  const handleDepartingWindowChange = useCallback(
+    (_event: Event, value: number | number[]) => {
+      const nextValue = Array.isArray(value) ? value[0] ?? 0 : value;
+      dispatch(setDepartingWindowMinutes(nextValue));
     },
     [dispatch],
   );
@@ -899,8 +918,28 @@ const MapOrdersMapClient = ({
             />
             <FormControlLabel
               control={<Checkbox checked={showDepartingNowRoutes} onChange={toggleDepartingNow} />}
-              label="Выезжают сейчас"
+              label="Выезжают в ближайшие"
             />
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 180 }}>
+              <Slider
+                value={departingWindowMinutes}
+                onChange={handleDepartingWindowChange}
+                min={0}
+                max={15}
+                step={1}
+                size="small"
+                disabled={!showDepartingNowRoutes}
+                sx={{ width: 130 }}
+                aria-label="Окно выезда"
+              />
+              <Typography
+                variant="body2"
+                color={showDepartingNowRoutes ? "text.primary" : "text.disabled"}
+                sx={{ minWidth: 48 }}
+              >
+                {departingWindowMinutes} мин
+              </Typography>
+            </Stack>
             <FormControlLabel
               control={<Checkbox checked={showReadyNowOrders} onChange={toggleReadyNow} />}
               label="Готовы сейчас"

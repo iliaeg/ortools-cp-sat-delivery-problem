@@ -61,6 +61,11 @@ export const selectShowReadyNowOrders = createSelector(
   (state) => state.data.showReadyNowOrders,
 );
 
+export const selectDepartingWindowMinutes = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.departingWindowMinutes,
+);
+
 export const selectWarnings = createSelector(
   selectMapOrdersState,
   (state) => state.ui.warnings,
