@@ -64,6 +64,12 @@ class OptimizationWeights(BaseModel):
 
     certificate_penalty_weight: int = Field(..., ge=0, description="Штраф за click-to-eat > 60 минут")
     click_to_eat_penalty_weight: int = Field(..., ge=0, description="Вес click-to-eat в целевой функции")
+    ready_click_to_eat_penalty_weight: Optional[int] = Field(
+        None, ge=0, description="Вес ожидания после готовности заказа"
+    )
+    courier_idle_penalty_weight: Optional[int] = Field(
+        None, ge=0, description="Вес простоя курьера в целевой функции"
+    )
     skip_order_penalty_weight: Optional[int] = Field(
         None, ge=0, description="Штраф за временный пропуск заказа (по умолчанию как сертификат)"
     )
@@ -146,6 +152,14 @@ class DomainToSolverMapper:
             "W_cert": self._payload.optimization_weights.certificate_penalty_weight,
             "W_c2e": self._payload.optimization_weights.click_to_eat_penalty_weight,
         }
+
+        ready_weight = self._payload.optimization_weights.ready_click_to_eat_penalty_weight
+        if ready_weight is not None:
+            solver_problem["W_c2e_ready"] = ready_weight
+
+        idle_weight = self._payload.optimization_weights.courier_idle_penalty_weight
+        if idle_weight is not None:
+            solver_problem["W_idle"] = idle_weight
 
         skip_weight = self._payload.optimization_weights.skip_order_penalty_weight
         if skip_weight is not None:

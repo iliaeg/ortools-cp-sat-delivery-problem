@@ -887,6 +887,16 @@ export const buildStateFromCpSatLog = (
   if (c2eWeight !== undefined) {
     weightsPayload.W_c2e = c2eWeight;
   }
+  const c2eReadyWeight = toFiniteNumber(
+    pickProperty(
+      optimization,
+      "ready_click_to_eat_penalty_weight",
+      "ReadyClickToEatPenaltyWeight",
+    ),
+  );
+  if (c2eReadyWeight !== undefined) {
+    weightsPayload.W_c2e_ready = c2eReadyWeight;
+  }
   const skipWeight = toFiniteNumber(
     pickProperty(
       optimization,

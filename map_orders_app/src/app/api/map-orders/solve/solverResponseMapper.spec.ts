@@ -31,6 +31,8 @@ const buildSolverInput = (): SolverInputPayload => ({
           optimization_weights: {
             certificate_penalty_weight: 100,
             click_to_eat_penalty_weight: 1,
+            ready_click_to_eat_penalty_weight: 1,
+            courier_idle_penalty_weight: 0,
             skip_order_penalty_weight: 1000,
           },
         },

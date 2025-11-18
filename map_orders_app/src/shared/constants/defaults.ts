@@ -8,6 +8,8 @@ export const DEFAULT_COURIERS = {
 export const DEFAULT_WEIGHTS = {
   W_cert: 1000,
   W_c2e: 1,
+  W_c2e_ready: 1,
+  W_idle: 0,
   W_skip: 10000,
 };
 

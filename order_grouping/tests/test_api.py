@@ -40,6 +40,8 @@ def sample_payload() -> dict:
         "optimization_weights": {
             "certificate_penalty_weight": 100,
             "click_to_eat_penalty_weight": 1,
+            "ready_click_to_eat_penalty_weight": 2,
+            "courier_idle_penalty_weight": 5,
             "skip_order_penalty_weight": 200,
         },
     }
@@ -58,6 +60,8 @@ def test_domain_payload_mapping(sample_payload: dict) -> None:
     assert mapped["courier_available_offset"] == [0]
     assert mapped["W_cert"] == 100
     assert mapped["W_c2e"] == 1
+    assert mapped["W_c2e_ready"] == 2
+    assert mapped["W_idle"] == 5
     assert mapped["W_skip"] == 200
 
 
