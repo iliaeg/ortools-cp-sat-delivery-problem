@@ -73,11 +73,14 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StraightenIcon from "@mui/icons-material/Straighten";
+import CloseIcon from "@mui/icons-material/Close";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
+import { getClientEnv } from "@/shared/config/env";
 
 const TILE_LAYER = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const clientEnv = getClientEnv();
 
 const DRAW_OPTIONS = {
   rectangle: false,
@@ -110,6 +113,20 @@ type MeasureSelection = {
   from: DeliveryPoint;
   to?: DeliveryPoint | null;
   durationMin?: number | null;
+};
+
+const getArcKeyForPoint = (point?: DeliveryPoint | null): string | null => {
+  if (!point) {
+    return null;
+  }
+  if (point.kind === "depot") {
+    return "depot";
+  }
+  const trimmed = point.id?.trim();
+  if (trimmed && trimmed.length) {
+    return trimmed;
+  }
+  return point.internalId;
 };
 
 export interface MapOrdersMapProps {
@@ -158,6 +175,9 @@ const MapOrdersMapClient = ({
     ?? null;
   const [measureModeEnabled, setMeasureModeEnabled] = useState(false);
   const [measureSelection, setMeasureSelection] = useState<MeasureSelection | null>(null);
+  const [allowedArcs, setAllowedArcs] = useState<Record<string, Record<string, boolean>> | null>(null);
+  const [arcsLoading, setArcsLoading] = useState(false);
+  const [arcsError, setArcsError] = useState<string | null>(null);
 
   const pointIndexByInternalId = useMemo(() => {
     const ids = solverInput?.meta?.pointInternalIds;
@@ -190,6 +210,52 @@ const MapOrdersMapClient = ({
       return undefined;
     },
     [pointIndexByInternalId, solverInput?.tau],
+  );
+
+  const fetchAllowedArcs = useCallback(async () => {
+    if (!solverInput?.request) {
+      setArcsError("Сначала соберите solver_input");
+      setAllowedArcs(null);
+      return;
+    }
+    try {
+      setArcsLoading(true);
+      setArcsError(null);
+      const response = await fetch("/api/map-orders/arcs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ solverInput }),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || `Ошибка ${response.status}`);
+      }
+      const payload = (await response.json()) as {
+        allowed_arcs?: Record<string, Record<string, boolean>>;
+      };
+      setAllowedArcs(payload.allowed_arcs ?? null);
+    } catch (error) {
+      setAllowedArcs(null);
+      setArcsError((error as Error).message || "Не удалось загрузить дуги");
+    } finally {
+      setArcsLoading(false);
+    }
+  }, [solverInput]);
+
+  const isArcAllowed = useCallback(
+    (fromPoint?: DeliveryPoint | null, toPoint?: DeliveryPoint | null): boolean | null => {
+      if (!allowedArcs) {
+        return null;
+      }
+      const fromKey = getArcKeyForPoint(fromPoint);
+      const toKey = getArcKeyForPoint(toPoint);
+      if (!fromKey || !toKey) {
+        return null;
+      }
+      const allowed = allowedArcs[fromKey]?.[toKey];
+      return typeof allowed === "boolean" ? allowed : null;
+    },
+    [allowedArcs],
   );
 
   const baseTimestamp = useMemo(() => {
@@ -420,10 +486,16 @@ const MapOrdersMapClient = ({
       const next = !prev;
       if (!next) {
         setMeasureSelection(null);
+        setAllowedArcs(null);
+        setArcsError(null);
+        setArcsLoading(false);
+      }
+      if (next) {
+        fetchAllowedArcs();
       }
       return next;
     });
-  }, []);
+  }, [fetchAllowedArcs]);
 
   const handleMeasureClear = useCallback(() => {
     setMeasureSelection(null);
@@ -572,6 +644,11 @@ const MapOrdersMapClient = ({
     ] as [number, number][];
   }, [measureModeEnabled, measureSelection]);
 
+  const currentArcAllowed = useMemo(
+    () => isArcAllowed(measureSelection?.from, measureSelection?.to),
+    [isArcAllowed, measureSelection],
+  );
+
   const measureMidpoint = useMemo(() => {
     if (!measureLinePositions) {
       return null;
@@ -588,17 +665,22 @@ const MapOrdersMapClient = ({
       typeof measureSelection?.durationMin === "number"
         ? `${measureSelection.durationMin} мин`
         : "нет данных";
+    const labelColor = currentArcAllowed === false ? "#880e4f" : currentArcAllowed === true ? "#1b5e20" : "#1b1b1b";
     return L.divIcon({
       className: "measure-label",
-      html: `<div style="display:inline-flex;align-items:center;white-space:nowrap;padding:4px 10px;background:#f5f5f5;color:#1b1b1b;border-radius:999px;border:1px solid #9e9e9e;font-size:12px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.18);">${labelText}</div>`,
+      html: `<div style="display:inline-flex;align-items:center;white-space:nowrap;padding:4px 10px;background:#f5f5f5;color:${labelColor};border-radius:999px;border:1px solid #9e9e9e;font-size:12px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.18);">${labelText}</div>`,
     });
-  }, [measureLinePositions, measureSelection?.durationMin]);
+  }, [currentArcAllowed, measureLinePositions, measureSelection?.durationMin]);
 
   const measureLayer = measureLinePositions ? (
     <>
       <Polyline
         positions={measureLinePositions}
-        pathOptions={{ color: "#616161", weight: 3, dashArray: "6 6" }}
+        pathOptions={{
+          color: currentArcAllowed === false ? "#880e4f" : currentArcAllowed === true ? "#2e7d32" : "#616161",
+          weight: 3,
+          dashArray: "3 6",
+        }}
         interactive={false}
       />
       {measureMidpoint && measureLabelIcon ? (
@@ -612,22 +694,28 @@ const MapOrdersMapClient = ({
     </>
   ) : null;
 
-  const measureStatusText = useMemo(() => {
+  const measureStatus = useMemo(() => {
     if (!measureModeEnabled) {
-      return "";
+      return { message: "" };
     }
     if (!measureSelection?.from) {
-      return "Выберите две точки на карте";
+      return { message: "Выберите две точки на карте" };
     }
     if (!measureSelection.to) {
-      return `Начало: ${labelForPoint(measureSelection.from)}`;
+      return { message: `Начало: ${labelForPoint(measureSelection.from)}` };
     }
-    const base = `${labelForPoint(measureSelection.from)} → ${labelForPoint(measureSelection.to)}`;
-    if (typeof measureSelection.durationMin === "number") {
-      return `${base} = ${measureSelection.durationMin} мин`;
-    }
-    return `${base} — нет данных`;
-  }, [measureModeEnabled, measureSelection]);
+    const durationText =
+      typeof measureSelection.durationMin === "number"
+        ? `${measureSelection.durationMin} мин`
+        : "нет данных";
+    const allowed = isArcAllowed(measureSelection.from, measureSelection.to);
+    return {
+      fromLabel: labelForPoint(measureSelection.from),
+      toLabel: labelForPoint(measureSelection.to),
+      durationText,
+      allowed,
+    };
+  }, [isArcAllowed, measureModeEnabled, measureSelection]);
 
   const toggleRoutes = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
@@ -802,12 +890,58 @@ const MapOrdersMapClient = ({
                   bgcolor: "rgba(245, 245, 245, 0.9)",
                 }}
               >
-                <Typography
-                  variant="body2"
-                  sx={{ flexGrow: 1, fontWeight: 600, color: "#212121" }}
-                >
-                  {measureStatusText}
-                </Typography>
+                <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column", gap: 0.25 }}>
+                  {measureStatus.fromLabel && measureStatus.toLabel ? (
+                    <>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 0.5,
+                            color:
+                              measureStatus.allowed === false
+                                ? "#b71c1c"
+                                : measureStatus.allowed === true
+                                  ? "#2e7d32"
+                                  : "#212121",
+                          }}
+                        >
+                          {measureStatus.fromLabel}
+                          {measureStatus.allowed === false ? (
+                            <CloseIcon sx={{ fontSize: 16 }} />
+                          ) : (
+                            <ArrowForwardIosIcon sx={{ fontSize: 14 }} />
+                          )}
+                          {measureStatus.toLabel}
+                        </Box>
+                        <Box component="span" sx={{ ml: 1, color: "#212121", fontWeight: 500 }}>
+                          = {measureStatus.durationText}
+                        </Box>
+                      </Typography>
+                      {measureStatus.allowed === false ? (
+                        <Typography variant="caption" color="#b71c1c">
+                          Маршрут запрещён правилами арок
+                        </Typography>
+                      ) : null}
+                    </>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      {measureStatus.message}
+                    </Typography>
+                  )}
+                  {arcsLoading ? (
+                    <Typography variant="caption" color="text.secondary">
+                      Загружаем допустимые дуги...
+                    </Typography>
+                  ) : null}
+                  {arcsError ? (
+                    <Typography variant="caption" color="#b71c1c">
+                      {arcsError}
+                    </Typography>
+                  ) : null}
+                </Box>
                 <Button
                   size="small"
                   onClick={handleMeasureClear}

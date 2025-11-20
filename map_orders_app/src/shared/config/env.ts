@@ -3,6 +3,8 @@ export const getClientEnv = () => ({
     process.env.NEXT_PUBLIC_OSRM_BASE_URL?.trim() || "http://localhost:5563",
   solverUrl:
     process.env.NEXT_PUBLIC_SOLVER_URL?.trim() || "http://127.0.0.1:5001/invocations",
+  solverArcsUrl:
+    process.env.NEXT_PUBLIC_SOLVER_ARCS_URL?.trim() || "http://127.0.0.1:5002/arcs",
 });
 
 export const getServerEnv = () => ({
