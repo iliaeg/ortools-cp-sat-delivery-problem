@@ -7,11 +7,12 @@ import {
   Marker,
   FeatureGroup,
   Tooltip,
+  Polyline,
   useMap,
   useMapEvents,
 } from "react-leaflet";
 import { EditControl, type EditControlProps } from "react-leaflet-draw";
-import L, { LeafletEvent } from "leaflet";
+import L, { LeafletEvent, LeafletMouseEvent } from "leaflet";
 import { v4 as uuidv4 } from "uuid";
 import "leaflet-simple-map-screenshoter";
 import {
@@ -56,6 +57,7 @@ import {
   selectShowSolverRoutes,
   selectSolverInput,
   selectSolverResult,
+  selectAllowedArcsByKey,
   selectViewportLocked,
 } from "@/features/map-orders/model/selectors";
 import {
@@ -71,6 +73,7 @@ import LockOpenIcon from "@mui/icons-material/LockOpen";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import StraightenIcon from "@mui/icons-material/Straighten";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
@@ -103,6 +106,26 @@ const labelForPoint = (point: DeliveryPoint) => {
 };
 
 type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
+
+type MeasureSelection = {
+  from: DeliveryPoint;
+  to?: DeliveryPoint | null;
+  durationMin?: number | null;
+};
+
+const getArcKeyForPoint = (point?: DeliveryPoint | null): string | null => {
+  if (!point) {
+    return null;
+  }
+  if (point.kind === "depot") {
+    return "depot";
+  }
+  const trimmed = point.id?.trim();
+  if (trimmed && trimmed.length) {
+    return trimmed;
+  }
+  return point.internalId;
+};
 
 export interface MapOrdersMapProps {
   statusLabel?: string;
@@ -142,6 +165,7 @@ const MapOrdersMapClient = ({
   const solverResult = useAppSelector(selectSolverResult);
   const viewportLocked = useAppSelector(selectViewportLocked);
   const routeSegments = useAppSelector(selectRouteSegments);
+  const allowedArcsByKey = useAppSelector(selectAllowedArcsByKey);
   const solverBaseIso =
     solverInput?.request?.inputs?.[0]?.data?.current_timestamp_utc
     ?? solverInput?.meta?.T0_iso
@@ -149,6 +173,8 @@ const MapOrdersMapClient = ({
     ?? solverResult?.result?.meta?.current_timestamp_utc
     ?? null;
 
+  const [measureModeEnabled, setMeasureModeEnabled] = useState(false);
+  const [measureSelection, setMeasureSelection] = useState<MeasureSelection | null>(null);
   const baseTimestamp = useMemo(() => {
     if (!solverBaseIso) {
       return null;
@@ -214,6 +240,39 @@ const MapOrdersMapClient = ({
     });
     return result;
   }, [showReadyNowOrders, baseTimestamp, points]);
+
+  const pointIndexByInternalId = useMemo(() => {
+    const ids = solverInput?.meta?.pointInternalIds;
+    if (!ids || !Array.isArray(ids)) {
+      return null;
+    }
+    const map = new Map<string, number>();
+    ids.forEach((id, index) => {
+      if (id) {
+        map.set(id, index);
+      }
+    });
+    return map;
+  }, [solverInput?.meta?.pointInternalIds]);
+
+  const getTravelTimeBetweenPoints = useCallback(
+    (fromId: string, toId: string): number | undefined => {
+      if (!pointIndexByInternalId || !solverInput?.tau) {
+        return undefined;
+      }
+      const fromIndex = pointIndexByInternalId.get(fromId);
+      const toIndex = pointIndexByInternalId.get(toId);
+      if (fromIndex === undefined || toIndex === undefined) {
+        return undefined;
+      }
+      const value = solverInput.tau[fromIndex]?.[toIndex];
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+      }
+      return undefined;
+    },
+    [pointIndexByInternalId, solverInput?.tau],
+  );
 
   const [isEditingEnabled, setEditingEnabled] = useState(false);
   const [isFullScreen, setFullScreen] = useState(false);
@@ -372,6 +431,67 @@ const MapOrdersMapClient = ({
     [dispatch],
   );
 
+  const isArcAllowed = useCallback(
+    (fromPoint?: DeliveryPoint | null, toPoint?: DeliveryPoint | null): boolean | null => {
+      if (!allowedArcsByKey) {
+        return null;
+      }
+      const fromKey = getArcKeyForPoint(fromPoint);
+      const toKey = getArcKeyForPoint(toPoint);
+      if (!fromKey || !toKey) {
+        return null;
+      }
+      const allowed = allowedArcsByKey[fromKey]?.[toKey];
+      if (typeof allowed === "boolean") {
+        return allowed;
+      }
+      return false;
+    },
+    [allowedArcsByKey],
+  );
+
+  const handleMarkerClick = useCallback(
+    (point: DeliveryPoint) => (event: LeafletEvent | LeafletMouseEvent) => {
+      const original = (event as LeafletMouseEvent).originalEvent as MouseEvent | undefined;
+      original?.preventDefault();
+      original?.stopPropagation();
+      setMeasureModeEnabled((prev) => prev || true);
+      setMeasureSelection((prev) => {
+        if (!prev || !prev.from) {
+          return { from: point };
+        }
+        const prevToId = prev.to?.internalId;
+        if (prev.from.internalId === point.internalId) {
+          return { from: point };
+        }
+        if (prevToId && prevToId === point.internalId) {
+          return { from: point };
+        }
+        const duration = getTravelTimeBetweenPoints(prev.from.internalId, point.internalId);
+        return {
+          from: prev.from,
+          to: point,
+          durationMin: duration ?? null,
+        };
+      });
+    },
+    [getTravelTimeBetweenPoints],
+  );
+
+  const handleMeasureToggle = useCallback(() => {
+    setMeasureModeEnabled((prev) => {
+      const next = !prev;
+      if (!next) {
+        setMeasureSelection(null);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleMeasureClear = useCallback(() => {
+    setMeasureSelection(null);
+  }, []);
+
   const markers = useMemo(
     () =>
       points.map((point) => {
@@ -383,6 +503,7 @@ const MapOrdersMapClient = ({
             draggable={isEditingEnabled && point.kind !== "depot"}
             eventHandlers={{
               dragend: handleMarkerDragEnd(point.internalId),
+              click: handleMarkerClick(point),
             }}
             icon={createNumberedPinIcon(
               point.orderNumber ?? point.seq,
@@ -467,6 +588,96 @@ const MapOrdersMapClient = ({
         : null,
     [filteredRouteSegments, showDepotSegments, showSolverRoutes, showRoutePositions],
   );
+
+  const measureLinePositions = useMemo(() => {
+    if (!measureModeEnabled || !measureSelection?.from || !measureSelection?.to) {
+      return null;
+    }
+    return [
+      [measureSelection.from.lat, measureSelection.from.lon],
+      [measureSelection.to.lat, measureSelection.to.lon],
+    ] as [number, number][];
+  }, [measureModeEnabled, measureSelection]);
+
+  const currentArcAllowed = useMemo(
+    () => isArcAllowed(measureSelection?.from, measureSelection?.to),
+    [isArcAllowed, measureSelection],
+  );
+
+  const measureMidpoint = useMemo(() => {
+    if (!measureLinePositions) {
+      return null;
+    }
+    const [[fromLat, fromLon], [toLat, toLon]] = measureLinePositions;
+    return [(fromLat + toLat) / 2, (fromLon + toLon) / 2] as [number, number];
+  }, [measureLinePositions]);
+
+  const measureLabelIcon = useMemo(() => {
+    if (!measureLinePositions) {
+      return null;
+    }
+    const labelText =
+      typeof measureSelection?.durationMin === "number"
+        ? `${measureSelection.durationMin} мин`
+        : "нет данных";
+    const labelColor =
+      currentArcAllowed === false
+        ? "#880e4f"
+        : currentArcAllowed === true
+          ? "#00695c"
+          : "#212121";
+    return L.divIcon({
+      className: "measure-label",
+      html: `<div style="display:inline-flex;align-items:center;white-space:nowrap;padding:4px 10px;background:rgba(255,255,255,0.85);color:${labelColor};border-radius:999px;border:1px solid rgba(0,0,0,0.25);font-size:12px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.18);">${labelText}</div>`,
+    });
+  }, [currentArcAllowed, measureLinePositions, measureSelection?.durationMin]);
+
+  const measureLayer = measureLinePositions ? (
+    <>
+      <Polyline
+        positions={measureLinePositions}
+        pathOptions={{
+          color:
+            currentArcAllowed === false
+              ? "#880e4f"
+              : currentArcAllowed === true
+                ? "#00c853"
+                : "#616161",
+          weight: 3,
+          dashArray: "3 6",
+        }}
+        interactive={false}
+      />
+      {measureMidpoint && measureLabelIcon ? (
+        <Marker
+          position={measureMidpoint}
+          icon={measureLabelIcon}
+          interactive={false}
+          zIndexOffset={1000}
+        />
+      ) : null}
+    </>
+  ) : null;
+
+  const measureStatus = useMemo(() => {
+    if (!measureModeEnabled) {
+      return { message: "" };
+    }
+    if (!measureSelection?.from) {
+      return { message: "Выберите две точки на карте" };
+    }
+    if (!measureSelection.to) {
+      return { message: "Выберите вторую точку на карте" };
+    }
+    return { message: "" };
+  }, [measureModeEnabled, measureSelection]);
+
+  const currentStatusArcAllowed = useMemo(() => {
+    if (!measureSelection?.from || !measureSelection.to) {
+      return null;
+    }
+    return isArcAllowed(measureSelection.from, measureSelection.to);
+  }, [isArcAllowed, measureSelection]);
 
   const toggleRoutes = useCallback(
     (_event: ChangeEvent<HTMLInputElement>, checked: boolean) => {
@@ -618,8 +829,9 @@ const MapOrdersMapClient = ({
       <Stack spacing={1.5} sx={mapWrapperSx}>
         <Box sx={mapBoxSx}>
           <Stack
-            direction="column"
+            direction="row"
             spacing={1}
+            alignItems="flex-end"
             sx={{
               position: "absolute",
               bottom: 12,
@@ -627,11 +839,82 @@ const MapOrdersMapClient = ({
               zIndex: 1200,
             }}
           >
-            <MuiTooltip title="Скопировать карту" placement="left">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={async () => {
+            <Stack
+              direction="column"
+              spacing={0.5}
+              alignItems="flex-end"
+            >
+              <MuiTooltip
+                title={measureModeEnabled ? "Выключить режим измерения дуги" : "Включить режим измерения дуги"}
+                placement="left"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleMeasureToggle}
+                    sx={{
+                      bgcolor: measureModeEnabled ? "primary.main" : "background.paper",
+                      color: measureModeEnabled ? "primary.contrastText" : "text.primary",
+                      boxShadow: 2,
+                      '&:hover': {
+                        bgcolor: measureModeEnabled ? "primary.dark" : "background.paper",
+                        boxShadow: 4,
+                      },
+                    }}
+                  >
+                    <StraightenIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </MuiTooltip>
+              {measureModeEnabled ? (
+                <Box
+                  sx={{
+                    maxWidth: 260,
+                    bgcolor: "rgba(255,255,255,0.75)",
+                    color:
+                      currentStatusArcAllowed === true
+                        ? "#00c853"
+                        : currentStatusArcAllowed === false
+                          ? "#880e4f"
+                          : "#000",
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    boxShadow: 2,
+                    border: "1px solid rgba(0,0,0,0.18)",
+                    fontSize: 12,
+                    textAlign: "right",
+                  }}
+                >
+                  <Typography variant="caption" component="div">
+                    {!measureSelection?.from && measureStatus.message}
+                    {measureSelection?.from && !measureSelection?.to && (
+                      <>
+                        Начало:{" "}
+                        <strong>{labelForPoint(measureSelection.from)}</strong>
+                      </>
+                    )}
+                    {measureSelection?.from && measureSelection?.to && (
+                      <>
+                        <strong>{labelForPoint(measureSelection.from)}</strong>
+                        {" \u2192 "}
+                        <strong>{labelForPoint(measureSelection.to)}</strong>
+                        {" — "}
+                        {typeof measureSelection.durationMin === "number"
+                          ? `${measureSelection.durationMin} мин`
+                          : "нет данных"}
+                      </>
+                    )}
+                  </Typography>
+                </Box>
+              ) : null}
+            </Stack>
+            <Stack direction="column" spacing={1}>
+              <MuiTooltip title="Скопировать карту" placement="left">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={async () => {
                     if (isCopying) {
                       return;
                     }
@@ -732,76 +1015,77 @@ const MapOrdersMapClient = ({
                       setIsCopying(false);
                     }
                   }}
-                  disabled={isCopying}
-                  sx={{
-                    bgcolor: "background.paper",
-                    color: "text.primary",
-                    boxShadow: 2,
-                    '&:hover': {
+                    disabled={isCopying}
+                    sx={{
                       bgcolor: "background.paper",
-                      boxShadow: 4,
-                    },
-                  }}
-                >
-                  {isCopying ? <CircularProgress size={14} /> : <ContentCopyIcon fontSize="small" />}
-                </IconButton>
-              </span>
-            </MuiTooltip>
-            <MuiTooltip title={viewportLocked ? "Разблокировать карту" : "Заблокировать карту"} placement="left">
-              <span>
-                <IconButton
-                  size="small"
-                  onClick={toggleViewportLock}
-                  sx={{
-                    bgcolor: "background.paper",
-                    color: viewportLocked ? "primary.main" : "text.primary",
-                    boxShadow: 2,
-                    '&:hover': {
+                      color: "text.primary",
+                      boxShadow: 2,
+                      '&:hover': {
+                        bgcolor: "background.paper",
+                        boxShadow: 4,
+                      },
+                    }}
+                  >
+                    {isCopying ? <CircularProgress size={14} /> : <ContentCopyIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </MuiTooltip>
+              <MuiTooltip title={viewportLocked ? "Разблокировать карту" : "Заблокировать карту"} placement="left">
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={toggleViewportLock}
+                    sx={{
                       bgcolor: "background.paper",
-                      boxShadow: 4,
-                    },
-                  }}
-                >
-                  {viewportLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
-                </IconButton>
-              </span>
-            </MuiTooltip>
-            <IconButton
-              size="small"
-              onClick={handleFitToView}
-              disabled={points.length === 0 || viewportLocked}
-              sx={{
-                bgcolor: "background.paper",
-                color: viewportLocked ? "text.disabled" : "text.primary",
-                boxShadow: 2,
-                cursor: viewportLocked ? "default" : "pointer",
-                '&:hover': {
+                      color: viewportLocked ? "primary.main" : "text.primary",
+                      boxShadow: 2,
+                      '&:hover': {
+                        bgcolor: "background.paper",
+                        boxShadow: 4,
+                      },
+                    }}
+                  >
+                    {viewportLocked ? <LockIcon fontSize="small" /> : <LockOpenIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </MuiTooltip>
+              <IconButton
+                size="small"
+                onClick={handleFitToView}
+                disabled={points.length === 0 || viewportLocked}
+                sx={{
                   bgcolor: "background.paper",
-                  boxShadow: viewportLocked ? 2 : 4,
-                },
-              }}
-            >
-              <CenterFocusStrongIcon fontSize="small" />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={handleToggleFullScreen}
-              sx={{
-                bgcolor: "background.paper",
-                color: "text.primary",
-                boxShadow: 2,
-                '&:hover': {
+                  color: viewportLocked ? "text.disabled" : "text.primary",
+                  boxShadow: 2,
+                  cursor: viewportLocked ? "default" : "pointer",
+                  '&:hover': {
+                    bgcolor: "background.paper",
+                    boxShadow: viewportLocked ? 2 : 4,
+                  },
+                }}
+              >
+                <CenterFocusStrongIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={handleToggleFullScreen}
+                sx={{
                   bgcolor: "background.paper",
-                  boxShadow: 4,
-                },
-              }}
-            >
-              {isFullScreen ? (
-                <FullscreenExitIcon fontSize="small" />
-              ) : (
-                <FullscreenIcon fontSize="small" />
-              )}
-            </IconButton>
+                  color: "text.primary",
+                  boxShadow: 2,
+                  '&:hover': {
+                    bgcolor: "background.paper",
+                    boxShadow: 4,
+                  },
+                }}
+              >
+                {isFullScreen ? (
+                  <FullscreenExitIcon fontSize="small" />
+                ) : (
+                  <FullscreenIcon fontSize="small" />
+                )}
+              </IconButton>
+            </Stack>
           </Stack>
           {isFullScreen && (statusLabel || (metrics && metrics.length > 0)) ? (
             <>
@@ -922,6 +1206,7 @@ const MapOrdersMapClient = ({
               ) : null}
               {markers}
               {polylines}
+              {measureLayer}
             </FeatureGroup>
           </MapContainer>
         </Box>

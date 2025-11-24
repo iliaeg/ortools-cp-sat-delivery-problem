@@ -1,5 +1,6 @@
 import { createSelector } from "@reduxjs/toolkit";
 import { RootState } from "@/shared/store";
+import type { SolverDomainMetrics } from "@/shared/types/solver";
 
 export const selectMapOrdersState = (state: RootState) => state.mapOrders;
 
@@ -29,6 +30,48 @@ export const selectSolverInput = createSelector(
 export const selectSolverResult = createSelector(
   selectMapOrdersState,
   (state) => state.data.solverResult,
+);
+
+export type AllowedArcsByKey = Record<string, Record<string, boolean>>;
+
+export const selectAllowedArcsByKey = createSelector(
+  selectSolverResult,
+  (solverResult): AllowedArcsByKey | null => {
+    const domain = solverResult?.domainResponse;
+    if (!domain) {
+      return null;
+    }
+    const metrics = domain.metrics as SolverDomainMetrics | undefined;
+    const arcs = (metrics as SolverDomainMetrics | undefined)?.arcs as
+      | { allowed_arcs?: unknown }
+      | undefined;
+    const rawAllowed = arcs?.allowed_arcs;
+    if (!Array.isArray(rawAllowed) || rawAllowed.length === 0) {
+      return null;
+    }
+
+    const map: AllowedArcsByKey = {};
+    rawAllowed.forEach((entry) => {
+      if (!Array.isArray(entry) || entry.length < 2) {
+        return;
+      }
+      const [fromRaw, toRaw] = entry;
+      if (typeof fromRaw !== "string" || typeof toRaw !== "string") {
+        return;
+      }
+      const fromKey = fromRaw.trim();
+      const toKey = toRaw.trim();
+      if (!fromKey || !toKey) {
+        return;
+      }
+      if (!map[fromKey]) {
+        map[fromKey] = {};
+      }
+      map[fromKey][toKey] = true;
+    });
+
+    return Object.keys(map).length ? map : null;
+  },
 );
 
 export const selectRouteSegments = createSelector(

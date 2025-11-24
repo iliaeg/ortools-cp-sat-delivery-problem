@@ -92,6 +92,16 @@ export interface SolverDomainMetrics {
   objective_value?: number;
   cert_count?: number;
   skip_count?: number;
+  arcs?: {
+    directed_arcs?: number;
+    directed_arcs_percentage?: number;
+    all_possible_directed_arcs?: number;
+    ready_time_neighbours_per_order?: number;
+    almost_ready_orders_count?: number;
+    ray_neighbours_per_almost_ready_order?: number;
+    allowed_arcs?: [string, string][];
+    [key: string]: unknown;
+  };
 }
 
 export interface SolverDomainResponse {
