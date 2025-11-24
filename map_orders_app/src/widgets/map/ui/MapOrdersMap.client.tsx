@@ -75,7 +75,7 @@ import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
 
-const TILE_LAYER = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+const TILE_LAYER = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 
 const DRAW_OPTIONS = {
   rectangle: false,
@@ -684,16 +684,45 @@ const MapOrdersMapClient = ({
                         throw new Error("Не удалось сформировать изображение");
                       }
                       let copied = false;
-                      if (navigator.clipboard && typeof (navigator.clipboard as any).write === "function") {
+                      const hasNavigatorClipboard = typeof navigator !== "undefined" && navigator.clipboard;
+
+                      if (
+                        hasNavigatorClipboard
+                        && typeof (navigator.clipboard as any).write === "function"
+                        && typeof (window as any).ClipboardItem === "function"
+                      ) {
                         try {
+                          const ClipboardItemCtor = (window as any).ClipboardItem;
                           await (navigator.clipboard as any).write([
-                            new ClipboardItem({ "image/png": blob }),
+                            new ClipboardItemCtor({ "image/png": blob }),
                           ]);
                           copied = true;
                         } catch (clipboardError) {
-                          console.warn("Clipboard write failed, fallback to download", clipboardError);
+                          console.warn("Clipboard image write failed", clipboardError);
                         }
                       }
+
+                      if (!copied && hasNavigatorClipboard && typeof navigator.clipboard.writeText === "function") {
+                        try {
+                          const dataUrl = await new Promise<string>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === "string") {
+                                resolve(reader.result);
+                              } else {
+                                reject(new Error("Unexpected FileReader.result type"));
+                              }
+                            };
+                            reader.onerror = () => reject(reader.error ?? new Error("Failed to read blob"));
+                            reader.readAsDataURL(blob);
+                          });
+                          await navigator.clipboard.writeText(dataUrl);
+                          copied = true;
+                        } catch (clipboardTextError) {
+                          console.warn("Clipboard text write failed, fallback to download", clipboardTextError);
+                        }
+                      }
+
                       if (!copied) {
                         saveAs(blob, `map-${new Date().toISOString()}.png`);
                       }
@@ -875,7 +904,11 @@ const MapOrdersMapClient = ({
             zoom={zoom}
             style={{ height: "100%", width: "100%" }}
           >
-            <TileLayer url={TILE_LAYER} attribution="&copy; OpenStreetMap" crossOrigin={true} />
+            <TileLayer
+              url={TILE_LAYER}
+              attribution="&copy; OpenStreetMap"
+              crossOrigin="anonymous"
+            />
             <FeatureGroup>
               {isEditingEnabled ? (
                 <EditControl
