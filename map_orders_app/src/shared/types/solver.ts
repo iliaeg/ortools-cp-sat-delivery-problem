@@ -33,13 +33,7 @@ export interface SolverInvocationCourier {
   expected_courier_return_at_utc: string;
 }
 
-export interface SolverInvocationWeights {
-  certificate_penalty_weight: number;
-  click_to_eat_penalty_weight: number;
-  ready_click_to_eat_penalty_weight?: number;
-  courier_idle_penalty_weight?: number;
-  skip_order_penalty_weight?: number;
-}
+export type SolverInvocationWeights = Record<string, unknown>;
 
 export interface SolverInvocationSettings {
   time_limit_seconds?: number;

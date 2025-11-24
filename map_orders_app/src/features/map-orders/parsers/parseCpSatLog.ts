@@ -41,6 +41,37 @@ const ensureObject = (value: unknown, errorMessage: string): UnknownRecord => {
   throw new CpSatLogParseError(errorMessage);
 };
 
+const toSnakeCase = (value: string): string =>
+  value
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[-\s]+/g, "_")
+    .replace(/__+/g, "_")
+    .replace(/^_+/, "")
+    .toLowerCase();
+
+const normalizeWeightsObject = (value: UnknownRecord): UnknownRecord => {
+  const result: UnknownRecord = {};
+  Object.entries(value).forEach(([key, raw]) => {
+    if (key === "_typeTag") {
+      return;
+    }
+    const normalizedKey = toSnakeCase(key);
+    if (Array.isArray(raw)) {
+      result[normalizedKey] = raw.map((item) => {
+        if (item && typeof item === "object" && !Array.isArray(item)) {
+          return normalizeWeightsObject(item as UnknownRecord);
+        }
+        return item;
+      });
+    } else if (raw && typeof raw === "object") {
+      result[normalizedKey] = normalizeWeightsObject(raw as UnknownRecord);
+    } else {
+      result[normalizedKey] = raw;
+    }
+  });
+  return result;
+};
+
 const stripBom = (value: string): string =>
   value.startsWith("\uFEFF") ? value.slice(1) : value;
 
@@ -856,68 +887,17 @@ export const buildStateFromCpSatLog = (
     ) ?? 0,
   );
 
-  const optimization = ensureObject(
-    (pickProperty(request, "optimization_weights", "OptimizationWeights") as UnknownRecord)
-      ?? {},
-    "optimization weights",
+  const optimization = normalizeWeightsObject(
+    ensureObject(
+      (pickProperty(request, "optimization_weights", "OptimizationWeights") as UnknownRecord)
+        ?? {},
+      "optimization weights",
+    ),
   );
   const solverSettings = ensureObject(
     (pickProperty(request, "solver_settings", "SolverSettings") as UnknownRecord) ?? {},
     "solver settings",
   );
-
-  const weightsPayload: Record<string, number> = {};
-  const certificateWeight = toFiniteNumber(
-    pickProperty(
-      optimization,
-      "certificate_penalty_weight",
-      "CertificatePenaltyWeight",
-    ),
-  );
-  if (certificateWeight !== undefined) {
-    weightsPayload.W_cert = certificateWeight;
-  }
-  const c2eWeight = toFiniteNumber(
-    pickProperty(
-      optimization,
-      "click_to_eat_penalty_weight",
-      "ClickToEatPenaltyWeight",
-    ),
-  );
-  if (c2eWeight !== undefined) {
-    weightsPayload.W_c2e = c2eWeight;
-  }
-  const c2eReadyWeight = toFiniteNumber(
-    pickProperty(
-      optimization,
-      "ready_click_to_eat_penalty_weight",
-      "ReadyClickToEatPenaltyWeight",
-    ),
-  );
-  if (c2eReadyWeight !== undefined) {
-    weightsPayload.W_c2e_ready = c2eReadyWeight;
-  }
-  const skipWeight = toFiniteNumber(
-    pickProperty(
-      optimization,
-      "skip_order_penalty_weight",
-      "SkipOrderPenaltyWeight",
-    ),
-  );
-  if (skipWeight !== undefined) {
-    weightsPayload.W_skip = skipWeight;
-  }
-
-  const idleWeight = toFiniteNumber(
-    pickProperty(
-      optimization,
-      "courier_idle_penalty_weight",
-      "CourierIdlePenaltyWeight",
-    ),
-  );
-  if (idleWeight !== undefined) {
-    weightsPayload.W_idle = idleWeight;
-  }
 
   const additionalParams: Record<string, number> = {};
   const timeLimit = toFiniteNumber(
@@ -956,7 +936,7 @@ export const buildStateFromCpSatLog = (
       courier_capacity_boxes: courierCapacity,
       courier_available_offset: courierAvailable,
     }),
-    weightsText: stringifyWithInlineArrays(weightsPayload),
+    weightsText: stringifyWithInlineArrays(optimization),
     additionalParamsText: stringifyWithInlineArrays(additionalParams),
     solverResult,
     solverInput: null,
