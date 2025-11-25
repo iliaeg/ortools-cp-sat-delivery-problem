@@ -74,11 +74,14 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import StraightenIcon from "@mui/icons-material/Straighten";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
 
-const TILE_LAYER = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const LIGHT_TILE_LAYER = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const DARK_TILE_LAYER = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
+const DARK_LABELS_TILE_LAYER = "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png";
 
 const DRAW_OPTIONS = {
   rectangle: false,
@@ -175,6 +178,7 @@ const MapOrdersMapClient = ({
 
   const [measureModeEnabled, setMeasureModeEnabled] = useState(false);
   const [measureSelection, setMeasureSelection] = useState<MeasureSelection | null>(null);
+  const [isDarkMapEnabled, setDarkMapEnabled] = useState(false);
   const baseTimestamp = useMemo(() => {
     if (!solverBaseIso) {
       return null;
@@ -626,11 +630,17 @@ const MapOrdersMapClient = ({
         : currentArcAllowed === true
           ? "#00695c"
           : "#212121";
+    const background = isDarkMapEnabled
+      ? "rgba(0,0,0,0.75)"
+      : "rgba(255,255,255,0.85)";
+    const borderColor = isDarkMapEnabled
+      ? "rgba(255,255,255,0.35)"
+      : "rgba(0,0,0,0.25)";
     return L.divIcon({
       className: "measure-label",
-      html: `<div style="display:inline-flex;align-items:center;white-space:nowrap;padding:4px 10px;background:rgba(255,255,255,0.85);color:${labelColor};border-radius:999px;border:1px solid rgba(0,0,0,0.25);font-size:12px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.18);">${labelText}</div>`,
+      html: `<div style="display:inline-flex;align-items:center;white-space:nowrap;padding:4px 10px;background:${background};color:${labelColor};border-radius:999px;border:1px solid ${borderColor};font-size:12px;font-weight:600;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,0.18);">${labelText}</div>`,
     });
-  }, [currentArcAllowed, measureLinePositions, measureSelection?.durationMin]);
+  }, [currentArcAllowed, isDarkMapEnabled, measureLinePositions, measureSelection?.durationMin]);
 
   const measureLayer = measureLinePositions ? (
     <>
@@ -841,9 +851,31 @@ const MapOrdersMapClient = ({
           >
             <Stack
               direction="column"
-              spacing={0.5}
+              spacing={1}
               alignItems="flex-end"
             >
+              <MuiTooltip
+                title={isDarkMapEnabled ? "Светлая карта" : "Тёмная карта"}
+                placement="left"
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => setDarkMapEnabled((prev) => !prev)}
+                    sx={{
+                      bgcolor: isDarkMapEnabled ? "primary.main" : "background.paper",
+                      color: isDarkMapEnabled ? "primary.contrastText" : "text.primary",
+                      boxShadow: 2,
+                      '&:hover': {
+                        bgcolor: isDarkMapEnabled ? "primary.dark" : "background.paper",
+                        boxShadow: 4,
+                      },
+                    }}
+                  >
+                    <DarkModeIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </MuiTooltip>
               <MuiTooltip
                 title={measureModeEnabled ? "Выключить режим измерения дуги" : "Включить режим измерения дуги"}
                 placement="left"
@@ -870,18 +902,22 @@ const MapOrdersMapClient = ({
                 <Box
                   sx={{
                     maxWidth: 260,
-                    bgcolor: "rgba(255,255,255,0.75)",
+                    bgcolor: isDarkMapEnabled ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.75)",
                     color:
                       currentStatusArcAllowed === true
                         ? "#00c853"
                         : currentStatusArcAllowed === false
                           ? "#880e4f"
-                          : "#000",
+                          : isDarkMapEnabled
+                            ? "#fff"
+                            : "#000",
                     px: 1,
                     py: 0.5,
                     borderRadius: 1,
                     boxShadow: 2,
-                    border: "1px solid rgba(0,0,0,0.18)",
+                    border: isDarkMapEnabled
+                      ? "1px solid rgba(255,255,255,0.3)"
+                      : "1px solid rgba(0,0,0,0.18)",
                     fontSize: 12,
                     textAlign: "right",
                   }}
@@ -1189,10 +1225,17 @@ const MapOrdersMapClient = ({
             style={{ height: "100%", width: "100%" }}
           >
             <TileLayer
-              url={TILE_LAYER}
-              attribution="&copy; OpenStreetMap"
+              url={isDarkMapEnabled ? DARK_TILE_LAYER : LIGHT_TILE_LAYER}
+              attribution='&copy; OpenStreetMap, &copy; Carto'
               crossOrigin="anonymous"
             />
+            {isDarkMapEnabled ? (
+              <TileLayer
+                url={DARK_LABELS_TILE_LAYER}
+                attribution='&copy; OpenStreetMap, &copy; Carto'
+                crossOrigin="anonymous"
+              />
+            ) : null}
             <FeatureGroup>
               {isEditingEnabled ? (
                 <EditControl
