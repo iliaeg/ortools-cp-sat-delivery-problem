@@ -59,6 +59,7 @@ import {
   selectSolverResult,
   selectAllowedArcsByKey,
   selectViewportLocked,
+  selectControlTexts,
 } from "@/features/map-orders/model/selectors";
 import {
   ensureDefaultMarkerIcons,
@@ -169,6 +170,7 @@ const MapOrdersMapClient = ({
   const viewportLocked = useAppSelector(selectViewportLocked);
   const routeSegments = useAppSelector(selectRouteSegments);
   const allowedArcsByKey = useAppSelector(selectAllowedArcsByKey);
+  const { manualTauText, useManualTau } = useAppSelector(selectControlTexts);
   const solverBaseIso =
     solverInput?.request?.inputs?.[0]?.data?.current_timestamp_utc
     ?? solverInput?.meta?.T0_iso
@@ -245,6 +247,45 @@ const MapOrdersMapClient = ({
     return result;
   }, [showReadyNowOrders, baseTimestamp, points]);
 
+  const parsedManualTau = useMemo(() => {
+    if (!useManualTau) {
+      return null;
+    }
+    const text = manualTauText?.trim();
+    if (!text) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(text) as unknown;
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+      const matrix = parsed as unknown[];
+      if (matrix.length !== points.length) {
+        return null;
+      }
+      const numericMatrix: number[][] = [];
+      for (let rowIndex = 0; rowIndex < matrix.length; rowIndex += 1) {
+        const row = matrix[rowIndex];
+        if (!Array.isArray(row) || row.length !== points.length) {
+          return null;
+        }
+        const numericRow: number[] = [];
+        for (let colIndex = 0; colIndex < row.length; colIndex += 1) {
+          const value = row[colIndex];
+          if (typeof value !== "number" || !Number.isFinite(value)) {
+            return null;
+          }
+          numericRow.push(value);
+        }
+        numericMatrix.push(numericRow);
+      }
+      return numericMatrix;
+    } catch {
+      return null;
+    }
+  }, [manualTauText, points, useManualTau]);
+
   const pointIndexByInternalId = useMemo(() => {
     const ids = solverInput?.meta?.pointInternalIds;
     if (!ids || !Array.isArray(ids)) {
@@ -261,21 +302,36 @@ const MapOrdersMapClient = ({
 
   const getTravelTimeBetweenPoints = useCallback(
     (fromId: string, toId: string): number | undefined => {
-      if (!pointIndexByInternalId || !solverInput?.tau) {
-        return undefined;
+      if (pointIndexByInternalId && solverInput?.tau) {
+        const fromIndex = pointIndexByInternalId.get(fromId);
+        const toIndex = pointIndexByInternalId.get(toId);
+        if (fromIndex !== undefined && toIndex !== undefined) {
+          const value = solverInput.tau[fromIndex]?.[toIndex];
+          if (typeof value === "number" && Number.isFinite(value)) {
+            return value;
+          }
+        }
       }
-      const fromIndex = pointIndexByInternalId.get(fromId);
-      const toIndex = pointIndexByInternalId.get(toId);
-      if (fromIndex === undefined || toIndex === undefined) {
-        return undefined;
+
+      if (parsedManualTau) {
+        const fromIndex = points.findIndex((point) => point.internalId === fromId);
+        const toIndex = points.findIndex((point) => point.internalId === toId);
+        if (
+          fromIndex >= 0
+          && toIndex >= 0
+          && fromIndex < parsedManualTau.length
+          && toIndex < parsedManualTau.length
+        ) {
+          const value = parsedManualTau[fromIndex]?.[toIndex];
+          if (typeof value === "number" && Number.isFinite(value)) {
+            return value;
+          }
+        }
       }
-      const value = solverInput.tau[fromIndex]?.[toIndex];
-      if (typeof value === "number" && Number.isFinite(value)) {
-        return value;
-      }
+
       return undefined;
     },
-    [pointIndexByInternalId, solverInput?.tau],
+    [parsedManualTau, pointIndexByInternalId, points, solverInput?.tau],
   );
 
   const [isEditingEnabled, setEditingEnabled] = useState(false);
