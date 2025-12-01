@@ -61,12 +61,19 @@ const normalizeWeightsObject = (value: UnknownRecord): UnknownRecord => {
         if (item && typeof item === "object" && !Array.isArray(item)) {
           return normalizeWeightsObject(item as UnknownRecord);
         }
+        if (typeof item === "string") {
+          return toSnakeCase(item);
+        }
         return item;
       });
     } else if (raw && typeof raw === "object") {
       result[normalizedKey] = normalizeWeightsObject(raw as UnknownRecord);
     } else {
-      result[normalizedKey] = raw;
+      if (typeof raw === "string") {
+        result[normalizedKey] = toSnakeCase(raw);
+      } else {
+        result[normalizedKey] = raw;
+      }
     }
   });
   return result;
@@ -899,7 +906,7 @@ export const buildStateFromCpSatLog = (
     "solver settings",
   );
 
-  const additionalParams: Record<string, number> = {};
+  const additionalParams: Record<string, unknown> = {};
   const timeLimit = toFiniteNumber(
     pickProperty(solverSettings, "time_limit_seconds", "TimeLimitSeconds", "time_limit", "TimeLimit"),
   );
@@ -917,6 +924,11 @@ export const buildStateFromCpSatLog = (
   );
   if (workers !== undefined) {
     additionalParams.workers = workers;
+  }
+
+  const cleanedSolverSettings = normalizeWeightsObject(solverSettings);
+  if (Object.keys(cleanedSolverSettings).length > 0) {
+    additionalParams.solver_settings = cleanedSolverSettings;
   }
 
   const manualTauText = travelMatrix.length
