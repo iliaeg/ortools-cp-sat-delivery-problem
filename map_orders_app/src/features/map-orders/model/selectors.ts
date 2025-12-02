@@ -41,11 +41,19 @@ export const selectAllowedArcsByKey = createSelector(
     if (!domain) {
       return null;
     }
-    const metrics = domain.metrics as SolverDomainMetrics | undefined;
-    const arcs = (metrics as SolverDomainMetrics | undefined)?.arcs as
-      | { allowed_arcs?: unknown }
-      | undefined;
-    const rawAllowed = arcs?.allowed_arcs;
+    const metricsNode =
+      (domain.metrics as SolverDomainMetrics | Record<string, unknown> | undefined)
+      ?? ((domain as unknown as Record<string, unknown>).Metrics as
+        | SolverDomainMetrics
+        | Record<string, unknown>
+        | undefined);
+    const anyMetrics = metricsNode as (Record<string, unknown> | undefined);
+    const arcsNode =
+      (anyMetrics?.arcs as Record<string, unknown> | undefined)
+      ?? (anyMetrics?.Arcs as Record<string, unknown> | undefined);
+    const rawAllowed =
+      (arcsNode?.allowed_arcs as unknown)
+      ?? (arcsNode?.AllowedArcs as unknown);
     if (!Array.isArray(rawAllowed) || rawAllowed.length === 0) {
       return null;
     }
@@ -59,8 +67,8 @@ export const selectAllowedArcsByKey = createSelector(
       if (typeof fromRaw !== "string" || typeof toRaw !== "string") {
         return;
       }
-      const fromKey = fromRaw.trim();
-      const toKey = toRaw.trim();
+      const fromKey = fromRaw.trim().toLowerCase();
+      const toKey = toRaw.trim().toLowerCase();
       if (!fromKey || !toKey) {
         return;
       }

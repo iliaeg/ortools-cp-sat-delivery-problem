@@ -496,12 +496,22 @@ const MapOrdersMapClient = ({
       if (!allowedArcsByKey) {
         return null;
       }
+      if (fromPoint && toPoint) {
+        const isDepotToOrder =
+          (fromPoint.kind === "depot" && toPoint.kind === "order")
+          || (fromPoint.kind === "order" && toPoint.kind === "depot");
+        if (isDepotToOrder) {
+          return true;
+        }
+      }
       const fromKey = getArcKeyForPoint(fromPoint);
       const toKey = getArcKeyForPoint(toPoint);
       if (!fromKey || !toKey) {
         return null;
       }
-      const allowed = allowedArcsByKey[fromKey]?.[toKey];
+      const fromKeyNorm = fromKey.trim().toLowerCase();
+      const toKeyNorm = toKey.trim().toLowerCase();
+      const allowed = allowedArcsByKey[fromKeyNorm]?.[toKeyNorm];
       if (typeof allowed === "boolean") {
         return allowed;
       }
