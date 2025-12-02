@@ -515,7 +515,7 @@ export const buildStateFromCpSatLog = (
     orderIndexById.set(entry.orderId, entry.originalIndex + 1);
   });
 
-  const sortedOrders = [...combinedOrders].sort(compareOrderEntries);
+  const sortedOrders = combinedOrders;
 
   const orderPoints: DeliveryPoint[] = sortedOrders.map((entry, index) => {
     const { request: requestOrder } = entry;
@@ -567,7 +567,9 @@ export const buildStateFromCpSatLog = (
     }
   });
 
-  const travelMatrixRaw = asArray(pickProperty(request, "travel_time_matrix_minutes", "TravelTimeMatrixMinutes"));
+  const travelMatrixRaw = asArray(
+    pickProperty(request, "travel_time_matrix_minutes", "TravelTimeMatrixMinutes"),
+  );
   const travelMatrix = travelMatrixRaw.map((row) =>
     asArray(row).map((cell) => toFiniteNumber(cell) ?? 0),
   );

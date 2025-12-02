@@ -140,7 +140,7 @@ const ParametersPanelWidget = () => {
         minRows={6}
         disabled={!useManualTau}
         InputProps={{ readOnly: !useManualTau }}
-        helperText="Квадратная матрица (депо + заказы) в минутах"
+        helperText="Матрица пути (депо → заказы). Для Enriched CP-SAT log индексы совпадают с точками на карте."
       />
       <Stack direction="row" spacing={1}>
         <Button

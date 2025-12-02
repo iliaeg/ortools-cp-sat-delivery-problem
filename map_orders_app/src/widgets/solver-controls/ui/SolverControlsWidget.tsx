@@ -130,7 +130,6 @@ const SolverControlsWidget = () => {
         osrmBaseUrl,
       }).unwrap();
       dispatch(setSolverInput(response.input));
-      dispatch(setManualTauText(stringifyWithInlineArrays(response.input.tau)));
       dispatch(
         setUiState({
           warnings: response.warnings,

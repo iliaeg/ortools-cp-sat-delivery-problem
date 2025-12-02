@@ -248,9 +248,6 @@ const MapOrdersMapClient = ({
   }, [showReadyNowOrders, baseTimestamp, points]);
 
   const parsedManualTau = useMemo(() => {
-    if (!useManualTau) {
-      return null;
-    }
     const text = manualTauText?.trim();
     if (!text) {
       return null;
@@ -284,7 +281,7 @@ const MapOrdersMapClient = ({
     } catch {
       return null;
     }
-  }, [manualTauText, points, useManualTau]);
+  }, [manualTauText, points]);
 
   const pointIndexByInternalId = useMemo(() => {
     const ids = solverInput?.meta?.pointInternalIds;
@@ -302,36 +299,25 @@ const MapOrdersMapClient = ({
 
   const getTravelTimeBetweenPoints = useCallback(
     (fromId: string, toId: string): number | undefined => {
-      if (pointIndexByInternalId && solverInput?.tau) {
-        const fromIndex = pointIndexByInternalId.get(fromId);
-        const toIndex = pointIndexByInternalId.get(toId);
-        if (fromIndex !== undefined && toIndex !== undefined) {
-          const value = solverInput.tau[fromIndex]?.[toIndex];
-          if (typeof value === "number" && Number.isFinite(value)) {
-            return value;
-          }
+      if (!parsedManualTau) {
+        return undefined;
+      }
+      const fromIndex = points.findIndex((point) => point.internalId === fromId);
+      const toIndex = points.findIndex((point) => point.internalId === toId);
+      if (
+        fromIndex >= 0
+        && toIndex >= 0
+        && fromIndex < parsedManualTau.length
+        && toIndex < parsedManualTau.length
+      ) {
+        const value = parsedManualTau[fromIndex]?.[toIndex];
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return value;
         }
       }
-
-      if (parsedManualTau) {
-        const fromIndex = points.findIndex((point) => point.internalId === fromId);
-        const toIndex = points.findIndex((point) => point.internalId === toId);
-        if (
-          fromIndex >= 0
-          && toIndex >= 0
-          && fromIndex < parsedManualTau.length
-          && toIndex < parsedManualTau.length
-        ) {
-          const value = parsedManualTau[fromIndex]?.[toIndex];
-          if (typeof value === "number" && Number.isFinite(value)) {
-            return value;
-          }
-        }
-      }
-
       return undefined;
     },
-    [parsedManualTau, pointIndexByInternalId, points, solverInput?.tau],
+    [parsedManualTau, points],
   );
 
   const [isEditingEnabled, setEditingEnabled] = useState(false);
