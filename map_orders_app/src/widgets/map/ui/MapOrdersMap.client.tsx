@@ -8,6 +8,7 @@ import {
   FeatureGroup,
   Tooltip,
   Polyline,
+  Circle,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -117,6 +118,85 @@ type MeasureSelection = {
   durationMin?: number | null;
 };
 
+type MarkerClusterInfo = {
+  center: [number, number];
+  internalIds: string[];
+};
+
+type ClusterGeometry = {
+  markerPositionsById: Map<string, [number, number]>;
+  clusters: MarkerClusterInfo[];
+};
+
+const computeClusterGeometry = (points: DeliveryPoint[]): ClusterGeometry => {
+  const markerPositionsById = new Map<string, [number, number]>();
+  const clusters: MarkerClusterInfo[] = [];
+
+  const groups = new Map<string, DeliveryPoint[]>();
+  points.forEach((point) => {
+    const key = `${point.lat.toFixed(6)}:${point.lon.toFixed(6)}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.push(point);
+    } else {
+      groups.set(key, [point]);
+    }
+  });
+
+  const radiusMeters = 40;
+
+  groups.forEach((groupPoints) => {
+    if (groupPoints.length <= 1) {
+      const point = groupPoints[0];
+      markerPositionsById.set(point.internalId, [point.lat, point.lon]);
+      return;
+    }
+
+    const sortedGroup = [...groupPoints].sort((a, b) => {
+      const aKey = a.orderNumber ?? a.id ?? a.internalId;
+      const bKey = b.orderNumber ?? b.id ?? b.internalId;
+      return String(aKey).localeCompare(String(bKey));
+    });
+
+    const base = sortedGroup[0];
+    const baseLat = base.lat;
+    const baseLon = base.lon;
+    clusters.push({
+      center: [baseLat, baseLon],
+      internalIds: sortedGroup.map((point) => point.internalId),
+    });
+
+    const groupSize = sortedGroup.length;
+    const angles: number[] = [];
+    if (groupSize === 2) {
+      angles.push(Math.PI, 0);
+    } else if (groupSize === 3) {
+      angles.push(Math.PI, 0, -Math.PI / 2);
+    } else {
+      const angleStart = -Math.PI / 2;
+      const angleStep = (2 * Math.PI) / groupSize;
+      for (let index = 0; index < groupSize; index += 1) {
+        angles.push(angleStart + index * angleStep);
+      }
+    }
+
+    const baseLatRad = (baseLat * Math.PI) / 180;
+    const metersPerDegLat = 111_111;
+    const metersPerDegLon = Math.max(Math.cos(baseLatRad) * metersPerDegLat, 1e-6);
+
+    sortedGroup.forEach((point, index) => {
+      const angle = angles[index] ?? angles[angles.length - 1];
+      const deltaLat = (radiusMeters * Math.sin(angle)) / metersPerDegLat;
+      const deltaLon = (radiusMeters * Math.cos(angle)) / metersPerDegLon;
+      const markerLat = baseLat + deltaLat;
+      const markerLon = baseLon + deltaLon;
+      markerPositionsById.set(point.internalId, [markerLat, markerLon]);
+    });
+  });
+
+  return { markerPositionsById, clusters };
+};
+
 const getArcKeyForPoint = (point?: DeliveryPoint | null): string | null => {
   if (!point) {
     return null;
@@ -171,6 +251,8 @@ const MapOrdersMapClient = ({
   const routeSegments = useAppSelector(selectRouteSegments);
   const allowedArcsByKey = useAppSelector(selectAllowedArcsByKey);
   const { manualTauText, useManualTau } = useAppSelector(selectControlTexts);
+  const clusterGeometry = useMemo(() => computeClusterGeometry(points), [points]);
+  const { markerPositionsById, clusters: markerClusters } = clusterGeometry;
   const solverBaseIso =
     solverInput?.request?.inputs?.[0]?.data?.current_timestamp_utc
     ?? solverInput?.meta?.T0_iso
@@ -548,88 +630,6 @@ const MapOrdersMapClient = ({
     setMeasureSelection(null);
   }, []);
 
-  const markers = useMemo(
-    () =>
-      points.map((point) => {
-        const isReadyNow = showReadyNowOrders && readyNowOrderIds.has(point.internalId);
-        return (
-          <Marker
-            key={point.internalId}
-            position={[point.lat, point.lon]}
-            draggable={isEditingEnabled && point.kind !== "depot"}
-            eventHandlers={{
-              dragend: handleMarkerDragEnd(point.internalId),
-              click: handleMarkerClick(point),
-            }}
-            icon={createNumberedPinIcon(
-              point.orderNumber ?? point.seq,
-              point.kind,
-              isReadyNow ? { variant: "ready" } : undefined,
-            )}
-            ref={(instance) => {
-              if (instance) {
-                (instance as MarkerWithInternalId).options.internalId = point.internalId;
-              }
-            }}
-          >
-            <Tooltip direction="top" offset={[0, -32]}>
-              <div style={{ minWidth: 160 }}>
-                <strong>
-                  {labelForPoint(point)}
-                </strong>
-                <br />
-                {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
-              {point.kind === "order" ? (
-                <>
-                  <br />
-                  Коробки: {point.boxes}
-                  <br />
-                  Создан: {point.createdAt}
-                  <br />
-                  Готов: {point.readyAt}
-                  {typeof point.courierWaitMin === "number" ? (
-                    <>
-                      <br />
-                      Время ожидания отправления:{" "}
-                      <span style={{ fontWeight: 600 }}>{Math.round(point.courierWaitMin)} мин</span>
-                    </>
-                  ) : null}
-                </>
-              ) : null}
-                {typeof point.skip === "number" && point.skip > 0 ? (
-                  <>
-                    <br />
-                    <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
-                  </>
-                ) : null}
-                {typeof point.cert === "number" && point.cert > 0 ? (
-                  <>
-                    <br />
-                    <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
-                  </>
-                ) : null}
-              {typeof point.currentC2eMin === "number" ? (
-                <>
-                  <br />
-                  Текущий C2E:{" "}
-                  <span style={{ fontWeight: 600 }}>{Math.round(point.currentC2eMin)} мин</span>
-                </>
-              ) : null}
-              {typeof point.plannedC2eMin === "number" ? (
-                <>
-                  <br />
-                  Плановый C2E:{" "}
-                  <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
-                </>
-              ) : null}
-              </div>
-            </Tooltip>
-          </Marker>
-        );
-      }),
-    [points, handleMarkerDragEnd, isEditingEnabled, readyNowOrderIds, showReadyNowOrders],
-  );
-
   const polylines = useMemo(
     () =>
       showSolverRoutes
@@ -639,10 +639,12 @@ const MapOrdersMapClient = ({
               segment={segment}
               showDepotSegments={showDepotSegments}
               showPositions={showRoutePositions}
+              points={points}
+              markerPositionsById={markerPositionsById}
             />
           ))
         : null,
-    [filteredRouteSegments, showDepotSegments, showSolverRoutes, showRoutePositions],
+    [filteredRouteSegments, showDepotSegments, showSolverRoutes, showRoutePositions, points, markerPositionsById],
   );
 
   const measureLinePositions = useMemo(() => {
@@ -1299,7 +1301,16 @@ const MapOrdersMapClient = ({
                   edit={EDIT_OPTIONS}
                 />
               ) : null}
-              {markers}
+              <MarkersLayer
+                points={points}
+                isEditingEnabled={isEditingEnabled}
+                showReadyNowOrders={showReadyNowOrders}
+                readyNowOrderIds={readyNowOrderIds}
+                handleMarkerDragEnd={handleMarkerDragEnd}
+                handleMarkerClick={handleMarkerClick}
+                markerPositionsById={markerPositionsById}
+                markerClusters={markerClusters}
+              />
               {polylines}
               {measureLayer}
             </FeatureGroup>
@@ -1423,6 +1434,152 @@ interface OverlayProps {
   isFullScreen: boolean;
 }
 
+interface MarkersLayerProps {
+  points: DeliveryPoint[];
+  isEditingEnabled: boolean;
+  showReadyNowOrders: boolean;
+  readyNowOrderIds: Set<string>;
+  handleMarkerDragEnd: (internalId: string) => (event: LeafletEvent) => void;
+  handleMarkerClick: (point: DeliveryPoint) => (event: LeafletEvent | LeafletMouseEvent) => void;
+  markerPositionsById: Map<string, [number, number]>;
+  markerClusters: MarkerClusterInfo[];
+}
+
+const MarkersLayerComponent = ({
+  points,
+  isEditingEnabled,
+  showReadyNowOrders,
+  readyNowOrderIds,
+  handleMarkerDragEnd,
+  handleMarkerClick,
+  markerPositionsById,
+  markerClusters,
+}: MarkersLayerProps) => {
+  const markers = useMemo(() => {
+    const result: JSX.Element[] = [];
+    markerClusters.forEach((cluster, index) => {
+      if (!cluster.internalIds.length) {
+        return;
+      }
+      const [centerLat, centerLon] = cluster.center;
+      const centerLatLng = L.latLng(centerLat, centerLon);
+      const firstPointId = cluster.internalIds[0];
+      const markerPosition = markerPositionsById.get(firstPointId);
+      if (!markerPosition) {
+        return;
+      }
+      const markerLatLng = L.latLng(markerPosition[0], markerPosition[1]);
+      const radiusMeters = centerLatLng.distanceTo(markerLatLng);
+      if (!Number.isFinite(radiusMeters) || radiusMeters <= 0) {
+        return;
+      }
+
+      result.push(
+        <Circle
+          // eslint-disable-next-line react/no-array-index-key
+          key={`cluster-${index}-${centerLat}-${centerLon}`}
+          center={cluster.center}
+          radius={radiusMeters}
+          pathOptions={{
+            color: "#1976d2",
+            weight: 2,
+            fillColor: "#1976d2",
+            fillOpacity: 0.12,
+          }}
+          interactive={false}
+        />,
+      );
+    });
+
+    points.forEach((point) => {
+      const position = markerPositionsById.get(point.internalId) ?? [point.lat, point.lon];
+      const [markerLat, markerLon] = position;
+      const isReadyNow = showReadyNowOrders && readyNowOrderIds.has(point.internalId);
+
+      result.push(
+        <Marker
+          key={point.internalId}
+          position={[markerLat, markerLon]}
+          draggable={isEditingEnabled && point.kind !== "depot"}
+          eventHandlers={{
+            dragend: handleMarkerDragEnd(point.internalId),
+            click: handleMarkerClick(point),
+          }}
+          icon={createNumberedPinIcon(
+            point.orderNumber ?? point.seq,
+            point.kind,
+            isReadyNow ? { variant: "ready" } : undefined,
+          )}
+          ref={(instance) => {
+            if (instance) {
+              (instance as MarkerWithInternalId).options.internalId = point.internalId;
+            }
+          }}
+        >
+          <Tooltip direction="top" offset={[0, -32]}>
+            <div style={{ minWidth: 160 }}>
+              <strong>
+                {labelForPoint(point)}
+              </strong>
+              <br />
+              {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
+              {point.kind === "order" ? (
+                <>
+                  <br />
+                  Коробки: {point.boxes}
+                  <br />
+                  Создан: {point.createdAt}
+                  <br />
+                  Готов: {point.readyAt}
+                  {typeof point.courierWaitMin === "number" ? (
+                    <>
+                      <br />
+                      Время ожидания отправления:{" "}
+                      <span style={{ fontWeight: 600 }}>{Math.round(point.courierWaitMin)} мин</span>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+              {typeof point.skip === "number" && point.skip > 0 ? (
+                <>
+                  <br />
+                  <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
+                </>
+              ) : null}
+              {typeof point.cert === "number" && point.cert > 0 ? (
+                <>
+                  <br />
+                  <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
+                </>
+              ) : null}
+              {typeof point.currentC2eMin === "number" ? (
+                <>
+                  <br />
+                  Текущий C2E:{" "}
+                  <span style={{ fontWeight: 600 }}>{Math.round(point.currentC2eMin)} мин</span>
+                </>
+              ) : null}
+              {typeof point.plannedC2eMin === "number" ? (
+                <>
+                  <br />
+                  Плановый C2E:{" "}
+                  <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
+                </>
+              ) : null}
+            </div>
+          </Tooltip>
+        </Marker>,
+      );
+    });
+
+    return result;
+  }, [points, isEditingEnabled, showReadyNowOrders, readyNowOrderIds, handleMarkerDragEnd, handleMarkerClick, markerPositionsById, markerClusters]);
+
+  return <>{markers}</>;
+};
+
+const MarkersLayer = memo(MarkersLayerComponent);
+
 const drawOverlay = (
   canvas: HTMLCanvasElement,
   { statusLabel, metrics, currentTime, isFullScreen }: OverlayProps,
@@ -1512,12 +1669,16 @@ interface RouteSegmentProps {
   segment: RoutesSegmentDto;
   showDepotSegments: boolean;
   showPositions: boolean;
+  points: DeliveryPoint[];
+  markerPositionsById: Map<string, [number, number]>;
 }
 
 const RouteSegmentComponent = ({
   segment,
   showDepotSegments,
   showPositions,
+  points,
+  markerPositionsById,
 }: RouteSegmentProps) => {
   const map = useMap();
   const [, forceUpdate] = useState(0);
@@ -1529,13 +1690,53 @@ const RouteSegmentComponent = ({
 
   const color = segment.color ?? getRouteColor(segment.groupId);
 
+  const pointByRouteKey = useMemo(() => {
+    const mapByKey = new Map<string, DeliveryPoint>();
+    points.forEach((point) => {
+      if (point.groupId === undefined || point.routePos === undefined) {
+        return;
+      }
+      const key = `${point.groupId}:${point.routePos}`;
+      if (!mapByKey.has(key)) {
+        mapByKey.set(key, point);
+      }
+    });
+    return mapByKey;
+  }, [points]);
+
   const segmentsToRender = showDepotSegments && segment.depotSegment
     ? [segment.depotSegment, ...segment.segments]
     : segment.segments;
 
   const arrowMarkers = segmentsToRender.map((item, index) => {
-    const fromLatLng = L.latLng(item.from[0], item.from[1]);
-    const toLatLng = L.latLng(item.to[0], item.to[1]);
+    let fromLat = item.from[0];
+    let fromLon = item.from[1];
+    let toLat = item.to[0];
+    let toLon = item.to[1];
+
+    if (segment.groupId !== undefined) {
+      if (item.fromPos > 0) {
+        const fromPoint = pointByRouteKey.get(`${segment.groupId}:${item.fromPos}`);
+        if (fromPoint) {
+          const customFrom = markerPositionsById.get(fromPoint.internalId);
+          if (customFrom) {
+            [fromLat, fromLon] = customFrom;
+          }
+        }
+      }
+      if (item.toPos > 0) {
+        const toPoint = pointByRouteKey.get(`${segment.groupId}:${item.toPos}`);
+        if (toPoint) {
+          const customTo = markerPositionsById.get(toPoint.internalId);
+          if (customTo) {
+            [toLat, toLon] = customTo;
+          }
+        }
+      }
+    }
+
+    const fromLatLng = L.latLng(fromLat, fromLon);
+    const toLatLng = L.latLng(toLat, toLon);
 
     const fromPoint = map.latLngToLayerPoint(fromLatLng);
     const toPoint = map.latLngToLayerPoint(toLatLng);
@@ -1546,7 +1747,7 @@ const RouteSegmentComponent = ({
     return (
       <Marker
         key={`${segment.groupId}-arrow-${index}`}
-        position={[item.mid[0], item.mid[1]]}
+        position={[(fromLat + toLat) / 2, (fromLon + toLon) / 2]}
         icon={createRouteArrowIcon(angle, color, label, lengthPx)}
         interactive={false}
       />
