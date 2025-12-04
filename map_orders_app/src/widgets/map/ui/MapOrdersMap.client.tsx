@@ -1626,6 +1626,16 @@ const drawOverlay = (
   const labelFont = "600 12px 'Roboto', sans-serif";
   const valueFont = "700 14px 'Roboto', sans-serif";
 
+  let arrivalMetric: { label: string; value: string } | null = null;
+  let otherMetrics = metrics;
+  if (metrics && metrics.length > 0) {
+    const index = metrics.findIndex((item) => item.label === "Прибытие курьеров");
+    if (index >= 0) {
+      arrivalMetric = metrics[index] ?? null;
+      otherMetrics = [...metrics.slice(0, index), ...metrics.slice(index + 1)];
+    }
+  }
+
   const measureCard = (label: string, value: string) => {
     ctx.font = labelFont;
     const labelWidth = ctx.measureText(label).width;
@@ -1668,6 +1678,12 @@ const drawOverlay = (
     return { width, height };
   };
 
+  if (arrivalMetric) {
+    const x = margin + 52;
+    const y = margin;
+    drawCard(x, y, arrivalMetric.label, arrivalMetric.value);
+  }
+
   if (currentTime) {
     drawCard(margin, canvas.height - margin - measureCard("Текущее время", `${currentTime} UTC`).height, "Текущее время", `${currentTime} UTC`);
   }
@@ -1679,8 +1695,12 @@ const drawOverlay = (
     drawCard(x, y, "Статус", statusLabel);
   }
 
-  if (metrics && metrics.length > 0) {
-    const cards = metrics.map(({ label, value }) => ({ label, value, ...measureCard(label, value) }));
+  if (otherMetrics && otherMetrics.length > 0) {
+    const cards = otherMetrics.map(({ label, value }) => ({
+      label,
+      value,
+      ...measureCard(label, value),
+    }));
     const totalWidth = cards.reduce((sum, item) => sum + item.width, 0) + gap * (cards.length - 1);
     const rowX = isFullScreen ? (canvas.width - totalWidth) / 2 : canvas.width - totalWidth - margin;
     const rowY = margin;
