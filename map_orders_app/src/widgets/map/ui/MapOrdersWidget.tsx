@@ -126,26 +126,24 @@ const MapOrdersWidget = () => {
     } = cpSatMetrics;
 
     const courierWaitValues: number[] = [];
-    points.forEach((point) => {
-      if (point.kind !== "order") {
-        return;
+    const couriersText = mapOrdersState.data.couriersText;
+    if (typeof couriersText === "string" && couriersText.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(couriersText) as { courier_available_offset?: unknown };
+        const offsets = parsed.courier_available_offset;
+        if (Array.isArray(offsets)) {
+          offsets.forEach((value) => {
+            if (typeof value === "number" && Number.isFinite(value)) {
+              courierWaitValues.push(value);
+            }
+          });
+        }
+      } catch {
+        // ignore parse errors
       }
-      if (typeof point.courierWaitMin !== "number" || !Number.isFinite(point.courierWaitMin)) {
-        return;
-      }
-      if (point.courierWaitMin < 0) {
-        return;
-      }
-      courierWaitValues.push(point.courierWaitMin);
-    });
+    }
     courierWaitValues.sort((a, b) => a - b);
-    const courierWaitUnique: number[] = [];
-    courierWaitValues.forEach((value) => {
-      const rounded = Math.round(value);
-      if (!courierWaitUnique.includes(rounded)) {
-        courierWaitUnique.push(rounded);
-      }
-    });
+    const courierWaitRounded: number[] = courierWaitValues.map((value) => Math.round(value));
 
     const formatRatio = (
       count: number | undefined,
@@ -165,10 +163,10 @@ const MapOrdersWidget = () => {
     }
     if (totalCouriers !== undefined || assignedCouriers !== undefined) {
       items.push({ label: "Курьеры", value: formatRatio(assignedCouriers, totalCouriers) });
-      if (courierWaitUnique.length > 0) {
+      if (courierWaitRounded.length > 0) {
         items.push({
           label: "Прибытие курьеров",
-          value: courierWaitUnique.join(" • "),
+          value: courierWaitRounded.join(" • "),
         });
       }
     }
@@ -189,7 +187,7 @@ const MapOrdersWidget = () => {
     }
 
     return items;
-  }, [cpSatMetrics, points]);
+  }, [cpSatMetrics, mapOrdersState.data.couriersText]);
 
   const historyInitialized = useRef(false);
 
