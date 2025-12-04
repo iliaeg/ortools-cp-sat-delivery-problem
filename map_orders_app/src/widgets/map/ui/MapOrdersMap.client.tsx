@@ -211,6 +211,27 @@ const getArcKeyForPoint = (point?: DeliveryPoint | null): string | null => {
   return point.internalId;
 };
 
+const parseTimeToMinutes = (time: string | undefined): number | null => {
+  if (!time || !/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return null;
+  }
+  const [hh, mm, ss] = time.split(":").map((value) => Number.parseInt(value, 10) || 0);
+  return hh * 60 + mm + ss / 60;
+};
+
+const getPreparationWaitMinutes = (point: DeliveryPoint, currentTime?: string): number | null => {
+  const readyMinutes = parseTimeToMinutes(point.readyAt);
+  const currentMinutes = parseTimeToMinutes(currentTime);
+  if (readyMinutes === null || currentMinutes === null) {
+    return null;
+  }
+  const diff = readyMinutes - currentMinutes;
+  if (!Number.isFinite(diff) || diff < 0) {
+    return null;
+  }
+  return diff;
+};
+
 export interface MapOrdersMapProps {
   statusLabel?: string;
   metrics?: Array<{ label: string; value: string }>;
@@ -1333,6 +1354,7 @@ const MapOrdersMapClient = ({
                 isEditingEnabled={isEditingEnabled}
                 showReadyNowOrders={showReadyNowOrders}
                 readyNowOrderIds={readyNowOrderIds}
+                currentTime={currentTime}
                 handleMarkerDragEnd={handleMarkerDragEnd}
                 handleMarkerClick={handleMarkerClick}
                 markerPositionsById={markerPositionsById}
@@ -1466,6 +1488,7 @@ interface MarkersLayerProps {
   isEditingEnabled: boolean;
   showReadyNowOrders: boolean;
   readyNowOrderIds: Set<string>;
+  currentTime?: string;
   handleMarkerDragEnd: (internalId: string) => (event: LeafletEvent) => void;
   handleMarkerClick: (point: DeliveryPoint) => (event: LeafletEvent | LeafletMouseEvent) => void;
   markerPositionsById: Map<string, [number, number]>;
@@ -1477,6 +1500,7 @@ const MarkersLayerComponent = ({
   isEditingEnabled,
   showReadyNowOrders,
   readyNowOrderIds,
+  currentTime,
   handleMarkerDragEnd,
   handleMarkerClick,
   markerPositionsById,
@@ -1558,6 +1582,16 @@ const MarkersLayerComponent = ({
                   Создан: {point.createdAt}
                   <br />
                   Готов: {point.readyAt}
+                  {(() => {
+                    const prepWaitMin = getPreparationWaitMinutes(point, currentTime);
+                    return typeof prepWaitMin === "number" ? (
+                      <>
+                        <br />
+                        Остаток ВПЗ:{" "}
+                        <span style={{ fontWeight: 600 }}>{Math.round(prepWaitMin)} мин</span>
+                      </>
+                    ) : null;
+                  })()}
                   {typeof point.courierWaitMin === "number" ? (
                     <>
                       <br />
@@ -1600,7 +1634,7 @@ const MarkersLayerComponent = ({
     });
 
     return result;
-  }, [points, isEditingEnabled, showReadyNowOrders, readyNowOrderIds, handleMarkerDragEnd, handleMarkerClick, markerPositionsById, markerClusters]);
+  }, [points, isEditingEnabled, showReadyNowOrders, readyNowOrderIds, currentTime, handleMarkerDragEnd, handleMarkerClick, markerPositionsById, markerClusters]);
 
   return <>{markers}</>;
 };
