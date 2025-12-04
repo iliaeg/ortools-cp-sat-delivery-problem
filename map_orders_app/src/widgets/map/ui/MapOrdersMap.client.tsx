@@ -410,6 +410,8 @@ const MapOrdersMapClient = ({
   const screenshoterRef = useRef<any>(null);
   const historyBackEnabled = Boolean(canHistoryBack);
   const historyForwardEnabled = Boolean(canHistoryForward);
+  const arrivalMetric =
+    metrics?.find((item) => item.label === "Прибытие курьеров") ?? null;
 
   useEffect(() => {
     ensureDefaultMarkerIcons();
@@ -1177,6 +1179,29 @@ const MapOrdersMapClient = ({
               </IconButton>
             </Stack>
           </Stack>
+          {arrivalMetric ? (
+            <Paper
+              elevation={1}
+              sx={{
+                position: "absolute",
+                top: 12,
+                left: 64,
+                zIndex: 1200,
+                px: 1.5,
+                py: 0.75,
+                bgcolor: "rgba(245, 245, 245, 0.85)",
+                color: "rgb(33, 33, 33)",
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="caption" color="rgba(33, 33, 33, 0.7)" fontWeight={600}>
+                {arrivalMetric.label}
+              </Typography>
+              <Typography variant="body2" fontWeight={700} color="inherit">
+                {arrivalMetric.value}
+              </Typography>
+            </Paper>
+          ) : null}
           {isFullScreen && (statusLabel || (metrics && metrics.length > 0)) ? (
             <>
               {statusLabel ? (
@@ -1220,7 +1245,9 @@ const MapOrdersMapClient = ({
                     justifyContent: "center",
                   }}
                 >
-                  {metrics.map(({ label, value }) => (
+                  {metrics
+                    .filter((item) => item.label !== "Прибытие курьеров")
+                    .map(({ label, value }) => (
                     <Paper
                       key={`fs-${label}`}
                       elevation={1}

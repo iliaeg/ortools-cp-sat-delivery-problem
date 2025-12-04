@@ -125,6 +125,28 @@ const MapOrdersWidget = () => {
       skipCount,
     } = cpSatMetrics;
 
+    const courierWaitValues: number[] = [];
+    points.forEach((point) => {
+      if (point.kind !== "order") {
+        return;
+      }
+      if (typeof point.courierWaitMin !== "number" || !Number.isFinite(point.courierWaitMin)) {
+        return;
+      }
+      if (point.courierWaitMin < 0) {
+        return;
+      }
+      courierWaitValues.push(point.courierWaitMin);
+    });
+    courierWaitValues.sort((a, b) => a - b);
+    const courierWaitUnique: number[] = [];
+    courierWaitValues.forEach((value) => {
+      const rounded = Math.round(value);
+      if (!courierWaitUnique.includes(rounded)) {
+        courierWaitUnique.push(rounded);
+      }
+    });
+
     const formatRatio = (
       count: number | undefined,
       total: number | undefined,
@@ -143,18 +165,31 @@ const MapOrdersWidget = () => {
     }
     if (totalCouriers !== undefined || assignedCouriers !== undefined) {
       items.push({ label: "Курьеры", value: formatRatio(assignedCouriers, totalCouriers) });
+      if (courierWaitUnique.length > 0) {
+        items.push({
+          label: "Прибытие курьеров",
+          value: courierWaitUnique.join(" • "),
+        });
+      }
     }
     if (objectiveValue !== undefined) {
       items.push({ label: "Целевая функция", value: String(objectiveValue) });
     }
     if (certCount !== undefined || totalOrders !== undefined) {
-      items.push({ label: "Серты", value: formatRatio(certCount, totalOrders) });
+      items.push({ label: "Сертификаты", value: formatRatio(certCount, totalOrders) });
     }
     if (skipCount !== undefined || totalOrders !== undefined) {
       items.push({ label: "Пропуски", value: formatRatio(skipCount, totalOrders) });
     }
+
+    const arrivalIndex = items.findIndex((item) => item.label === "Прибытие курьеров");
+    if (arrivalIndex > 0) {
+      const [arrival] = items.splice(arrivalIndex, 1);
+      items.unshift(arrival);
+    }
+
     return items;
-  }, [cpSatMetrics]);
+  }, [cpSatMetrics, points]);
 
   const historyInitialized = useRef(false);
 
