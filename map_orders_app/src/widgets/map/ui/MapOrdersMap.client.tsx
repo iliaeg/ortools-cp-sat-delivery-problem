@@ -132,23 +132,38 @@ const computeClusterGeometry = (points: DeliveryPoint[]): ClusterGeometry => {
   const markerPositionsById = new Map<string, [number, number]>();
   const clusters: MarkerClusterInfo[] = [];
 
-  const groups = new Map<string, DeliveryPoint[]>();
-  points.forEach((point) => {
-    const key = `${point.lat.toFixed(6)}:${point.lon.toFixed(6)}`;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.push(point);
-    } else {
-      groups.set(key, [point]);
+  const usedIds = new Set<string>();
+  const clusterRadiusMeters = 40;
+
+  points.forEach((basePoint, baseIndex) => {
+    if (usedIds.has(basePoint.internalId)) {
+      return;
     }
-  });
 
-  const radiusMeters = 40;
+    const groupPoints: DeliveryPoint[] = [basePoint];
 
-  groups.forEach((groupPoints) => {
+    const baseLat = basePoint.lat;
+    const baseLon = basePoint.lon;
+    const baseLatRad = (baseLat * Math.PI) / 180;
+    const metersPerDegLat = 111_111;
+    const metersPerDegLon = Math.max(Math.cos(baseLatRad) * metersPerDegLat, 1e-6);
+
+    for (let index = baseIndex + 1; index < points.length; index += 1) {
+      const candidate = points[index];
+      if (usedIds.has(candidate.internalId)) {
+        continue;
+      }
+      const dLatMeters = (candidate.lat - baseLat) * metersPerDegLat;
+      const dLonMeters = (candidate.lon - baseLon) * metersPerDegLon;
+      const distanceMeters = Math.sqrt(dLatMeters * dLatMeters + dLonMeters * dLonMeters);
+      if (distanceMeters <= clusterRadiusMeters) {
+        groupPoints.push(candidate);
+        usedIds.add(candidate.internalId);
+      }
+    }
+
     if (groupPoints.length <= 1) {
-      const point = groupPoints[0];
-      markerPositionsById.set(point.internalId, [point.lat, point.lon]);
+      markerPositionsById.set(basePoint.internalId, [basePoint.lat, basePoint.lon]);
       return;
     }
 
@@ -158,11 +173,10 @@ const computeClusterGeometry = (points: DeliveryPoint[]): ClusterGeometry => {
       return String(aKey).localeCompare(String(bKey));
     });
 
-    const base = sortedGroup[0];
-    const baseLat = base.lat;
-    const baseLon = base.lon;
+    const centerLat = baseLat;
+    const centerLon = baseLon;
     clusters.push({
-      center: [baseLat, baseLon],
+      center: [centerLat, centerLon],
       internalIds: sortedGroup.map((point) => point.internalId),
     });
 
@@ -180,16 +194,16 @@ const computeClusterGeometry = (points: DeliveryPoint[]): ClusterGeometry => {
       }
     }
 
-    const baseLatRad = (baseLat * Math.PI) / 180;
-    const metersPerDegLat = 111_111;
-    const metersPerDegLon = Math.max(Math.cos(baseLatRad) * metersPerDegLat, 1e-6);
+    const centerLatRad = (centerLat * Math.PI) / 180;
+    const centerMetersPerDegLat = 111_111;
+    const centerMetersPerDegLon = Math.max(Math.cos(centerLatRad) * centerMetersPerDegLat, 1e-6);
 
     sortedGroup.forEach((point, index) => {
       const angle = angles[index] ?? angles[angles.length - 1];
-      const deltaLat = (radiusMeters * Math.sin(angle)) / metersPerDegLat;
-      const deltaLon = (radiusMeters * Math.cos(angle)) / metersPerDegLon;
-      const markerLat = baseLat + deltaLat;
-      const markerLon = baseLon + deltaLon;
+      const deltaLat = (clusterRadiusMeters * Math.sin(angle)) / centerMetersPerDegLat;
+      const deltaLon = (clusterRadiusMeters * Math.cos(angle)) / centerMetersPerDegLon;
+      const markerLat = centerLat + deltaLat;
+      const markerLon = centerLon + deltaLon;
       markerPositionsById.set(point.internalId, [markerLat, markerLon]);
     });
   });
