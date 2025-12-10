@@ -79,6 +79,36 @@ const extractSolverErrorMessage = (error: unknown): string => {
     return "Неизвестная ошибка";
   }
 };
+
+const normalizeUtcIso = (value?: string): string | null => {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  // Если есть явный часовой пояс — используем как есть
+  if (/[zZ]$/.test(trimmed) || /[+-]\d{2}:?\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Без таймзоны интерпретируем как UTC
+  return `${trimmed}Z`;
+};
+
+const diffMinutes = (fromIso?: string, baseIso?: string): number | null => {
+  const normFrom = normalizeUtcIso(fromIso);
+  const normBase = normalizeUtcIso(baseIso);
+  if (!normFrom || !normBase) {
+    return null;
+  }
+  const from = new Date(normFrom);
+  const base = new Date(normBase);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(base.getTime())) {
+    return null;
+  }
+  return Math.round((from.getTime() - base.getTime()) / 60000);
+};
 import { buildHistorySnapshot } from "@/features/map-orders/lib/historySnapshot";
 
 const SolverControlsWidget = () => {
@@ -276,6 +306,8 @@ const SolverControlsWidget = () => {
         const orderInternalIds: string[] = [];
         const orderExternalIds: string[] = [];
         const ordersAbstime: string[] = [];
+        const orderCreatedOffset: number[] = [];
+        const orderReadyOffset: number[] = [];
 
         (data.orders ?? []).forEach((order) => {
           const extId = typeof order.order_id === "string" ? order.order_id.trim() : "";
@@ -292,22 +324,38 @@ const SolverControlsWidget = () => {
           } else {
             pointsLatLon.push([0, 0]);
           }
-          const readyIso = order.expected_ready_at_utc ?? order.created_at_utc ?? t0Iso;
+          const createdIso = order.created_at_utc ?? t0Iso;
+          const readyIso = order.expected_ready_at_utc ?? createdIso;
           ordersAbstime.push(readyIso);
+          const createdRel = diffMinutes(createdIso, t0Iso);
+          const readyRel = diffMinutes(readyIso, t0Iso);
+          orderCreatedOffset.push(
+            typeof createdRel === "number" && Number.isFinite(createdRel) ? createdRel : 0,
+          );
+          orderReadyOffset.push(
+            typeof readyRel === "number" && Number.isFinite(readyRel) ? readyRel : 0,
+          );
         });
 
         const couriers = data.couriers ?? [];
         const courierExternalIds = couriers.map((courier) => courier.courier_id ?? "").filter(Boolean);
-        const couriersAbstime = couriers.map(
-          (courier) => courier.expected_courier_return_at_utc ?? t0Iso,
-        );
+        const couriersAbstime: string[] = [];
+        const courierAvailableOffset: number[] = [];
+        couriers.forEach((courier) => {
+          const availableIso = courier.expected_courier_return_at_utc ?? t0Iso;
+          couriersAbstime.push(availableIso);
+          const rel = diffMinutes(availableIso, t0Iso);
+          courierAvailableOffset.push(
+            typeof rel === "number" && Number.isFinite(rel) ? rel : 0,
+          );
+        });
 
         return {
           request,
           tau: data.travel_time_matrix_minutes ?? [],
-          order_created_offset: [],
-          order_ready_offset: [],
-          courier_available_offset: [],
+          order_created_offset: orderCreatedOffset,
+          order_ready_offset: orderReadyOffset,
+          courier_available_offset: courierAvailableOffset,
           meta: {
             pointsLatLon,
             mode: "",
