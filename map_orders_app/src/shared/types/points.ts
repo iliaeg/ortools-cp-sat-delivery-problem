@@ -80,6 +80,8 @@ export interface MapOrdersPersistedState {
   cpSatStatus?: string | null;
   cpSatMetrics?: SolverMetricsSummary | null;
   viewportLocked: boolean;
+  /** Источник текущего состояния точек/параметров */
+  isFromCpSatLog?: boolean;
 }
 
 export interface MapOrdersUiState {

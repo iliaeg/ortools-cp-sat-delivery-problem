@@ -46,6 +46,7 @@ export const initialPersistedState: MapOrdersPersistedState = {
   cpSatStatus: undefined,
   cpSatMetrics: null,
   viewportLocked: false,
+  isFromCpSatLog: false,
 };
 
 const initialUiState: MapOrdersUiState = {

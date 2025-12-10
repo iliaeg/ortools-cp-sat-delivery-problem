@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       useManualTau: Boolean(payload.use_manual_tau),
       solverInput: null,
       solverResult: null,
+      isFromCpSatLog: false,
     });
 
     return NextResponse.json(state);

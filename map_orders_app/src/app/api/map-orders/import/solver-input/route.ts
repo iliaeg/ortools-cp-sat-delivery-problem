@@ -51,6 +51,7 @@ export async function POST(request: Request) {
       useManualTau: true,
       solverInput,
       solverResult: null,
+      isFromCpSatLog: false,
     });
 
     return NextResponse.json(state);

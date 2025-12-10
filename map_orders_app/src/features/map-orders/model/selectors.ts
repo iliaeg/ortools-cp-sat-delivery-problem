@@ -168,3 +168,8 @@ export const selectLastSavedAt = createSelector(
   selectMapOrdersState,
   (state) => state.data.lastSavedAtIso,
 );
+
+export const selectIsFromCpSatLog = createSelector(
+  selectMapOrdersState,
+  (state) => state.data.isFromCpSatLog ?? false,
+);

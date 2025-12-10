@@ -960,5 +960,6 @@ export const buildStateFromCpSatLog = (
         ? String(pickProperty(response, "status", "Status"))
         : undefined,
     cpSatMetrics: normalizedMetrics,
+    isFromCpSatLog: true,
   };
 };
