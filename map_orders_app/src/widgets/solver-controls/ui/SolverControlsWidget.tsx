@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Accordion,
@@ -12,6 +12,7 @@ import {
   Paper,
   Stack,
   Typography,
+  TextField,
 } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import SettingsInputComponentIcon from "@mui/icons-material/SettingsInputComponent";
@@ -137,6 +138,19 @@ const SolverControlsWidget = () => {
   const [error, setError] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastSeverity, setToastSeverity] = useState<"success" | "error">("success");
+  const [solverInputJson, setSolverInputJson] = useState<string>("");
+  const [solverInputDirty, setSolverInputDirty] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!solverInput) {
+      setSolverInputJson("");
+      setSolverInputDirty(false);
+      return;
+    }
+    if (!solverInputDirty) {
+      setSolverInputJson(stringifyWithInlineArrays(solverInput.request));
+    }
+  }, [solverInput, solverInputDirty]);
 
   const currentSignature = useMemo(
     () =>
@@ -405,6 +419,8 @@ const SolverControlsWidget = () => {
           lastSolverResultSignature: undefined,
         }),
       );
+      setSolverInputDirty(false);
+      setSolverInputJson(stringifyWithInlineArrays(payload.request));
       setToastSeverity("success");
       setToastMessage("solver_input успешно импортирован из буфера обмена");
     } catch (clipboardError) {
@@ -451,11 +467,14 @@ const SolverControlsWidget = () => {
     if (!solverInput) {
       return;
     }
-    const blob = new Blob([JSON.stringify(solverInput, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob(
+      [solverInputJson || JSON.stringify(solverInput, null, 2)],
+      {
+        type: "application/json",
+      },
+    );
     saveBlobToFile(blob, `solver_input_${new Date().toISOString()}.json`);
-  }, [solverInput]);
+  }, [solverInput, solverInputJson]);
 
   const handleResetResult = useCallback(() => {
     dispatch(resetSolverResult());
@@ -478,11 +497,6 @@ const SolverControlsWidget = () => {
     [],
   );
 
-  const solverInputPreview = useMemo(
-    () => (solverInput ? stringifyWithInlineArrays(solverInput.request) : ""),
-    [solverInput],
-  );
-
   const domainResponsePreview = useMemo(
     () => (solverResult?.domainResponse ? stringifyWithInlineArrays(solverResult.domainResponse) : ""),
     [solverResult?.domainResponse],
@@ -503,6 +517,33 @@ const SolverControlsWidget = () => {
     );
     return staleInput || staleResult;
   }, [currentSignature, lastSolverInputSignature, lastSolverResultSignature]);
+
+  const handleApplySolverInputJson = useCallback(() => {
+    if (!solverInput) {
+      return;
+    }
+    try {
+      const parsed = JSON.parse(solverInputJson) as SolverInvocationRequest;
+      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.inputs)) {
+        throw new Error("JSON должен быть объектом с полем inputs (solver request)");
+      }
+      const next: SolverInputPayload = {
+        ...solverInput,
+        request: parsed,
+      };
+      dispatch(setSolverInput(next));
+      setSolverInputDirty(false);
+      setToastSeverity("success");
+      setToastMessage("solver_input обновлён из JSON");
+    } catch (parseError) {
+      const message =
+        parseError instanceof Error
+          ? parseError.message
+          : "Не удалось разобрать JSON solver_input";
+      setToastSeverity("error");
+      setToastMessage(`Ошибка применения solver_input: ${message}`);
+    }
+  }, [dispatch, solverInput, solverInputJson]);
 
   return (
     <Paper elevation={3} sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
@@ -591,24 +632,36 @@ const SolverControlsWidget = () => {
               <Button
                 size="small"
                 startIcon={<ContentCopyIcon fontSize="small" />}
-                onClick={() => handleCopyJson(solverInput.request)}
+                onClick={() => handleCopyJson(solverInputJson || stringifyWithInlineArrays(solverInput.request))}
               >
                 Копировать
               </Button>
             </Stack>
-            <pre
-              style={{
-                margin: 0,
-                padding: "16px",
-                backgroundColor: "#0f0f0f",
-                color: "#e0e0e0",
-                borderRadius: 8,
-                overflowX: "auto",
-                fontSize: "0.85rem",
+            <TextField
+              value={solverInputJson}
+              onChange={(event) => {
+                setSolverInputJson(event.target.value);
+                setSolverInputDirty(true);
               }}
-            >
-              {solverInputPreview}
-            </pre>
+              multiline
+              minRows={8}
+              maxRows={24}
+              fullWidth
+              variant="outlined"
+              sx={{
+                fontFamily: "monospace",
+              }}
+            />
+            <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={handleApplySolverInputJson}
+                disabled={!solverInputDirty || !solverInputJson.trim()}
+              >
+                Применить JSON
+              </Button>
+            </Stack>
           </AccordionDetails>
         </Accordion>
       ) : null}
