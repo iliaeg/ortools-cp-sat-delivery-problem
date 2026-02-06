@@ -535,8 +535,7 @@ export const buildStateFromCpSatLog = (
       actualOrder ? pickCoordinates(actualOrder) : null
     );
     const createdAtUtc = parseDate(
-      pickProperty(order, "created_at_utc", "CreatedAtUtc")
-      ?? pickProperty(actualOrder, "CreatedDateTimeUtc", "created_date_time_utc"),
+      pickProperty(order, "created_at_utc", "CreatedAtUtc"),
     );
     const readyAtUtc = parseDate(
       pickProperty(order, "expected_ready_at_utc", "ExpectedReadyAtUtc"),
@@ -672,15 +671,15 @@ export const buildStateFromCpSatLog = (
   const solverRoutes: number[][] = [];
 
   const depotSource =
-    pickProperty(request, "depot", "Depot", "pizzeria", "Pizzeria") ??
-    pickProperty(container, "UnitCoordinates", "unitCoordinates") ??
-    pickProperty(root, "UnitCoordinates", "unitCoordinates") ??
-    pickProperty(payloadContainer, "UnitCoordinates", "unitCoordinates") ??
     pickProperty(
       (pickProperty(actualStateEnvelope, "Unit", "unit") as UnknownRecord | null) ?? null,
       "Address",
       "address",
-    );
+    ) ??
+    pickProperty(request, "depot", "Depot", "pizzeria", "Pizzeria") ??
+    pickProperty(container, "UnitCoordinates", "unitCoordinates") ??
+    pickProperty(root, "UnitCoordinates", "unitCoordinates") ??
+    pickProperty(payloadContainer, "UnitCoordinates", "unitCoordinates");
   const depotCoordinates =
     typeof depotSource === "object" && depotSource !== null
       ? pickCoordinates(depotSource as UnknownRecord)

@@ -209,6 +209,7 @@ describe("parseCpSatLog", () => {
           ],
         },
       },
+      UnitCoordinates: { Latitude: 1, Longitude: 2 },
     };
 
     const result = buildStateFromCpSatLog(payload);
@@ -219,6 +220,8 @@ describe("parseCpSatLog", () => {
     expect(orderPoint?.lat).toBe(54.176731);
     expect(orderPoint?.lon).toBe(37.633553);
     expect(orderPoint?.orderNumber).toBe(152);
+    expect(orderPoint?.boxes).toBe(1);
+    expect(orderPoint?.createdAt).toBe("14:51:17");
     expect(depotPoint?.lat).toBe(54.197036);
     expect(depotPoint?.lon).toBe(37.657817);
   });
