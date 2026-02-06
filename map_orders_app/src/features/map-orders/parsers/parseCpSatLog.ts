@@ -144,6 +144,23 @@ export const parseCpSatLogPayload = (rawText: string): unknown => {
         throw primaryError;
       }
     }
+
+    const extracted: UnknownRecord = {};
+    (["Payload", "Request", "Response"] as const).forEach((key) => {
+      const block = findJsonBlockAfterKey(cleaned, `"${key}"`);
+      if (!block) {
+        return;
+      }
+      try {
+        extracted[key] = JSON.parse(block);
+      } catch {
+        // ignore invalid nested block and keep trying other keys
+      }
+    });
+    if (Object.keys(extracted).length > 0) {
+      return extracted;
+    }
+
     throw primaryError;
   }
 };
@@ -288,6 +305,14 @@ const pickCoordinates = (record: UnknownRecord): { lat: number; lon: number } | 
     }
   }
 
+  const address = pickProperty(record, "address", "Address", "address_v2", "AddressV2");
+  if (typeof address === "object" && address !== null) {
+    const nested = pickCoordinates(address as UnknownRecord);
+    if (nested) {
+      return nested;
+    }
+  }
+
   const latitude = toFiniteNumber(pickProperty(record, "latitude", "Latitude"));
   const longitude = toFiniteNumber(pickProperty(record, "longitude", "Longitude"));
   if (latitude !== undefined && longitude !== undefined) {
@@ -349,15 +374,50 @@ export const buildStateFromCpSatLog = (
 
   const enriched = root.EnrichedPayload as UnknownRecord | undefined;
   const container = enriched ?? root;
+  const payloadContainer = (root.Payload as UnknownRecord | undefined) ?? null;
+  const actualStateEnvelope =
+    ((pickProperty(payloadContainer, "ActualState", "actual_state") as UnknownRecord | undefined)
+      ?? null);
 
-  const request = ensureObject(
-    container.Request,
+  const requestWrapper =
+    ((pickProperty(container, "Request", "request")
+      ?? pickProperty(root, "Request", "request")
+      ?? pickProperty(payloadContainer, "Request", "request")) as UnknownRecord | undefined)
+      ?? null;
+  const requestSource = ensureObject(
+    requestWrapper,
     "Request отсутствует в логе CP-SAT",
   );
-  const response = ensureObject(
-    container.Response,
+  const requestDto = pickProperty(requestSource, "RequestDto", "request_dto");
+  const request = (() => {
+    if (requestDto && typeof requestDto === "object") {
+      const inputs = asArray<UnknownRecord>(
+        pickProperty(requestDto as UnknownRecord, "inputs", "Inputs"),
+      );
+      for (const input of inputs) {
+        const data = pickProperty(input, "data", "Data");
+        if (data && typeof data === "object") {
+          return data as UnknownRecord;
+        }
+      }
+    }
+    return requestSource;
+  })();
+
+  const responseWrapper =
+    ((pickProperty(container, "Response", "response")
+      ?? pickProperty(root, "Response", "response")
+      ?? pickProperty(payloadContainer, "Response", "response")) as UnknownRecord | undefined)
+      ?? null;
+  const responseSource = ensureObject(
+    responseWrapper,
     "Response отсутствует в логе CP-SAT",
   );
+  const nestedResponse = pickProperty(responseSource, "Response", "response");
+  const response =
+    nestedResponse && typeof nestedResponse === "object"
+      ? (nestedResponse as UnknownRecord)
+      : responseSource;
 
   const requestOrdersRaw = asArray<UnknownRecord>(
     pickProperty(request, "orders", "Orders"),
@@ -420,6 +480,26 @@ export const buildStateFromCpSatLog = (
     throw new CpSatLogParseError("Request.orders пуст");
   }
 
+  const normalizeId = (value: string): string => value.trim().toLowerCase();
+  const actualStateCore =
+    ((pickProperty(actualStateEnvelope, "ActualState", "actual_state") as UnknownRecord | undefined)
+      ?? null);
+  const orderActualState =
+    ((pickProperty(actualStateCore, "OrderActualState", "order_actual_state") as UnknownRecord | undefined)
+      ?? null);
+  const actualOrdersRaw = [
+    ...asArray<UnknownRecord>(pickProperty(orderActualState, "Orders", "orders")),
+    ...asArray<UnknownRecord>(pickProperty(orderActualState, "AllOrders", "all_orders")),
+  ];
+  const actualOrdersById = new Map<string, UnknownRecord>();
+  actualOrdersRaw.forEach((order) => {
+    const orderId = toStringId(pickProperty(order, "Id", "id", "OrderId", "order_id"));
+    if (!orderId) {
+      return;
+    }
+    actualOrdersById.set(normalizeId(orderId), order);
+  });
+
   const currentTimestamp = parseDate(
     pickProperty(request, "current_timestamp_utc", "CurrentTimestampUtc"),
   );
@@ -431,6 +511,7 @@ export const buildStateFromCpSatLog = (
     );
     if (orderId) {
       responseOrdersById.set(orderId, order);
+      responseOrdersById.set(normalizeId(orderId), order);
     }
   });
 
@@ -442,13 +523,20 @@ export const buildStateFromCpSatLog = (
       throw new CpSatLogParseError(`order_id отсутствует для записи заказа №${index + 1}`);
     }
 
-    const responseOrder = responseOrdersById.get(orderId);
+    const responseOrder =
+      responseOrdersById.get(orderId) ?? responseOrdersById.get(normalizeId(orderId));
+    const actualOrder = actualOrdersById.get(normalizeId(orderId));
     const enrichedNumber = extractOrderNumber(
-      pickProperty(order, "number", "Number") ?? pickProperty(responseOrder, "number", "Number"),
+      pickProperty(order, "order_number", "OrderNumber", "number", "Number")
+      ?? pickProperty(responseOrder, "order_number", "OrderNumber", "number", "Number")
+      ?? pickProperty(actualOrder, "Number", "number", "OrderNumber", "order_number"),
     );
-    const coordinates = pickCoordinates(order);
+    const coordinates = pickCoordinates(order) ?? (
+      actualOrder ? pickCoordinates(actualOrder) : null
+    );
     const createdAtUtc = parseDate(
-      pickProperty(order, "created_at_utc", "CreatedAtUtc"),
+      pickProperty(order, "created_at_utc", "CreatedAtUtc")
+      ?? pickProperty(actualOrder, "CreatedDateTimeUtc", "created_date_time_utc"),
     );
     const readyAtUtc = parseDate(
       pickProperty(order, "expected_ready_at_utc", "ExpectedReadyAtUtc"),
@@ -585,7 +673,14 @@ export const buildStateFromCpSatLog = (
 
   const depotSource =
     pickProperty(request, "depot", "Depot", "pizzeria", "Pizzeria") ??
-    pickProperty(container, "UnitCoordinates", "unitCoordinates");
+    pickProperty(container, "UnitCoordinates", "unitCoordinates") ??
+    pickProperty(root, "UnitCoordinates", "unitCoordinates") ??
+    pickProperty(payloadContainer, "UnitCoordinates", "unitCoordinates") ??
+    pickProperty(
+      (pickProperty(actualStateEnvelope, "Unit", "unit") as UnknownRecord | null) ?? null,
+      "Address",
+      "address",
+    );
   const depotCoordinates =
     typeof depotSource === "object" && depotSource !== null
       ? pickCoordinates(depotSource as UnknownRecord)
@@ -955,9 +1050,18 @@ export const buildStateFromCpSatLog = (
     solverResult,
     solverInput: null,
     cpSatStatus:
-      typeof pickProperty(response, "status", "Status") === "string"
-        && (pickProperty(response, "status", "Status") as string).trim().length
-        ? String(pickProperty(response, "status", "Status"))
+      typeof (
+        pickProperty(response, "status", "Status")
+        ?? pickProperty(responseSource, "status", "Status")
+      ) === "string"
+        && String(
+          pickProperty(response, "status", "Status")
+          ?? pickProperty(responseSource, "status", "Status"),
+        ).trim().length
+        ? String(
+          pickProperty(response, "status", "Status")
+          ?? pickProperty(responseSource, "status", "Status"),
+        )
         : undefined,
     cpSatMetrics: normalizedMetrics,
     isFromCpSatLog: true,
