@@ -115,6 +115,7 @@ describe("parseCpSatLog", () => {
     expect(result.cpSatStatus).toBe("Feasible");
     expect(result.points).toHaveLength(3);
     expect(result.isFromCpSatLog).toBe(true);
+    expect(result.solverInput?.request).toEqual(payload.Request.RequestDto);
     expect(result.solverResult?.domainResponse).toMatchObject({
       Status: "Feasible",
     });

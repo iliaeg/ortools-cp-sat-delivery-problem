@@ -8,6 +8,7 @@ import type {
 } from "@/shared/types/points";
 import type {
   OrdersComputedPatch,
+  SolverInputPayload,
   SolverDomainResponse,
   SolverSolveResponse,
 } from "@/shared/types/solver";
@@ -1035,6 +1036,36 @@ export const buildStateFromCpSatLog = (
     ? metrics
     : null;
 
+  const solverInput: SolverInputPayload | null =
+    requestDto && typeof requestDto === "object"
+      ? {
+          request: requestDto as SolverInputPayload["request"],
+          tau: [],
+          order_created_offset: [],
+          order_ready_offset: [],
+          courier_available_offset: [],
+          meta: {
+            pointsLatLon: [],
+            mode: "",
+            osrmBaseUrl: "",
+            T0_iso: currentTimestamp?.toISOString() ?? "",
+            pointInternalIds: [],
+            orderInternalIds: [],
+            abstime: {
+              orders: [],
+              couriers: [],
+            },
+            combinedParams: {
+              orders: [],
+              depot: null,
+              weights: {},
+              couriers: [],
+              additional: {},
+            },
+          },
+        }
+      : null;
+
   return {
     points,
     t0Time: formatTimePart(currentTimestamp),
@@ -1047,7 +1078,7 @@ export const buildStateFromCpSatLog = (
     weightsText: stringifyWithInlineArrays(optimization),
     additionalParamsText: stringifyWithInlineArrays(additionalParams),
     solverResult,
-    solverInput: null,
+    solverInput,
     cpSatStatus:
       typeof (
         pickProperty(response, "status", "Status")
