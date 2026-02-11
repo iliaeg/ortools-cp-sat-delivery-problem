@@ -129,30 +129,17 @@ describe("parseCpSatLog", () => {
     expect(result.solverResult?.result.routes).toHaveLength(1);
   });
 
-  it("uses coordinates and order numbers from Payload.ActualState when absent in RequestDto", () => {
+  it("does not use RequestDto order coordinates as fallback", () => {
     const payload = {
       Payload: {
-        ActualState: {
+        ActualUnitAndSettings: {
           Unit: {
             Address: {
               Coordinates: { Latitude: 54.197036, Longitude: 37.657817 },
             },
           },
-          ActualState: {
-            OrderActualState: {
-              Orders: [
-                {
-                  Id: "o1",
-                  Number: 152,
-                  AddressV2: {
-                    Coordinates: { Latitude: 54.176731, Longitude: 37.633553 },
-                  },
-                  CreatedDateTimeUtc: "2026-02-06T14:51:19.0000000Z",
-                },
-              ],
-            },
-          },
         },
+        ActualOrders: {},
       },
       Request: {
         RequestDto: {
@@ -171,6 +158,7 @@ describe("parseCpSatLog", () => {
                     boxes_count: 1,
                     created_at_utc: "2026-02-06T14:51:17.0000000Z",
                     expected_ready_at_utc: "2026-02-06T15:14:56.8614117Z",
+                    coordinates: { latitude: 54.176731, longitude: 37.633553 },
                   },
                 ],
                 couriers: [
@@ -218,13 +206,285 @@ describe("parseCpSatLog", () => {
     const depotPoint = result.points?.[0];
 
     expect(orderPoint).toBeDefined();
-    expect(orderPoint?.lat).toBe(54.176731);
-    expect(orderPoint?.lon).toBe(37.633553);
+    expect(orderPoint?.lat).toBe(0);
+    expect(orderPoint?.lon).toBe(0);
     expect(orderPoint?.orderNumber).toBe(152);
     expect(orderPoint?.boxes).toBe(1);
     expect(orderPoint?.createdAt).toBe("14:51:17");
     expect(depotPoint?.lat).toBe(54.197036);
     expect(depotPoint?.lon).toBe(37.657817);
+  });
+
+  it("uses Request/Response and ActualOrders from enriched Payload container", () => {
+    const payload = {
+      Payload: {
+        ActualUnitAndSettings: {
+          Unit: {
+            Address: {
+              Coordinates: { Latitude: 54.197036, Longitude: 37.657817 },
+            },
+          },
+        },
+        ActualOrders: {
+          OrdersForComputation: [
+            {
+              Id: "o1",
+              Number: 152,
+              AddressV2: {
+                Coordinates: { Latitude: 54.176731, Longitude: 37.633553 },
+              },
+            },
+          ],
+        },
+        Request: {
+          RequestDto: {
+            inputs: [
+              {
+                data: {
+                  current_timestamp_utc: "2026-02-11T10:29:54.9516287Z",
+                  travel_time_matrix_minutes: [
+                    [0, 12],
+                    [5, 0],
+                  ],
+                  orders: [
+                    {
+                      order_id: "o1",
+                      boxes_count: 1,
+                      created_at_utc: "2026-02-11T10:17:54.0000000Z",
+                      expected_ready_at_utc: "2026-02-11T10:39:02.0000000Z",
+                    },
+                  ],
+                  couriers: [
+                    {
+                      courier_id: "c1",
+                      box_capacity: 3,
+                      expected_courier_return_at_utc: "2026-02-11T10:45:48.0000000Z",
+                    },
+                  ],
+                  optimization_weights: {},
+                  solver_settings: {},
+                },
+              },
+            ],
+          },
+        },
+        Response: {
+          Status: "Optimal",
+          Response: {
+            Status: "Optimal",
+            Orders: [
+              {
+                OrderId: "o1",
+                OrderNumber: 152,
+                AssignedCourierId: "c1",
+                PlannedDeliveryAtUtc: "2026-02-11T11:03:54.0000000Z",
+                IsCert: false,
+                IsSkipped: false,
+              },
+            ],
+            Couriers: [
+              {
+                CourierId: "c1",
+                PlannedDepartureAtUtc: "2026-02-11T10:45:54.0000000Z",
+                PlannedReturnAtUtc: "2026-02-11T11:15:54.0000000Z",
+                DeliverySequence: [{ OrderId: "o1", Position: 1 }],
+              },
+            ],
+          },
+        },
+      },
+    };
+
+    const result = buildStateFromCpSatLog(payload);
+    const depotPoint = result.points?.[0];
+    const orderPoint = result.points?.find((point) => point.id === "o1");
+
+    expect(result.cpSatStatus).toBe("Optimal");
+    expect(result.solverInput?.request).toEqual(payload.Payload.Request.RequestDto);
+    expect(orderPoint?.lat).toBe(54.176731);
+    expect(orderPoint?.lon).toBe(37.633553);
+    expect(orderPoint?.orderNumber).toBe(152);
+    expect(depotPoint?.lat).toBe(54.197036);
+    expect(depotPoint?.lon).toBe(37.657817);
+  });
+
+  it("uses AddressV2 coordinates for actual orders in import", () => {
+    const payload = {
+      Payload: {
+        ActualUnitAndSettings: {
+          Unit: {
+            Address: {
+              Coordinates: { Latitude: 54.197036, Longitude: 37.657817 },
+            },
+          },
+        },
+        ActualOrders: {
+          OrdersForComputation: [
+            {
+              Id: "o1",
+              Number: 152,
+              Coordinates: { Latitude: 1, Longitude: 2 },
+              AddressV2: {
+                Coordinates: { Latitude: 54.176731, Longitude: 37.633553 },
+              },
+            },
+          ],
+        },
+      },
+      Request: {
+        RequestDto: {
+          inputs: [
+            {
+              data: {
+                current_timestamp_utc: "2026-02-11T10:29:54.9516287Z",
+                travel_time_matrix_minutes: [
+                  [0, 12],
+                  [5, 0],
+                ],
+                orders: [
+                  {
+                    order_id: "o1",
+                    boxes_count: 1,
+                    created_at_utc: "2026-02-11T10:17:54.0000000Z",
+                    expected_ready_at_utc: "2026-02-11T10:39:02.0000000Z",
+                  },
+                ],
+                couriers: [
+                  {
+                    courier_id: "c1",
+                    box_capacity: 3,
+                    expected_courier_return_at_utc: "2026-02-11T10:45:48.0000000Z",
+                  },
+                ],
+                optimization_weights: {},
+                solver_settings: {},
+              },
+            },
+          ],
+        },
+      },
+      Response: {
+        Status: "Optimal",
+        Response: {
+          Status: "Optimal",
+          Orders: [
+            {
+              OrderId: "o1",
+              AssignedCourierId: "c1",
+              PlannedDeliveryAtUtc: "2026-02-11T11:03:54.0000000Z",
+              IsCert: false,
+              IsSkipped: false,
+            },
+          ],
+          Couriers: [
+            {
+              CourierId: "c1",
+              PlannedDepartureAtUtc: "2026-02-11T10:45:54.0000000Z",
+              PlannedReturnAtUtc: "2026-02-11T11:15:54.0000000Z",
+              DeliverySequence: [{ OrderId: "o1", Position: 1 }],
+            },
+          ],
+        },
+      },
+    };
+
+    const result = buildStateFromCpSatLog(payload);
+    const orderPoint = result.points?.find((point) => point.id === "o1");
+
+    expect(orderPoint?.lat).toBe(54.176731);
+    expect(orderPoint?.lon).toBe(37.633553);
+  });
+
+  it("uses top-level ActualOrders and ActualUnitAndSettings when they are outside Payload", () => {
+    const payload = {
+      Payload: {},
+      ActualUnitAndSettings: {
+        Unit: {
+          Address: {
+            Coordinates: { Latitude: 61.665774, Longitude: 50.831152 },
+          },
+        },
+      },
+      ActualOrders: {
+        OrdersForComputation: [
+          {
+            Id: "11F10732CCC5CC5BAD2F51F881353539",
+            Number: 131,
+            AddressV2: {
+              Coordinates: { Latitude: 61.659611, Longitude: 50.834835 },
+            },
+          },
+        ],
+      },
+      Request: {
+        RequestDto: {
+          inputs: [
+            {
+              data: {
+                current_timestamp_utc: "2026-02-11T10:29:54.9516287Z",
+                travel_time_matrix_minutes: [
+                  [0, 12],
+                  [5, 0],
+                ],
+                orders: [
+                  {
+                    order_id: "11f10732ccc5cc5bad2f51f881353539",
+                    boxes_count: 1,
+                    created_at_utc: "2026-02-11T10:17:54.0000000Z",
+                    expected_ready_at_utc: "2026-02-11T10:39:02.0000000Z",
+                  },
+                ],
+                couriers: [
+                  {
+                    courier_id: "f675042f77f7883e11ee73117608f345",
+                    box_capacity: 3,
+                    expected_courier_return_at_utc: "2026-02-11T10:45:48.0000000Z",
+                  },
+                ],
+                optimization_weights: {},
+                solver_settings: {},
+              },
+            },
+          ],
+        },
+      },
+      Response: {
+        Status: "Optimal",
+        Response: {
+          Status: "Optimal",
+          Orders: [
+            {
+              OrderId: "11f10732ccc5cc5bad2f51f881353539",
+              AssignedCourierId: "f675042f77f7883e11ee73117608f345",
+              PlannedDeliveryAtUtc: "2026-02-11T11:03:54.0000000Z",
+              IsCert: false,
+              IsSkipped: false,
+            },
+          ],
+          Couriers: [
+            {
+              CourierId: "f675042f77f7883e11ee73117608f345",
+              PlannedDepartureAtUtc: "2026-02-11T10:45:54.0000000Z",
+              PlannedReturnAtUtc: "2026-02-11T11:15:54.0000000Z",
+              DeliverySequence: [
+                { OrderId: "11f10732ccc5cc5bad2f51f881353539", Position: 1 },
+              ],
+            },
+          ],
+        },
+      },
+    };
+
+    const result = buildStateFromCpSatLog(payload);
+    const orderPoint = result.points?.find(
+      (point) => point.id === "11f10732ccc5cc5bad2f51f881353539",
+    );
+    const depotPoint = result.points?.[0];
+
+    expect(orderPoint?.lat).toBe(61.659611);
+    expect(orderPoint?.lon).toBe(50.834835);
+    expect(depotPoint?.lat).toBe(61.665774);
+    expect(depotPoint?.lon).toBe(50.831152);
   });
 
   it("extracts EnrichedPayload block from non-JSON log text", () => {
@@ -247,6 +507,16 @@ describe("parseCpSatLog", () => {
     expect(parsed.Payload).toBeDefined();
     expect(parsed.Request).toBeDefined();
     expect(parsed.Response).toBeDefined();
+  });
+
+  it("extracts top-level ActualOrders block from non-JSON log text", () => {
+    const raw = `"Timestamp":"2026-02-11T10:29:56.3642592Z",\n"Payload":{"x":1},\n"ActualOrders":{"OrdersForComputation":[{"Id":"o1","AddressV2":{"Coordinates":{"Latitude":61.659611,"Longitude":50.834835}}}]},\n"Request":{"RequestDto":{"inputs":[{"data":{"orders":[{"order_id":"o1"}],"couriers":[{"courier_id":"c1"}],"current_timestamp_utc":"2026-02-11T10:29:54.9516287Z","travel_time_matrix_minutes":[[0,1],[1,0]],"optimization_weights":{},"solver_settings":{}}}]}},"Response":{"Response":{"Status":"Optimal","Orders":[{"OrderId":"o1"}],"Couriers":[]}}`;
+
+    const parsed = parseCpSatLogPayload(raw) as {
+      ActualOrders?: unknown;
+    };
+
+    expect(parsed.ActualOrders).toBeDefined();
   });
 
   it("throws on empty payload", () => {

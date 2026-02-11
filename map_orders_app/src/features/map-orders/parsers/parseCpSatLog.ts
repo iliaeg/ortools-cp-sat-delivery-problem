@@ -147,7 +147,14 @@ export const parseCpSatLogPayload = (rawText: string): unknown => {
     }
 
     const extracted: UnknownRecord = {};
-    (["Payload", "Request", "Response"] as const).forEach((key) => {
+    ([
+      "Payload",
+      "Request",
+      "Response",
+      "ActualUnitAndSettings",
+      "ActualOrders",
+      "ActualCouriers",
+    ] as const).forEach((key) => {
       const block = findJsonBlockAfterKey(cleaned, `"${key}"`);
       if (!block) {
         return;
@@ -376,9 +383,14 @@ export const buildStateFromCpSatLog = (
   const enriched = root.EnrichedPayload as UnknownRecord | undefined;
   const container = enriched ?? root;
   const payloadContainer = (root.Payload as UnknownRecord | undefined) ?? null;
-  const actualStateEnvelope =
-    ((pickProperty(payloadContainer, "ActualState", "actual_state") as UnknownRecord | undefined)
-      ?? null);
+  const actualUnitAndSettingsRaw =
+    pickProperty(payloadContainer, "ActualUnitAndSettings", "actual_unit_and_settings")
+    ?? pickProperty(root, "ActualUnitAndSettings", "actual_unit_and_settings");
+  const actualUnitAndSettings = (actualUnitAndSettingsRaw as UnknownRecord | undefined) ?? null;
+  const actualOrdersEnvelopeRaw =
+    pickProperty(payloadContainer, "ActualOrders", "actual_orders")
+    ?? pickProperty(root, "ActualOrders", "actual_orders");
+  const actualOrdersEnvelope = (actualOrdersEnvelopeRaw as UnknownRecord | undefined) ?? null;
 
   const requestWrapper =
     ((pickProperty(container, "Request", "request")
@@ -482,15 +494,12 @@ export const buildStateFromCpSatLog = (
   }
 
   const normalizeId = (value: string): string => value.trim().toLowerCase();
-  const actualStateCore =
-    ((pickProperty(actualStateEnvelope, "ActualState", "actual_state") as UnknownRecord | undefined)
-      ?? null);
-  const orderActualState =
-    ((pickProperty(actualStateCore, "OrderActualState", "order_actual_state") as UnknownRecord | undefined)
-      ?? null);
   const actualOrdersRaw = [
-    ...asArray<UnknownRecord>(pickProperty(orderActualState, "Orders", "orders")),
-    ...asArray<UnknownRecord>(pickProperty(orderActualState, "AllOrders", "all_orders")),
+    ...asArray<UnknownRecord>(
+      pickProperty(actualOrdersEnvelope, "OrdersForComputation", "orders_for_computation"),
+    ),
+    ...asArray<UnknownRecord>(pickProperty(actualOrdersEnvelope, "OtherOrders", "other_orders")),
+    ...asArray<UnknownRecord>(pickProperty(actualOrdersEnvelope, "Orders", "orders")),
   ];
   const actualOrdersById = new Map<string, UnknownRecord>();
   actualOrdersRaw.forEach((order) => {
@@ -532,9 +541,18 @@ export const buildStateFromCpSatLog = (
       ?? pickProperty(responseOrder, "order_number", "OrderNumber", "number", "Number")
       ?? pickProperty(actualOrder, "Number", "number", "OrderNumber", "order_number"),
     );
-    const coordinates = pickCoordinates(order) ?? (
-      actualOrder ? pickCoordinates(actualOrder) : null
-    );
+    const coordinates = actualOrder
+      ? (() => {
+          const addressV2 = pickProperty(actualOrder, "AddressV2", "address_v2");
+          if (addressV2 && typeof addressV2 === "object") {
+            const fromAddressV2 = pickCoordinates(addressV2 as UnknownRecord);
+            if (fromAddressV2) {
+              return fromAddressV2;
+            }
+          }
+          return pickCoordinates(actualOrder);
+        })()
+      : null;
     const createdAtUtc = parseDate(
       pickProperty(order, "created_at_utc", "CreatedAtUtc"),
     );
@@ -673,7 +691,7 @@ export const buildStateFromCpSatLog = (
 
   const depotSource =
     pickProperty(
-      (pickProperty(actualStateEnvelope, "Unit", "unit") as UnknownRecord | null) ?? null,
+      (pickProperty(actualUnitAndSettings, "Unit", "unit") as UnknownRecord | null) ?? null,
       "Address",
       "address",
     ) ??
