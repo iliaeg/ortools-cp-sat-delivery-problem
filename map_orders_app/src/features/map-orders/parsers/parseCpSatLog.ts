@@ -1056,32 +1056,97 @@ export const buildStateFromCpSatLog = (
 
   const solverInput: SolverInputPayload | null =
     requestDto && typeof requestDto === "object"
-      ? {
-          request: requestDto as SolverInputPayload["request"],
-          tau: [],
-          order_created_offset: [],
-          order_ready_offset: [],
-          courier_available_offset: [],
-          meta: {
-            pointsLatLon: [],
-            mode: "",
-            osrmBaseUrl: "",
-            T0_iso: currentTimestamp?.toISOString() ?? "",
-            pointInternalIds: [],
-            orderInternalIds: [],
-            abstime: {
-              orders: [],
-              couriers: [],
+      ? (() => {
+          const t0Iso = currentTimestamp?.toISOString() ?? "";
+          const pointInternalIds: string[] = [depotPoint.internalId];
+          const pointsLatLon: [number, number][] = [[depotPoint.lat, depotPoint.lon]];
+          const orderInternalIds: string[] = [];
+          const orderExternalIds: string[] = [];
+          const ordersAbstime: string[] = [];
+          const orderCreatedOffset: number[] = [];
+          const orderReadyOffset: number[] = [];
+
+          sortedOrders.forEach((entry) => {
+            if (!entry.point) {
+              return;
+            }
+            pointInternalIds.push(entry.point.internalId);
+            pointsLatLon.push([entry.point.lat, entry.point.lon]);
+            orderInternalIds.push(entry.point.internalId);
+            orderExternalIds.push(entry.orderId);
+
+            const createdAtUtc = entry.createdAtUtc ?? currentTimestamp;
+            const readyAtUtc = entry.readyAtUtc ?? createdAtUtc ?? currentTimestamp;
+            const readyIso = readyAtUtc?.toISOString() ?? t0Iso;
+            ordersAbstime.push(readyIso);
+
+            const createdRel = minutesBetween(currentTimestamp, createdAtUtc);
+            const readyRel = minutesBetween(currentTimestamp, readyAtUtc);
+            orderCreatedOffset.push(
+              typeof createdRel === "number" && Number.isFinite(createdRel) ? createdRel : 0,
+            );
+            orderReadyOffset.push(
+              typeof readyRel === "number" && Number.isFinite(readyRel) ? readyRel : 0,
+            );
+          });
+
+          const courierExternalIds: string[] = [];
+          const couriersAbstime: string[] = [];
+          const courierAvailableOffset: number[] = [];
+          requestCouriersRaw.forEach((courier) => {
+            const courierId = toStringId(
+              pickProperty(courier, "courier_id", "id", "courierId", "CourierId"),
+            );
+            if (!courierId) {
+              return;
+            }
+            courierExternalIds.push(courierId);
+            const availableAt = parseDate(
+              pickProperty(
+                courier,
+                "expected_courier_return_at_utc",
+                "ExpectedCourierReturnAtUtc",
+                "available_at_utc",
+                "AvailableAtUtc",
+              ),
+            ) ?? currentTimestamp;
+            const availableIso = availableAt?.toISOString() ?? t0Iso;
+            couriersAbstime.push(availableIso);
+            const availableRel = minutesBetween(currentTimestamp, availableAt);
+            courierAvailableOffset.push(
+              typeof availableRel === "number" && Number.isFinite(availableRel) ? availableRel : 0,
+            );
+          });
+
+          return {
+            request: requestDto as SolverInputPayload["request"],
+            tau: travelMatrix,
+            order_created_offset: orderCreatedOffset,
+            order_ready_offset: orderReadyOffset,
+            courier_available_offset: courierAvailableOffset,
+            meta: {
+              pointsLatLon,
+              mode: "",
+              osrmBaseUrl: "",
+              T0_iso: t0Iso,
+              pointInternalIds,
+              orderInternalIds,
+              orderExternalIds,
+              courierExternalIds,
+              abstime: {
+                orders: ordersAbstime,
+                couriers: couriersAbstime,
+              },
+              combinedParams: {
+                orders: requestOrdersRaw,
+                depot: depotPoint,
+                weights: optimization,
+                couriers: requestCouriersRaw,
+                additional: additionalParams,
+              },
             },
-            combinedParams: {
-              orders: [],
-              depot: null,
-              weights: {},
-              couriers: [],
-              additional: {},
-            },
-          },
-        }
+          };
+        })()
       : null;
 
   return {

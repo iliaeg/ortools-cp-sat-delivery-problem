@@ -129,6 +129,108 @@ describe("parseCpSatLog", () => {
     expect(result.solverResult?.result.routes).toHaveLength(1);
   });
 
+  it("builds solverInput meta/tau for imported CP-SAT logs", () => {
+    const payload = {
+      Payload: {
+        ActualUnitAndSettings: {
+          Unit: {
+            Address: {
+              Coordinates: { Latitude: 54.197036, Longitude: 37.657817 },
+            },
+          },
+        },
+        ActualOrders: {
+          OrdersForComputation: [
+            {
+              Id: "o1",
+              Number: 101,
+              AddressV2: {
+                Coordinates: { Latitude: 54.176731, Longitude: 37.633553 },
+              },
+            },
+            {
+              Id: "o2",
+              Number: 102,
+              AddressV2: {
+                Coordinates: { Latitude: 54.18507385, Longitude: 37.64756775 },
+              },
+            },
+          ],
+        },
+      },
+      Request: {
+        RequestDto: {
+          inputs: [
+            {
+              data: {
+                current_timestamp_utc: "2026-02-06T15:14:56.8614117Z",
+                travel_time_matrix_minutes: [
+                  [0, 10, 12],
+                  [9, 0, 7],
+                  [11, 8, 0],
+                ],
+                orders: [
+                  {
+                    order_id: "o1",
+                    order_number: 101,
+                    boxes_count: 1,
+                    created_at_utc: "2026-02-06T14:51:17.0000000Z",
+                    expected_ready_at_utc: "2026-02-06T15:14:56.8614117Z",
+                  },
+                  {
+                    order_id: "o2",
+                    order_number: 102,
+                    boxes_count: 1,
+                    created_at_utc: "2026-02-06T14:55:30.0000000Z",
+                    expected_ready_at_utc: "2026-02-06T15:20:00.0000000Z",
+                  },
+                ],
+                couriers: [
+                  {
+                    courier_id: "c1",
+                    box_capacity: 3,
+                    expected_courier_return_at_utc: "2026-02-06T15:15:56.8614117Z",
+                  },
+                ],
+                optimization_weights: {},
+                solver_settings: {},
+              },
+            },
+          ],
+        },
+      },
+      Response: {
+        Response: {
+          Status: "Feasible",
+          Orders: [],
+          Couriers: [],
+        },
+      },
+    };
+
+    const result = buildStateFromCpSatLog(payload);
+    const solverInput = result.solverInput;
+
+    expect(solverInput).toBeTruthy();
+    expect(solverInput?.tau).toEqual([
+      [0, 10, 12],
+      [9, 0, 7],
+      [11, 8, 0],
+    ]);
+    expect(solverInput?.order_created_offset).toHaveLength(2);
+    expect(solverInput?.order_ready_offset).toHaveLength(2);
+    expect(solverInput?.courier_available_offset).toHaveLength(1);
+    expect(solverInput?.meta.pointInternalIds).toHaveLength(3);
+    expect(solverInput?.meta.orderInternalIds).toHaveLength(2);
+    expect(solverInput?.meta.orderExternalIds).toEqual(["o1", "o2"]);
+    expect(solverInput?.meta.courierExternalIds).toEqual(["c1"]);
+    expect(solverInput?.meta.pointsLatLon).toEqual([
+      [54.197036, 37.657817],
+      [54.176731, 37.633553],
+      [54.18507385, 37.64756775],
+    ]);
+  });
+
   it("does not use RequestDto order coordinates as fallback", () => {
     const payload = {
       Payload: {
