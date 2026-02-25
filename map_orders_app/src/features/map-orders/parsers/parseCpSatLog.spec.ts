@@ -410,6 +410,62 @@ describe("parseCpSatLog", () => {
     expect(depotPoint?.lon).toBe(37.657817);
   });
 
+  it("passes through Payload.Request.RequestDto without normalization", () => {
+    const requestDto = {
+      inputs: [
+        {
+          data: {
+            environment: "p",
+            namespace: "pizza-delivery",
+            cluster: "yandex",
+            current_timestamp_utc: "2026-02-14T17:52:30.1029596Z",
+            travel_time_matrix_minutes: [
+              [0, 1],
+              [1, 0],
+            ],
+            orders: [
+              {
+                order_id: "o1",
+                boxes_count: 1,
+                created_at_utc: "2026-02-14T17:15:20.0000000Z",
+                expected_ready_at_utc: "2026-02-14T17:52:30.1029596Z",
+              },
+            ],
+            couriers: [
+              {
+                courier_id: "c1",
+                box_capacity: 3,
+                expected_courier_return_at_utc: "2026-02-14T17:52:30.1029596Z",
+              },
+            ],
+            optimization_weights: {},
+            solver_settings: { time_limit_seconds: 11 },
+          },
+        },
+      ],
+    };
+
+    const payload = {
+      Payload: {
+        Request: {
+          RequestDto: requestDto,
+        },
+        Response: {
+          Response: {
+            Status: "Feasible",
+            Orders: [{ OrderId: "o1", IsSkipped: false, IsCert: false }],
+            Couriers: [],
+          },
+        },
+      },
+    };
+
+    const result = buildStateFromCpSatLog(payload);
+
+    expect(result.solverInput?.request).toBe(requestDto);
+    expect(result.solverInput?.request).toEqual(requestDto);
+  });
+
   it("uses AddressV2 coordinates for actual orders in import", () => {
     const payload = {
       Payload: {
