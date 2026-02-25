@@ -81,6 +81,37 @@ const extractSolverErrorMessage = (error: unknown): string => {
   }
 };
 
+const extractDomainSolverErrorMessage = (response: SolverSolveResponse): string | null => {
+  const normalizedStatus = String(
+    response.cpSatStatus ?? (response.domainResponse as { status?: unknown } | undefined)?.status ?? "",
+  )
+    .trim()
+    .toLowerCase();
+  if (normalizedStatus !== "error") {
+    return null;
+  }
+
+  const domain = response.domainResponse as
+    | {
+      error_message?: unknown;
+      error_type?: unknown;
+      error?: unknown;
+      message?: unknown;
+    }
+    | undefined;
+  const rawMessage =
+    domain?.error_message
+    ?? domain?.error
+    ?? domain?.message;
+  if (typeof rawMessage === "string" && rawMessage.trim().length > 0) {
+    return rawMessage;
+  }
+  if (typeof domain?.error_type === "string" && domain.error_type.trim().length > 0) {
+    return `Solver вернул status=error (${domain.error_type})`;
+  }
+  return "Solver вернул status=error";
+};
+
 const normalizeUtcIso = (value?: string): string | null => {
   if (!value) {
     return null;
@@ -442,6 +473,12 @@ const SolverControlsWidget = () => {
     try {
       dispatch(setUiState({ isSolving: true }));
       const response = await solve({ solverInput }).unwrap();
+      const domainErrorMessage = extractDomainSolverErrorMessage(response);
+      if (domainErrorMessage) {
+        dispatch(setSolverResult(response));
+        dispatch(setUiState({ lastSolverResultSignature: undefined }));
+        throw new Error(domainErrorMessage);
+      }
       dispatch(setSolverResult(response));
       dispatch(applyComputedFields(response.ordersComputed));
       dispatch(setUiState({ lastSolverResultSignature: currentSignature }));
