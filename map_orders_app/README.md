@@ -43,10 +43,23 @@ MAP_ORDERS_STATE_PATH=./data/map_orders_state.json
 
 ### OSRM
 
+OSRM **не поднимается автоматически** при `yarn dev` — его нужно запускать отдельно.
+
+Запуск из корня репозитория:
+
 ```bash
-cd ../docker/osrm
-./download_and_prepare.sh   # подготовка карт (один раз)
-docker compose up            # сервис слушает 5563 порт
+docker compose -f docker/osrm/docker-compose.yml up --build
+```
+
+Что важно:
+- при первом запуске контейнер сам скачает OSM-данные и подготовит граф (это может занять заметное время);
+- сервис доступен на `http://localhost:5563`;
+- проверка готовности: `curl http://localhost:5563/health`.
+
+Остановка:
+
+```bash
+docker compose -f docker/osrm/docker-compose.yml down
 ```
 
 ### CP-SAT solver
