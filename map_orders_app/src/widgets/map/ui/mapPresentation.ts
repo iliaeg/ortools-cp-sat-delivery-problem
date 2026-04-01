@@ -18,6 +18,20 @@ export interface PointTooltipContent {
   lines: TooltipLine[];
 }
 
+export interface TooltipLineParts {
+  label: string;
+  value: string | null;
+}
+
+interface BuildReadyNowOrderIdsParams {
+  showReadyNowOrders: boolean;
+  points: DeliveryPoint[];
+  baseTimestampMs?: number | null;
+  solverOrderInternalIds?: string[] | null;
+  solverOrderReadyOffset?: number[] | null;
+  toleranceMs?: number;
+}
+
 const parseTimeToMinutes = (time: string | undefined): number | null => {
   if (!time || !/^\d{2}:\d{2}:\d{2}$/.test(time)) {
     return null;
@@ -37,6 +51,100 @@ const getPreparationWaitMinutes = (point: DeliveryPoint, currentTime?: string): 
     return null;
   }
   return diff;
+};
+
+const parseUtcTimeParts = (time: string): [number, number, number] | null => {
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return null;
+  }
+  const [hh, mm, ss] = time.split(":").map((value) => Number.parseInt(value, 10) || 0);
+  return [hh, mm, ss];
+};
+
+const alignTimeToClosestDay = (baseTimestampMs: number, hh: number, mm: number, ss: number): number => {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const halfDayMs = dayMs / 2;
+  const aligned = new Date(baseTimestampMs);
+  aligned.setUTCHours(hh, mm, ss, 0);
+  let alignedMs = aligned.getTime();
+  const diff = alignedMs - baseTimestampMs;
+  if (diff > halfDayMs) {
+    alignedMs -= dayMs;
+  } else if (diff < -halfDayMs) {
+    alignedMs += dayMs;
+  }
+  return alignedMs;
+};
+
+export const buildReadyNowOrderIds = ({
+  showReadyNowOrders,
+  points,
+  baseTimestampMs,
+  solverOrderInternalIds,
+  solverOrderReadyOffset,
+  toleranceMs = 15_000,
+}: BuildReadyNowOrderIdsParams): Set<string> => {
+  if (!showReadyNowOrders) {
+    return new Set<string>();
+  }
+
+  const ids = Array.isArray(solverOrderInternalIds) ? solverOrderInternalIds : [];
+  const offsets = Array.isArray(solverOrderReadyOffset) ? solverOrderReadyOffset : [];
+  if (ids.length > 0 && offsets.length > 0) {
+    const result = new Set<string>();
+    const pointIdSet = new Set(
+      points
+        .filter((point) => point.kind === "order")
+        .map((point) => point.internalId),
+    );
+    let matchedPointIds = 0;
+    const limit = Math.min(ids.length, offsets.length);
+    for (let index = 0; index < limit; index += 1) {
+      const internalId = ids[index];
+      const offset = offsets[index];
+      if (
+        typeof internalId === "string"
+        && internalId.trim().length > 0
+        && pointIdSet.has(internalId)
+      ) {
+        matchedPointIds += 1;
+      }
+      if (
+        typeof internalId === "string"
+        && internalId.trim().length > 0
+        && pointIdSet.has(internalId)
+        && typeof offset === "number"
+        && Number.isFinite(offset)
+        && offset <= 0
+      ) {
+        result.add(internalId);
+      }
+    }
+    if (matchedPointIds > 0) {
+      return result;
+    }
+  }
+
+  if (typeof baseTimestampMs !== "number" || Number.isNaN(baseTimestampMs)) {
+    return new Set<string>();
+  }
+
+  const result = new Set<string>();
+  points.forEach((point) => {
+    if (point.kind !== "order" || !point.readyAt) {
+      return;
+    }
+    const parts = parseUtcTimeParts(point.readyAt);
+    if (!parts) {
+      return;
+    }
+    const [hh, mm, ss] = parts;
+    const readyTimestamp = alignTimeToClosestDay(baseTimestampMs, hh, mm, ss);
+    if (!Number.isNaN(readyTimestamp) && readyTimestamp <= baseTimestampMs + toleranceMs) {
+      result.add(point.internalId);
+    }
+  });
+  return result;
 };
 
 export const formatPointLabel = (point: DeliveryPoint): string => {
@@ -103,6 +211,23 @@ export const buildPointTooltipContent = (
     title: formatPointLabel(point),
     coordinates: `${point.lat.toFixed(5)}, ${point.lon.toFixed(5)}`,
     lines,
+  };
+};
+
+export const splitTooltipLineText = (text: string): TooltipLineParts => {
+  const separatorIndex = text.indexOf(":");
+  if (separatorIndex <= 0) {
+    return {
+      label: text.trim(),
+      value: null,
+    };
+  }
+
+  const label = text.slice(0, separatorIndex).trim();
+  const value = text.slice(separatorIndex + 1).trim();
+  return {
+    label,
+    value: value.length > 0 ? value : null,
   };
 };
 

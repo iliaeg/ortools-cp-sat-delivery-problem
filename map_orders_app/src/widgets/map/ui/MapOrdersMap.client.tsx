@@ -81,9 +81,11 @@ import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
 import {
+  buildReadyNowOrderIds,
   buildPointTooltipContent,
   formatPointLabel,
   isPointReadyNow,
+  splitTooltipLineText,
 } from "./mapPresentation";
 
 const LIGHT_TILE_LAYER = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
@@ -121,6 +123,30 @@ type ClusterGeometry = {
   markerPositionsById: Map<string, [number, number]>;
   clusters: MarkerClusterInfo[];
 };
+
+type MapScreenshoterResult = HTMLCanvasElement | { canvas?: HTMLCanvasElement | null } | null;
+
+interface MapScreenshoterControl extends L.Control {
+  takeScreen: (
+    mode: "canvas",
+    options: { mimeType: string; quality: number },
+  ) => Promise<MapScreenshoterResult>;
+  _container?: HTMLElement;
+}
+
+interface LeafletWithMapScreenshoter {
+  simpleMapScreenshoter?: (options: {
+    mimeType: string;
+    quality: number;
+    position: string;
+  }) => MapScreenshoterControl;
+}
+
+type NavigatorClipboardWithWrite = Clipboard & {
+  write?: (items: ClipboardItem[]) => Promise<void>;
+};
+
+const leafletWithMapScreenshoter = L as unknown as LeafletWithMapScreenshoter;
 
 const computeClusterGeometry = (points: DeliveryPoint[]): ClusterGeometry => {
   const markerPositionsById = new Map<string, [number, number]>();
@@ -258,7 +284,7 @@ const MapOrdersMapClient = ({
   const viewportLocked = useAppSelector(selectViewportLocked);
   const routeSegments = useAppSelector(selectRouteSegments);
   const allowedArcsByKey = useAppSelector(selectAllowedArcsByKey);
-  const { manualTauText, useManualTau } = useAppSelector(selectControlTexts);
+  const { manualTauText } = useAppSelector(selectControlTexts);
   const clusterGeometry = useMemo(() => computeClusterGeometry(points), [points]);
   const { markerPositionsById, clusters: markerClusters } = clusterGeometry;
   const solverBaseIso =
@@ -311,31 +337,20 @@ const MapOrdersMapClient = ({
     departingWindowMinutes,
   ]);
   const readyNowOrderIds = useMemo(() => {
-    if (!showReadyNowOrders || !baseTimestamp) {
-      return new Set<string>();
-    }
-    const windowMs = 15_000;
-    const result = new Set<string>();
-    points.forEach((point) => {
-      if (point.kind !== "order") {
-        return;
-      }
-      if (!point.readyAt || !/^\d{2}:\d{2}:\d{2}$/.test(point.readyAt)) {
-        return;
-      }
-      const [hh, mm, ss] = point.readyAt.split(":").map((value) => Number.parseInt(value, 10) || 0);
-      const aligned = new Date(baseTimestamp);
-      aligned.setUTCHours(hh, mm, ss, 0);
-      const readyTimestamp = aligned.getTime();
-      if (Number.isNaN(readyTimestamp)) {
-        return;
-      }
-      if (Math.abs(readyTimestamp - baseTimestamp) <= windowMs) {
-        result.add(point.internalId);
-      }
+    return buildReadyNowOrderIds({
+      showReadyNowOrders,
+      points,
+      baseTimestampMs: baseTimestamp,
+      solverOrderInternalIds: solverInput?.meta?.orderInternalIds,
+      solverOrderReadyOffset: solverInput?.order_ready_offset,
     });
-    return result;
-  }, [showReadyNowOrders, baseTimestamp, points]);
+  }, [
+    showReadyNowOrders,
+    points,
+    baseTimestamp,
+    solverInput?.meta?.orderInternalIds,
+    solverInput?.order_ready_offset,
+  ]);
 
   const parsedManualTau = useMemo(() => {
     const text = manualTauText?.trim();
@@ -373,20 +388,6 @@ const MapOrdersMapClient = ({
     }
   }, [manualTauText, points]);
 
-  const pointIndexByInternalId = useMemo(() => {
-    const ids = solverInput?.meta?.pointInternalIds;
-    if (!ids || !Array.isArray(ids)) {
-      return null;
-    }
-    const map = new Map<string, number>();
-    ids.forEach((id, index) => {
-      if (id) {
-        map.set(id, index);
-      }
-    });
-    return map;
-  }, [solverInput?.meta?.pointInternalIds]);
-
   const getTravelTimeBetweenPoints = useCallback(
     (fromId: string, toId: string): number | undefined => {
       if (!parsedManualTau) {
@@ -415,7 +416,7 @@ const MapOrdersMapClient = ({
   const [isCopying, setIsCopying] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
-  const screenshoterRef = useRef<any>(null);
+  const screenshoterRef = useRef<MapScreenshoterControl | null>(null);
   const historyBackEnabled = Boolean(canHistoryBack);
   const historyForwardEnabled = Boolean(canHistoryForward);
   const arrivalMetric =
@@ -445,20 +446,19 @@ const MapOrdersMapClient = ({
 
   useEffect(() => {
     const mapInstance = mapRef.current;
-    if (!mapInstance || !(L as any).simpleMapScreenshoter) {
+    if (!mapInstance || !leafletWithMapScreenshoter.simpleMapScreenshoter) {
       return;
     }
 
     if (!screenshoterRef.current) {
-      const screenshoter = (L as any)
-        .simpleMapScreenshoter({
+      const screenshoter = leafletWithMapScreenshoter.simpleMapScreenshoter({
           mimeType: "image/png",
           quality: 1,
           position: "topright",
         })
         .addTo(mapInstance);
 
-      const controlContainer = (screenshoter as any)?._container as HTMLElement | undefined;
+      const controlContainer = screenshoter._container;
       if (controlContainer) {
         controlContainer.style.display = "none";
       }
@@ -634,10 +634,6 @@ const MapOrdersMapClient = ({
       }
       return next;
     });
-  }, []);
-
-  const handleMeasureClear = useCallback(() => {
-    setMeasureSelection(null);
   }, []);
 
   const polylines = useMemo(
@@ -1023,15 +1019,14 @@ const MapOrdersMapClient = ({
                       let screenshoter = screenshoterRef.current;
                       if (!screenshoter || typeof screenshoter.takeScreen !== "function") {
                         const mapInstance = mapRef.current;
-                        if (mapInstance && (L as any).simpleMapScreenshoter) {
-                          screenshoter = (L as any)
-                            .simpleMapScreenshoter({
+                        if (mapInstance && leafletWithMapScreenshoter.simpleMapScreenshoter) {
+                          screenshoter = leafletWithMapScreenshoter.simpleMapScreenshoter({
                               mimeType: "image/png",
                               quality: 1,
                               position: "topright",
                             })
                             .addTo(mapInstance);
-                          const controlContainer = (screenshoter as any)?._container as HTMLElement | undefined;
+                          const controlContainer = screenshoter._container;
                           if (controlContainer) {
                             controlContainer.style.display = "none";
                           }
@@ -1068,16 +1063,18 @@ const MapOrdersMapClient = ({
                       }
                       let copied = false;
                       const hasNavigatorClipboard = typeof navigator !== "undefined" && navigator.clipboard;
+                      const clipboard = hasNavigatorClipboard
+                        ? (navigator.clipboard as NavigatorClipboardWithWrite)
+                        : null;
 
                       if (
-                        hasNavigatorClipboard
-                        && typeof (navigator.clipboard as any).write === "function"
-                        && typeof (window as any).ClipboardItem === "function"
+                        clipboard
+                        && typeof clipboard.write === "function"
+                        && typeof ClipboardItem !== "undefined"
                       ) {
                         try {
-                          const ClipboardItemCtor = (window as any).ClipboardItem;
-                          await (navigator.clipboard as any).write([
-                            new ClipboardItemCtor({ "image/png": blob }),
+                          await clipboard.write([
+                            new ClipboardItem({ "image/png": blob }),
                           ]);
                           copied = true;
                         } catch (clipboardError) {
@@ -1514,7 +1511,6 @@ const MarkersLayerComponent = ({
 
       result.push(
         <Circle
-          // eslint-disable-next-line react/no-array-index-key
           key={`cluster-${index}-${centerLat}-${centerLon}`}
           center={cluster.center}
           radius={radiusMeters}
@@ -1562,25 +1558,40 @@ const MarkersLayerComponent = ({
               </strong>
               <br />
               {tooltip.coordinates}
-              {tooltip.lines.map((line, index) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <span key={`${point.internalId}-tooltip-${index}`}>
-                  <br />
-                  <span
-                    style={{
-                      fontWeight: line.emphasized ? 600 : undefined,
-                      color:
-                        line.tone === "skip"
-                          ? "#3a1b67"
-                          : line.tone === "cert"
-                            ? "#b71c1c"
-                            : undefined,
-                    }}
-                  >
-                    {line.text}
+              {tooltip.lines.map((line, index) => {
+                const parts = splitTooltipLineText(line.text);
+                return (
+                  <span key={`${point.internalId}-tooltip-${index}`}>
+                    <br />
+                    <span
+                      style={{
+                        color:
+                          line.tone === "skip"
+                            ? "#3a1b67"
+                            : line.tone === "cert"
+                              ? "#b71c1c"
+                              : undefined,
+                      }}
+                    >
+                      {!line.emphasized ? (
+                        line.text
+                      ) : parts.value !== null ? (
+                        <>
+                          {parts.label}
+                          {": "}
+                          <span style={{ fontWeight: 600 }}>
+                            {parts.value}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontWeight: 600 }}>
+                          {parts.label}
+                        </span>
+                      )}
+                    </span>
                   </span>
-                </span>
-              ))}
+                );
+              })}
             </div>
           </Tooltip>
         </Marker>,
@@ -1677,7 +1688,7 @@ const drawOverlay = (
   }
 
   if (statusLabel) {
-    const { width, height } = measureCard("Статус", statusLabel);
+    const { width } = measureCard("Статус", statusLabel);
     const x = canvas.width - width - margin;
     const y = margin;
     drawCard(x, y, "Статус", statusLabel);

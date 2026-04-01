@@ -1,5 +1,10 @@
 import type { DeliveryPoint } from "@/shared/types/points";
-import { buildMetricsCards, buildPointTooltipContent, isPointReadyNow } from "./mapPresentation";
+import {
+  buildMetricsCards,
+  buildPointTooltipContent,
+  buildReadyNowOrderIds,
+  isPointReadyNow,
+} from "./mapPresentation";
 
 describe("mapPresentation", () => {
   it("builds CP-SAT cards with courier availability first and ratios for used/total", () => {
@@ -76,5 +81,128 @@ describe("mapPresentation", () => {
     expect(isPointReadyNow(point, false, new Set(["order-1"]))).toBe(false);
     expect(isPointReadyNow(point, true, new Set(["order-1"]))).toBe(true);
     expect(isPointReadyNow(point, true, new Set(["another"]))).toBe(false);
+  });
+
+  it("builds ready-now set from solver offsets when they are available", () => {
+    const points: DeliveryPoint[] = [
+      {
+        internalId: "o1",
+        id: "o1",
+        kind: "order",
+        seq: 1,
+        lat: 0,
+        lon: 0,
+        boxes: 1,
+        createdAt: "00:00:00",
+        readyAt: "23:59:59",
+      },
+      {
+        internalId: "o2",
+        id: "o2",
+        kind: "order",
+        seq: 2,
+        lat: 0,
+        lon: 0,
+        boxes: 1,
+        createdAt: "00:00:00",
+        readyAt: "23:59:59",
+      },
+    ];
+
+    const readyIds = buildReadyNowOrderIds({
+      showReadyNowOrders: true,
+      points,
+      baseTimestampMs: Date.parse("2026-04-01T18:50:11.692Z"),
+      solverOrderInternalIds: ["o1", "o2"],
+      solverOrderReadyOffset: [-2, 10],
+    });
+
+    expect([...readyIds]).toEqual(["o1"]);
+  });
+
+  it("falls back to readyAt when solver ids do not match map points", () => {
+    const points: DeliveryPoint[] = [
+      {
+        internalId: "real-order",
+        id: "real-order",
+        kind: "order",
+        seq: 1,
+        lat: 0,
+        lon: 0,
+        boxes: 1,
+        createdAt: "00:00:00",
+        readyAt: "18:49:00",
+      },
+    ];
+
+    const readyIds = buildReadyNowOrderIds({
+      showReadyNowOrders: true,
+      points,
+      baseTimestampMs: Date.parse("2026-04-01T18:50:11.692Z"),
+      solverOrderInternalIds: ["foreign-id"],
+      solverOrderReadyOffset: [-100],
+    });
+
+    expect(readyIds.has("real-order")).toBe(true);
+  });
+
+  it("falls back to readyAt time and treats already-ready orders as ready now", () => {
+    const points: DeliveryPoint[] = [
+      {
+        internalId: "past",
+        id: "past",
+        kind: "order",
+        seq: 1,
+        lat: 0,
+        lon: 0,
+        boxes: 1,
+        createdAt: "00:00:00",
+        readyAt: "18:49:00",
+      },
+      {
+        internalId: "future",
+        id: "future",
+        kind: "order",
+        seq: 2,
+        lat: 0,
+        lon: 0,
+        boxes: 1,
+        createdAt: "00:00:00",
+        readyAt: "18:55:00",
+      },
+    ];
+
+    const readyIds = buildReadyNowOrderIds({
+      showReadyNowOrders: true,
+      points,
+      baseTimestampMs: Date.parse("2026-04-01T18:50:11.692Z"),
+    });
+
+    expect(readyIds.has("past")).toBe(true);
+    expect(readyIds.has("future")).toBe(false);
+  });
+
+  it("handles midnight boundary in readyAt fallback", () => {
+    const points: DeliveryPoint[] = [
+      {
+        internalId: "midnight-ready",
+        id: "midnight-ready",
+        kind: "order",
+        seq: 1,
+        lat: 0,
+        lon: 0,
+        boxes: 1,
+        createdAt: "00:00:00",
+        readyAt: "23:58:00",
+      },
+    ];
+
+    const readyIds = buildReadyNowOrderIds({
+      showReadyNowOrders: true,
+      points,
+      baseTimestampMs: Date.parse("2026-04-02T00:05:00.000Z"),
+    });
+
+    expect(readyIds.has("midnight-ready")).toBe(true);
   });
 });
