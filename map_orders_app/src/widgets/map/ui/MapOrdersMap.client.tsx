@@ -80,6 +80,11 @@ import DarkModeIcon from "@mui/icons-material/DarkMode";
 import type { RoutesSegmentDto } from "@/shared/types/solver";
 import type { DeliveryPoint } from "@/shared/types/points";
 import { getRouteColor } from "@/shared/constants/routes";
+import {
+  buildPointTooltipContent,
+  formatPointLabel,
+  isPointReadyNow,
+} from "./mapPresentation";
 
 const LIGHT_TILE_LAYER = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 const DARK_TILE_LAYER = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png";
@@ -98,17 +103,6 @@ const EDIT_OPTIONS = {
   edit: true,
   remove: true,
 } as unknown as EditControlProps["edit"];
-
-const labelForPoint = (point: DeliveryPoint) => {
-  if (point.kind === "depot") {
-    return "Депо";
-  }
-  const numberLabel =
-    point.orderNumber !== undefined && point.orderNumber !== null
-      ? String(point.orderNumber)
-      : point.id || point.internalId.slice(0, 6);
-  return `Заказ ${numberLabel}`;
-};
 
 type MarkerWithInternalId = L.Marker & { options: L.MarkerOptions & { internalId?: string } };
 
@@ -223,27 +217,6 @@ const getArcKeyForPoint = (point?: DeliveryPoint | null): string | null => {
     return trimmed;
   }
   return point.internalId;
-};
-
-const parseTimeToMinutes = (time: string | undefined): number | null => {
-  if (!time || !/^\d{2}:\d{2}:\d{2}$/.test(time)) {
-    return null;
-  }
-  const [hh, mm, ss] = time.split(":").map((value) => Number.parseInt(value, 10) || 0);
-  return hh * 60 + mm + ss / 60;
-};
-
-const getPreparationWaitMinutes = (point: DeliveryPoint, currentTime?: string): number | null => {
-  const readyMinutes = parseTimeToMinutes(point.readyAt);
-  const currentMinutes = parseTimeToMinutes(currentTime);
-  if (readyMinutes === null || currentMinutes === null) {
-    return null;
-  }
-  const diff = readyMinutes - currentMinutes;
-  if (!Number.isFinite(diff) || diff < 0) {
-    return null;
-  }
-  return diff;
 };
 
 export interface MapOrdersMapProps {
@@ -1018,14 +991,14 @@ const MapOrdersMapClient = ({
                     {measureSelection?.from && !measureSelection?.to && (
                       <>
                         Начало:{" "}
-                        <strong>{labelForPoint(measureSelection.from)}</strong>
+                        <strong>{formatPointLabel(measureSelection.from)}</strong>
                       </>
                     )}
                     {measureSelection?.from && measureSelection?.to && (
                       <>
-                        <strong>{labelForPoint(measureSelection.from)}</strong>
+                        <strong>{formatPointLabel(measureSelection.from)}</strong>
                         {" \u2192 "}
-                        <strong>{labelForPoint(measureSelection.to)}</strong>
+                        <strong>{formatPointLabel(measureSelection.to)}</strong>
                         {" — "}
                         {typeof measureSelection.durationMin === "number"
                           ? `${measureSelection.durationMin} мин`
@@ -1441,7 +1414,7 @@ const MapOrdersMapClient = ({
                   disabled={importLogDisabled}
                   startIcon={importLogLoading ? <CircularProgress size={16} /> : undefined}
                 >
-                  {importLogLoading ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
+                  {importLogLoading ? "Импортируем..." : "Загрузить Capacity Log"}
                 </Button>
               ) : null}
               {onHistoryBack ? (
@@ -1559,7 +1532,8 @@ const MarkersLayerComponent = ({
     points.forEach((point) => {
       const position = markerPositionsById.get(point.internalId) ?? [point.lat, point.lon];
       const [markerLat, markerLon] = position;
-      const isReadyNow = showReadyNowOrders && readyNowOrderIds.has(point.internalId);
+      const isReadyNow = isPointReadyNow(point, showReadyNowOrders, readyNowOrderIds);
+      const tooltip = buildPointTooltipContent(point, currentTime);
 
       result.push(
         <Marker
@@ -1584,63 +1558,29 @@ const MarkersLayerComponent = ({
           <Tooltip direction="top" offset={[0, -32]}>
             <div style={{ minWidth: 160 }}>
               <strong>
-                {labelForPoint(point)}
+                {tooltip.title}
               </strong>
               <br />
-              {point.lat.toFixed(5)}, {point.lon.toFixed(5)}
-              {point.kind === "order" ? (
-                <>
+              {tooltip.coordinates}
+              {tooltip.lines.map((line, index) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <span key={`${point.internalId}-tooltip-${index}`}>
                   <br />
-                  Коробки: {point.boxes}
-                  <br />
-                  Создан: {point.createdAt}
-                  <br />
-                  Готов: {point.readyAt}
-                  {(() => {
-                    const prepWaitMin = getPreparationWaitMinutes(point, currentTime);
-                    return typeof prepWaitMin === "number" ? (
-                      <>
-                        <br />
-                        Остаток ВПЗ:{" "}
-                        <span style={{ fontWeight: 600 }}>{Math.round(prepWaitMin)} мин</span>
-                      </>
-                    ) : null;
-                  })()}
-                  {typeof point.courierWaitMin === "number" ? (
-                    <>
-                      <br />
-                      Время ожидания отправления:{" "}
-                      <span style={{ fontWeight: 600 }}>{Math.round(point.courierWaitMin)} мин</span>
-                    </>
-                  ) : null}
-                </>
-              ) : null}
-              {typeof point.skip === "number" && point.skip > 0 ? (
-                <>
-                  <br />
-                  <span style={{ color: "#3a1b67", fontWeight: 600 }}>Пропуск</span>
-                </>
-              ) : null}
-              {typeof point.cert === "number" && point.cert > 0 ? (
-                <>
-                  <br />
-                  <span style={{ color: "#b71c1c", fontWeight: 600 }}>Сертификат</span>
-                </>
-              ) : null}
-              {typeof point.currentC2eMin === "number" ? (
-                <>
-                  <br />
-                  Текущий C2E:{" "}
-                  <span style={{ fontWeight: 600 }}>{Math.round(point.currentC2eMin)} мин</span>
-                </>
-              ) : null}
-              {typeof point.plannedC2eMin === "number" ? (
-                <>
-                  <br />
-                  Плановый C2E:{" "}
-                  <span style={{ fontWeight: 600 }}>{Math.round(point.plannedC2eMin)} мин</span>
-                </>
-              ) : null}
+                  <span
+                    style={{
+                      fontWeight: line.emphasized ? 600 : undefined,
+                      color:
+                        line.tone === "skip"
+                          ? "#3a1b67"
+                          : line.tone === "cert"
+                            ? "#b71c1c"
+                            : undefined,
+                    }}
+                  >
+                    {line.text}
+                  </span>
+                </span>
+              ))}
             </div>
           </Tooltip>
         </Marker>,

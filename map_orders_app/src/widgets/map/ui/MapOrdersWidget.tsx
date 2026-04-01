@@ -41,9 +41,14 @@ import {
   CpSatLogParseError,
   parseCpSatLogPayload,
 } from "@/features/map-orders/parsers/parseCpSatLog";
+import {
+  buildStateFromCapacityLog,
+  parseCapacityLogPayload,
+} from "@/features/map-orders/parsers/parseCapacityLog";
 import type { MapOrdersPersistedState } from "@/shared/types/points";
 import { buildHistorySnapshot } from "@/features/map-orders/lib/historySnapshot";
 import type { DeliveryPoint } from "@/shared/types/points";
+import { buildMetricsCards } from "./mapPresentation";
 
 const detectImportKind = (content: unknown): "case" | "solver_input" => {
   if (
@@ -81,7 +86,8 @@ const MapOrdersWidget = () => {
   const [importSolverInputMutation, { isLoading: isImportingSolverInput }] =
     useImportSolverInputMutation();
   const [importError, setImportError] = useState<string | null>(null);
-  const [isImportingCpSat, setIsImportingCpSat] = useState(false);
+  const [isImportingCapacityLog, setIsImportingCapacityLog] = useState(false);
+  const [isImportingCpSatLegacy, setIsImportingCpSatLegacy] = useState(false);
 
   const isBusy = useMemo(
     () =>
@@ -89,13 +95,15 @@ const MapOrdersWidget = () => {
       isExportingCase ||
       isImportingCase ||
       isImportingSolverInput ||
-      isImportingCpSat,
+      isImportingCapacityLog ||
+      isImportingCpSatLegacy,
     [
       isExportingGeo,
       isExportingCase,
       isImportingCase,
       isImportingSolverInput,
-      isImportingCpSat,
+      isImportingCapacityLog,
+      isImportingCpSatLegacy,
     ],
   );
 
@@ -111,82 +119,7 @@ const MapOrdersWidget = () => {
   const canHistoryForward = historyIndex >= 0 && historyIndex < historyEntries.length - 1;
 
   const metricsCards = useMemo(() => {
-    if (!cpSatMetrics) {
-      return [] as Array<{ label: string; value: string }>;
-    }
-    const items: Array<{ label: string; value: string }> = [];
-    const {
-      totalOrders,
-      assignedOrders,
-      totalCouriers,
-      assignedCouriers,
-      objectiveValue,
-      certCount,
-      skipCount,
-    } = cpSatMetrics;
-
-    const courierWaitValues: number[] = [];
-    const couriersText = mapOrdersState.data.couriersText;
-    if (typeof couriersText === "string" && couriersText.trim().length > 0) {
-      try {
-        const parsed = JSON.parse(couriersText) as { courier_available_offset?: unknown };
-        const offsets = parsed.courier_available_offset;
-        if (Array.isArray(offsets)) {
-          offsets.forEach((value) => {
-            if (typeof value === "number" && Number.isFinite(value)) {
-              courierWaitValues.push(value);
-            }
-          });
-        }
-      } catch {
-        // ignore parse errors
-      }
-    }
-    courierWaitValues.sort((a, b) => a - b);
-    const courierWaitRounded: number[] = courierWaitValues.map((value) => Math.round(value));
-
-    const formatRatio = (
-      count: number | undefined,
-      total: number | undefined,
-    ): string => {
-      if (total !== undefined) {
-        return `${count ?? 0} / ${total}`;
-      }
-      if (count !== undefined) {
-        return String(count);
-      }
-      return "-";
-    };
-
-    if (totalOrders !== undefined || assignedOrders !== undefined) {
-      items.push({ label: "Заказы", value: formatRatio(assignedOrders, totalOrders) });
-    }
-    if (totalCouriers !== undefined || assignedCouriers !== undefined) {
-      items.push({ label: "Курьеры", value: formatRatio(assignedCouriers, totalCouriers) });
-      if (courierWaitRounded.length > 0) {
-        items.push({
-          label: "Прибытие курьеров",
-          value: courierWaitRounded.join(" • "),
-        });
-      }
-    }
-    if (objectiveValue !== undefined) {
-      items.push({ label: "Целевая функция", value: String(objectiveValue) });
-    }
-    if (certCount !== undefined || totalOrders !== undefined) {
-      items.push({ label: "Сертификаты", value: formatRatio(certCount, totalOrders) });
-    }
-    if (skipCount !== undefined || totalOrders !== undefined) {
-      items.push({ label: "Пропуски", value: formatRatio(skipCount, totalOrders) });
-    }
-
-    const arrivalIndex = items.findIndex((item) => item.label === "Прибытие курьеров");
-    if (arrivalIndex > 0) {
-      const [arrival] = items.splice(arrivalIndex, 1);
-      items.unshift(arrival);
-    }
-
-    return items;
+    return buildMetricsCards(cpSatMetrics, mapOrdersState.data.couriersText);
   }, [cpSatMetrics, mapOrdersState.data.couriersText]);
 
   const historyInitialized = useRef(false);
@@ -287,9 +220,40 @@ const MapOrdersWidget = () => {
     [runImport],
   );
 
-  const handleImportCpSatLog = useCallback(async () => {
+  const handleImportCapacityLog = useCallback(async () => {
     setImportError(null);
-    setIsImportingCpSat(true);
+    setIsImportingCapacityLog(true);
+    try {
+      if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") {
+        throw new Error("Копирование из буфера обмена недоступно");
+      }
+      const clipboardText = await navigator.clipboard.readText();
+      if (!clipboardText.trim()) {
+        throw new Error("Буфер обмена пуст");
+      }
+      const parsedPayload = parseCapacityLogPayload(clipboardText);
+      const nextState = buildStateFromCapacityLog(parsedPayload);
+      dispatch(setPersistedState(nextState));
+      dispatch(setUiState({ warnings: [], error: undefined }));
+      dispatch(pushLog({ state: buildSnapshot(nextState), timestamp: Date.now() }));
+    } catch (error) {
+      let message: string;
+      if (error instanceof CpSatLogParseError) {
+        message = error.message;
+      } else if (error instanceof SyntaxError) {
+        message = "Невалидный JSON";
+      } else {
+        message = (error as Error).message;
+      }
+      setImportError(`Ошибка импорта Capacity Log: ${message}`);
+    } finally {
+      setIsImportingCapacityLog(false);
+    }
+  }, [dispatch, buildSnapshot]);
+
+  const handleImportCpSatLegacyLog = useCallback(async () => {
+    setImportError(null);
+    setIsImportingCpSatLegacy(true);
     try {
       if (!navigator.clipboard || typeof navigator.clipboard.readText !== "function") {
         throw new Error("Копирование из буфера обмена недоступно");
@@ -312,9 +276,9 @@ const MapOrdersWidget = () => {
       } else {
         message = (error as Error).message;
       }
-      setImportError(`Ошибка импорта CP-SAT: ${message}`);
+      setImportError(`Ошибка импорта Legacy CP-SAT: ${message}`);
     } finally {
-      setIsImportingCpSat(false);
+      setIsImportingCpSatLegacy(false);
     }
   }, [dispatch, buildSnapshot]);
 
@@ -411,9 +375,9 @@ const MapOrdersWidget = () => {
         statusLabel={cpSatStatusLabel}
         metrics={metricsCards}
         currentTime={currentTime}
-        onImportLogClick={handleImportCpSatLog}
+        onImportLogClick={handleImportCapacityLog}
         importLogDisabled={isBusy}
-        importLogLoading={isImportingCpSat}
+        importLogLoading={isImportingCapacityLog}
         onHistoryBack={handleHistoryBack}
         onHistoryForward={handleHistoryForward}
         canHistoryBack={canHistoryBack}
@@ -439,11 +403,19 @@ const MapOrdersWidget = () => {
         </Button>
         <Button
           variant="contained"
-          onClick={handleImportCpSatLog}
+          onClick={handleImportCapacityLog}
           disabled={isBusy}
-          startIcon={isImportingCpSat ? <CircularProgress size={16} /> : undefined}
+          startIcon={isImportingCapacityLog ? <CircularProgress size={16} /> : undefined}
         >
-          {isImportingCpSat ? "Импортируем..." : "Загрузить Enriched CP-SAT Log"}
+          {isImportingCapacityLog ? "Импортируем..." : "Загрузить Capacity Log"}
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={handleImportCpSatLegacyLog}
+          disabled={isBusy}
+          startIcon={isImportingCpSatLegacy ? <CircularProgress size={16} /> : undefined}
+        >
+          {isImportingCpSatLegacy ? "Импортируем..." : "Загрузить Legacy CP-SAT Log"}
         </Button>
       </Stack>
       <Box

@@ -633,7 +633,7 @@ const SolverControlsWidget = () => {
       </Stack>
       {isFromCpSatLog ? (
         <Alert severity="info" variant="outlined">
-          Текущие данные импортированы из Enriched CP-SAT Log. Для точного повторного запуска
+          Текущие данные импортированы из Capacity Log. Для точного повторного запуска
           решателя загрузите исходный solver_input или сырой request, а не собирайте вход по логу.
         </Alert>
       ) : null}

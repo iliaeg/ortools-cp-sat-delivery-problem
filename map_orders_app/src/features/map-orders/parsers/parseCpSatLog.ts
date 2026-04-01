@@ -835,14 +835,14 @@ export const buildStateFromCpSatLog = (
       routePoints.push({ point, routePos });
     });
 
-    routeNodes.push(0);
-    solverRoutes.push(routeNodes);
-
     const validPolyline = routePoints
       .map(({ point }) => [point.lat, point.lon] as [number, number])
       .filter(([lat, lon]) => Number.isFinite(lat) && Number.isFinite(lon));
 
     if (routePoints.length > 0 && validPolyline.length > 0) {
+      routeNodes.push(0);
+      solverRoutes.push(routeNodes);
+
       const segments: MapRouteSegment["segments"] = [];
       for (let idx = 0; idx < routePoints.length - 1; idx += 1) {
         const current = routePoints[idx];
