@@ -65,6 +65,48 @@ describe("mapPresentation", () => {
     ]);
   });
 
+  it("does not show shelf time when current time is before ready time", () => {
+    const point: DeliveryPoint = {
+      internalId: "p-shelf-none",
+      id: "o-shelf-none",
+      kind: "order",
+      seq: 1,
+      lat: 0,
+      lon: 0,
+      boxes: 1,
+      createdAt: "17:58:58",
+      readyAt: "18:30:54",
+      courierWaitMin: 3,
+    };
+
+    const tooltip = buildPointTooltipContent(point, "18:27:54");
+    expect(tooltip.lines.some((line) => line.text.startsWith("Время на полке:"))).toBe(false);
+  });
+
+  it("shows shelf time before departure wait and rounds with Math.round", () => {
+    const point: DeliveryPoint = {
+      internalId: "p-shelf",
+      id: "o-shelf",
+      kind: "order",
+      seq: 1,
+      lat: 0,
+      lon: 0,
+      boxes: 1,
+      createdAt: "17:58:58",
+      readyAt: "18:30:30",
+      courierWaitMin: 7,
+    };
+
+    const tooltip = buildPointTooltipContent(point, "18:33:00");
+    const shelfIndex = tooltip.lines.findIndex((line) => line.text === "Время на полке: 3 мин");
+    const departWaitIndex = tooltip.lines.findIndex((line) =>
+      line.text === "Время ожидания отправления: 7 мин");
+
+    expect(shelfIndex).toBeGreaterThanOrEqual(0);
+    expect(departWaitIndex).toBeGreaterThanOrEqual(0);
+    expect(shelfIndex).toBeLessThan(departWaitIndex);
+  });
+
   it("marks order as ready only when toggle is enabled and order is in ready set", () => {
     const point: DeliveryPoint = {
       internalId: "order-1",

@@ -53,6 +53,19 @@ const getPreparationWaitMinutes = (point: DeliveryPoint, currentTime?: string): 
   return diff;
 };
 
+const getShelfTimeMinutes = (point: DeliveryPoint, currentTime?: string): number | null => {
+  const readyMinutes = parseTimeToMinutes(point.readyAt);
+  const currentMinutes = parseTimeToMinutes(currentTime);
+  if (readyMinutes === null || currentMinutes === null) {
+    return null;
+  }
+  const diff = currentMinutes - readyMinutes;
+  if (!Number.isFinite(diff) || diff <= 0) {
+    return null;
+  }
+  return diff;
+};
+
 const parseUtcTimeParts = (time: string): [number, number, number] | null => {
   if (!/^\d{2}:\d{2}:\d{2}$/.test(time)) {
     return null;
@@ -173,6 +186,14 @@ export const buildPointTooltipContent = (
     if (typeof prepWaitMin === "number") {
       lines.push({
         text: `Остаток ВПЗ: ${Math.round(prepWaitMin)} мин`,
+        emphasized: true,
+      });
+    }
+
+    const shelfTimeMin = getShelfTimeMinutes(point, currentTime);
+    if (typeof shelfTimeMin === "number") {
+      lines.push({
+        text: `Время на полке: ${Math.round(shelfTimeMin)} мин`,
         emphasized: true,
       });
     }
