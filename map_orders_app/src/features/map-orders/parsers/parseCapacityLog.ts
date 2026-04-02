@@ -1,4 +1,5 @@
 import type { MapOrdersPersistedState } from "@/shared/types/points";
+import type { SolverDomainResponse, SolverInputPayload } from "@/shared/types/solver";
 import {
   buildStateFromCpSatLog,
   CpSatLogParseError,
@@ -168,6 +169,8 @@ export const buildStateFromCapacityLog = (
 ): Partial<MapOrdersPersistedState> => {
   const { root, requestSource, requestEnvelope, currentState, responseSource, predictions } =
     extractCapacityNodes(payload);
+  const rawRequestDto = pickProperty(requestSource, "RequestDto", "request_dto");
+  const rawResponseDto = pickProperty(responseSource, "ResponseDto", "response_dto");
 
   const payloadContainer = toRecord(pickProperty(root, "Payload", "payload"));
   const actualUnitAndSettings = pickProperty(
@@ -400,5 +403,21 @@ export const buildStateFromCapacityLog = (
     normalizedPayload.UnitId = String(unitId);
   }
 
-  return buildStateFromCpSatLog(normalizedPayload);
+  const nextState = buildStateFromCpSatLog(normalizedPayload);
+
+  if (nextState.solverInput && rawRequestDto && typeof rawRequestDto === "object") {
+    nextState.solverInput = {
+      ...nextState.solverInput,
+      request: rawRequestDto as SolverInputPayload["request"],
+    };
+  }
+
+  if (nextState.solverResult && rawResponseDto && typeof rawResponseDto === "object") {
+    nextState.solverResult = {
+      ...nextState.solverResult,
+      domainResponse: rawResponseDto as SolverDomainResponse,
+    };
+  }
+
+  return nextState;
 };

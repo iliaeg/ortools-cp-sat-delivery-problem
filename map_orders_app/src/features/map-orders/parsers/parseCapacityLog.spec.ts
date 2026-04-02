@@ -31,7 +31,7 @@ describe("parseCapacityLog", () => {
   });
 
   it("accepts new Capacity format and builds state", () => {
-    const raw = JSON.stringify({
+    const payload = {
       Request: {
         RequestDto: {
           inputs: [
@@ -103,7 +103,8 @@ describe("parseCapacityLog", () => {
           },
         },
       },
-    });
+    };
+    const raw = JSON.stringify(payload);
 
     const parsed = parseCapacityLogPayload(raw);
     const parsedRecord = parsed as {
@@ -119,10 +120,12 @@ describe("parseCapacityLog", () => {
     expect(state.cpSatStatus).toBe("FEASIBLE");
     expect(state.points).toHaveLength(2);
     expect(state.solverResult?.result.routes).toEqual([[0, 1, 0]]);
+    expect(state.solverInput?.request).toEqual(payload.Request.RequestDto);
+    expect(state.solverResult?.domainResponse).toEqual(payload.Response.ResponseDto);
   });
 
   it("parses full Payload-wrapped Capacity format and keeps UI-critical fields", () => {
-    const raw = JSON.stringify({
+    const payload = {
       Timestamp: "2026-04-01T18:50:11.9309876Z",
       Payload: {
         ActualUnitAndSettings: {
@@ -283,7 +286,8 @@ describe("parseCapacityLog", () => {
           },
         },
       },
-    });
+    };
+    const raw = JSON.stringify(payload);
 
     const parsed = parseCapacityLogPayload(raw);
     const state = buildStateFromCapacityLog(parsed);
@@ -336,5 +340,7 @@ describe("parseCapacityLog", () => {
     };
     expect(additionalParams.time_limit).toBe(11);
     expect(additionalParams.solver_settings?.time_limit_seconds).toBe(11);
+    expect(state.solverInput?.request).toEqual(payload.Payload.Request.RequestDto);
+    expect(state.solverResult?.domainResponse).toEqual(payload.Payload.Response.ResponseDto);
   });
 });
