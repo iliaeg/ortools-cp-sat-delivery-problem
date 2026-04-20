@@ -57,7 +57,7 @@ describe("parseCapacityLog", () => {
                       available_at_utc: "2026-04-01T18:27:43.0000000Z",
                     },
                   ],
-                  travel_time_matrix_minutes: [
+                  total_time_matrix_minutes: [
                     [0, 15],
                     [14, 0],
                   ],
@@ -120,6 +120,7 @@ describe("parseCapacityLog", () => {
     expect(state.cpSatStatus).toBe("FEASIBLE");
     expect(state.points).toHaveLength(2);
     expect(state.solverResult?.result.routes).toEqual([[0, 1, 0]]);
+    expect(state.points?.find((point) => point.kind === "order")?.depotDirectMin).toBe(15);
     expect(state.solverInput?.request).toEqual(payload.Request.RequestDto);
     expect(state.solverResult?.domainResponse).toEqual(payload.Response.ResponseDto);
   });

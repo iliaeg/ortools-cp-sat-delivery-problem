@@ -194,6 +194,8 @@ export const buildStateFromCapacityLog = (
   const requestCouriers = asArray<UnknownRecord>(pickProperty(currentState, "couriers", "Couriers"));
   const requestTravelMatrix = asArray(pickProperty(
     currentState,
+    "total_time_matrix_minutes",
+    "TotalTimeMatrixMinutes",
     "travel_time_matrix_minutes",
     "TravelTimeMatrixMinutes",
   ));
