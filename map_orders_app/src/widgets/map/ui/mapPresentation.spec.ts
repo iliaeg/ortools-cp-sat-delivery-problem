@@ -20,7 +20,7 @@ describe("mapPresentation", () => {
     );
 
     expect(cards).toEqual([
-      { label: "Прибытие курьеров", value: "-1 • 0 • 13 • 35" },
+      { label: "Прибытие курьеров", value: "-1 • 0 • 13 • 36" },
       { label: "Заказы", value: "9 / 12" },
       { label: "Курьеры", value: "5 / 7" },
       { label: "Целевая функция", value: "259.08" },

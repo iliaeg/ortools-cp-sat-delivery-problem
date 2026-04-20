@@ -263,7 +263,11 @@ const minutesBetween = (
     return undefined;
   }
   const deltaMs = target.getTime() - reference.getTime();
-  return Math.round(deltaMs / 60000);
+  // Round toward "later time":
+  // - positive deltas go up (0.1 -> 1)
+  // - negative deltas go toward zero (-0.9 -> 0)
+  const rounded = Math.ceil(deltaMs / 60000);
+  return Object.is(rounded, -0) ? 0 : rounded;
 };
 
 const formatTimePart = (value: Date | null): string => {

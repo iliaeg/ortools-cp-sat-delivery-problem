@@ -296,7 +296,7 @@ export const buildMetricsCards = (
     }
   }
   courierWaitValues.sort((a, b) => a - b);
-  const courierWaitRounded: number[] = courierWaitValues.map((value) => Math.round(value));
+  const courierWaitRounded: number[] = courierWaitValues.map((value) => Math.ceil(value));
 
   const formatRatio = (
     count: number | undefined,

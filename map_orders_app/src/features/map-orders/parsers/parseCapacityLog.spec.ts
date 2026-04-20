@@ -326,7 +326,7 @@ describe("parseCapacityLog", () => {
     const couriers = JSON.parse(state.couriersText ?? "{}") as {
       courier_available_offset?: number[];
     };
-    expect(couriers.courier_available_offset).toEqual([-14, 20]);
+    expect(couriers.courier_available_offset).toEqual([-13, 21]);
 
     const weights = JSON.parse(state.weightsText ?? "{}") as {
       max_batch_size?: number;
@@ -343,5 +343,67 @@ describe("parseCapacityLog", () => {
     expect(additionalParams.solver_settings?.time_limit_seconds).toBe(11);
     expect(state.solverInput?.request).toEqual(payload.Payload.Request.RequestDto);
     expect(state.solverResult?.domainResponse).toEqual(payload.Payload.Response.ResponseDto);
+  });
+
+  it("rounds courier arrival offsets toward later time", () => {
+    const payload = {
+      Request: {
+        RequestDto: {
+          inputs: [
+            {
+              data: {
+                current_state: {
+                  unit: {
+                    coordinates: { latitude: 52.967323, longitude: 36.064152 },
+                  },
+                  current_time_utc: "2026-04-15T16:49:59.3595883Z",
+                  orders: [
+                    {
+                      order_id: "o1",
+                      order_number: "199",
+                      created_at_utc: "2026-04-15T16:26:48.0000000Z",
+                      ready_at_utc: "2026-04-15T16:42:51.0000000Z",
+                      delivery_coordinates: { latitude: 52.979811, longitude: 36.084895 },
+                    },
+                  ],
+                  couriers: [
+                    {
+                      courier_id: "c1",
+                      available_at_utc: "2026-04-15T16:50:26.0000000Z",
+                    },
+                    {
+                      courier_id: "c2",
+                      available_at_utc: "2026-04-15T16:49:40.0000000Z",
+                    },
+                  ],
+                  total_time_matrix_minutes: [
+                    [0, 11],
+                    [10, 0],
+                  ],
+                },
+              },
+            },
+          ],
+        },
+      },
+      Response: {
+        status: "Feasible",
+        ResponseDto: {
+          predictions: {
+            status: "FEASIBLE",
+            dispatches: [],
+            order_plans: [],
+          },
+        },
+      },
+    };
+
+    const state = buildStateFromCapacityLog(payload);
+    const couriers = JSON.parse(state.couriersText ?? "{}") as {
+      courier_available_offset?: number[];
+    };
+
+    expect(couriers.courier_available_offset).toEqual([1, 0]);
+    expect(state.solverInput?.courier_available_offset).toEqual([1, 0]);
   });
 });
